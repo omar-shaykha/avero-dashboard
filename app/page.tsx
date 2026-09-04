@@ -26,8 +26,73 @@ export default async function Home() {
 
   const supabase = createClient(supabaseUrl, supabaseSecretKey);
 
-  // Fetch all leads for stats
-  const { data: allLeads } = await supabase
+  // Step 1: Get user's company_id from user_profiles
+  const { data: userProfile, error: userProfileError } = await supabase
+    .from("user_profiles")
+    .select("company_id")
+    .eq("user_id", user.id)
+    .single();
+
+  // Handle userProfileError explicitly
+  if (userProfileError) {
+    console.error("User profile error:", userProfileError);
+  }
+
+  // Check if company_id exists - if not, show empty state
+  if (!userProfile?.company_id) {
+    const userName = user.user_metadata?.name || user.email?.split("@")[0];
+
+    return (
+      <div className="min-h-screen bg-slate-950">
+        {/* Sidebar */}
+        <Sidebar userEmail={user.email} userName={userName} />
+
+        {/* Main Content */}
+        <div className="ml-64 flex flex-col min-h-screen">
+          {/* Dashboard Header */}
+          <DashboardHeader userEmail={user.email} userName={userName} />
+
+          {/* Empty State */}
+          <div className="flex-1 flex items-center justify-center px-6 py-12">
+            <div className="w-full max-w-md text-center">
+              <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-slate-800/50 border border-slate-700 mb-6">
+                <svg
+                  className="w-8 h-8 text-slate-400"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={1.5}
+                    d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
+                </svg>
+              </div>
+
+              <h2 className="text-2xl font-bold text-white mb-2">
+                Account not configured
+              </h2>
+
+              <p className="text-slate-400 mb-8">
+                Your account is not assigned to a company yet.
+              </p>
+
+              <p className="text-sm text-slate-500">
+                Please contact your administrator to set up your account.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const companyId = userProfile.company_id;
+
+  // Step 2: Fetch all leads filtered by company_id
+  const { data: allLeads, error: leadsError } = await supabase
     .from("leads")
     .select(`
       id,
@@ -46,9 +111,12 @@ export default async function Home() {
         email
       )
     `)
+    .eq("company_id", companyId)
     .order("updated_at", { ascending: false });
 
-  console.log("LEADS ERROR: checked");
+  if (leadsError) {
+    console.error("Leads error:", leadsError);
+  }
 
   const normalizedLeads = (allLeads || []).map((lead: any) => ({
     ...lead,
