@@ -49,7 +49,24 @@ export async function PATCH(
 
     const supabase = createClient(supabaseUrl, supabaseSecretKey);
 
-    // Update the lead status
+    // Tenant isolation: Get user's company_id from user_profiles
+    const { data: userProfile, error: userProfileError } = await supabase
+      .from("user_profiles")
+      .select("company_id")
+      .eq("user_id", user.id)
+      .single();
+
+    if (userProfileError || !userProfile?.company_id) {
+      console.error("User profile error:", userProfileError);
+      return new Response(
+        JSON.stringify({ error: "Forbidden" }),
+        { status: 403, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
+    const companyId = userProfile.company_id;
+
+    // Update the lead status only if it belongs to the user's company
     const { data, error } = await supabase
       .from("leads")
       .update({
@@ -57,14 +74,23 @@ export async function PATCH(
         updated_at: new Date().toISOString(),
       })
       .eq("id", id)
+      .eq("company_id", companyId)
       .select()
-      .single();
+      .maybeSingle();
 
     if (error) {
       console.error("Supabase error:", error);
       return new Response(
-        JSON.stringify({ error: "Failed to update lead status" }),
+        JSON.stringify({ error: "Internal server error" }),
         { status: 500, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
+    if (!data) {
+      // Lead does not belong to this company
+      return new Response(
+        JSON.stringify({ error: "Forbidden" }),
+        { status: 403, headers: { "Content-Type": "application/json" } }
       );
     }
 
