@@ -46,6 +46,13 @@ export default async function Home() {
 
   console.log("LEADS ERROR:", leadsError);
 
+  const normalizedLeads = (leads || []).map((lead: any) => ({
+    ...lead,
+    customers: Array.isArray(lead.customers)
+      ? lead.customers[0] || null
+      : lead.customers || null,
+  }));
+
   return (
     <main className="min-h-screen bg-black p-6 text-white md:p-10">
       <div className="mx-auto max-w-7xl">
@@ -116,15 +123,21 @@ export default async function Home() {
                       className="border-b border-zinc-900 last:border-0"
                     >
                       <td className="p-4 font-medium">
-                        {lead.customers?.name || "Unknown"}
+                        {Array.isArray(lead.customers)
+                          ? lead.customers[0]?.name || "Unknown"
+                          : lead.customers?.name || "Unknown"}
                       </td>
 
                       <td className="p-4 text-zinc-400">
-                        {lead.customers?.phone || "-"}
+                        {Array.isArray(lead.customers)
+                          ? lead.customers[0]?.phone || "-"
+                          : lead.customers?.phone || "-"}
                       </td>
 
                       <td className="p-4 text-zinc-400">
-                        {lead.customers?.email || "-"}
+                        {Array.isArray(lead.customers)
+                          ? lead.customers[0]?.email || "-"
+                          : lead.customers?.email || "-"}
                       </td>
 
                       <td className="p-4">
@@ -173,7 +186,7 @@ export default async function Home() {
         </div>
 
         {/* Sales Pipeline */}
-        <LeadPipeline leads={leads || []} />
+        <LeadPipeline leads={normalizedLeads} />
 
       </div>
     </main>
