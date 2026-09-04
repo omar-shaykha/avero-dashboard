@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import { createClient as createServerClient } from "@/lib/supabase/server";
 
 const VALID_STATUSES = ["new", "qualified", "quotation", "negotiation", "won", "lost"];
 
@@ -8,6 +9,19 @@ export async function PATCH(
 ) {
   try {
     const { id } = await params;
+
+    // Authenticate user
+    const authClient = await createServerClient();
+    const {
+      data: { user },
+    } = await authClient.auth.getUser();
+
+    if (!user) {
+      return new Response(
+        JSON.stringify({ error: "Unauthorized" }),
+        { status: 401, headers: { "Content-Type": "application/json" } }
+      );
+    }
 
     const body = await request.json();
     const { status } = body;
