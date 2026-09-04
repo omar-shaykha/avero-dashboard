@@ -17,7 +17,7 @@ interface LeadData {
     name: string | null;
     phone: string | null;
     email: string | null;
-  }[] | null;
+  } | null;
 }
 
 interface LeadPipelineProps {
@@ -84,12 +84,12 @@ export default function LeadPipeline({ leads }: LeadPipelineProps) {
                         >
                           {/* Customer Name */}
                           <p className="font-medium text-white">
-                            {lead.customers?.[0]?.name || "Unknown"}
+                            {lead.customers?.name || "Unknown"}
                           </p>
 
                           {/* Phone */}
                           <p className="mt-1 text-zinc-400">
-                            {lead.customers?.[0]?.phone || "-"}
+                            {lead.customers?.phone || "-"}
                           </p>
 
                           {/* Service */}
@@ -174,19 +174,19 @@ export default function LeadPipeline({ leads }: LeadPipelineProps) {
                 <div className="flex items-start justify-between">
                   <span className="text-sm text-zinc-400">Name</span>
                   <span className="text-right font-medium">
-                    {selectedLead.customers?.[0]?.name || "-"}
+                    {selectedLead.customers?.name || "-"}
                   </span>
                 </div>
                 <div className="flex items-start justify-between">
                   <span className="text-sm text-zinc-400">Phone</span>
                   <span className="text-right font-medium">
-                    {selectedLead.customers?.[0]?.phone || "-"}
+                    {selectedLead.customers?.phone || "-"}
                   </span>
                 </div>
                 <div className="flex items-start justify-between">
                   <span className="text-sm text-zinc-400">Email</span>
                   <span className="break-all text-right font-medium">
-                    {selectedLead.customers?.[0]?.email || "-"}
+                    {selectedLead.customers?.email || "-"}
                   </span>
                 </div>
               </div>
