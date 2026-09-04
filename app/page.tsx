@@ -1,5 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 
+export const dynamic = "force-dynamic";
+
 export default async function Home() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
   const supabaseSecretKey = process.env.SUPABASE_SECRET_KEY!;
