@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import LeadPipeline from "@/app/components/LeadPipeline";
 
 export const dynamic = "force-dynamic";
 
@@ -44,21 +45,6 @@ export default async function Home() {
     .order("updated_at", { ascending: false });
 
   console.log("LEADS ERROR:", leadsError);
-
-  const stages = [
-    "new",
-    "qualified",
-    "quotation",
-    "negotiation",
-    "won",
-    "lost",
-  ];
-
-  const getLeadsForStage = (stage: string) => {
-    return leads?.filter(
-      (lead: any) => (lead.status || "new").toLowerCase() === stage
-    ) || [];
-  };
 
   return (
     <main className="min-h-screen bg-black p-6 text-white md:p-10">
@@ -187,88 +173,7 @@ export default async function Home() {
         </div>
 
         {/* Sales Pipeline */}
-        <div className="mt-12">
-          <div className="mb-5">
-            <h2 className="text-2xl font-semibold">Sales Pipeline</h2>
-            <p className="mt-1 text-sm text-zinc-500">
-              Lead progression across the AVERO AI sales process
-            </p>
-          </div>
-
-          <div className="overflow-x-auto">
-            <div className="flex gap-4 pb-4">
-              {stages.map((stage) => {
-                const stageLeads = getLeadsForStage(stage);
-                return (
-                  <div
-                    key={stage}
-                    className="min-w-[260px] rounded-2xl border border-zinc-800 bg-zinc-950 p-4"
-                  >
-                    {/* Stage Header */}
-                    <div className="mb-4 border-b border-zinc-800 pb-3">
-                      <h3 className="font-semibold capitalize">
-                        {stage} ({stageLeads.length})
-                      </h3>
-                    </div>
-
-                    {/* Lead Cards */}
-                    <div className="flex flex-col gap-3">
-                      {stageLeads.length > 0 ? (
-                        stageLeads.map((lead: any) => (
-                          <div
-                            key={lead.id}
-                            className="rounded-lg border border-zinc-700 bg-zinc-900 p-3 text-xs"
-                          >
-                            {/* Customer Name */}
-                            <p className="font-medium text-white">
-                              {lead.customers?.name || "Unknown"}
-                            </p>
-
-                            {/* Phone */}
-                            <p className="mt-1 text-zinc-400">
-                              {lead.customers?.phone || "-"}
-                            </p>
-
-                            {/* Service */}
-                            <p className="text-zinc-400">
-                              {lead.service_type || "-"}
-                            </p>
-
-                            {/* City */}
-                            <p className="text-zinc-400">
-                              {lead.city || "-"}
-                            </p>
-
-                            {/* People Count */}
-                            <p className="text-zinc-400">
-                              People: {lead.people_count ?? "-"}
-                            </p>
-
-                            {/* Interest Badge */}
-                            <div className="mt-2">
-                              <span className="inline-block rounded-full border border-zinc-600 px-2 py-1 text-xs text-zinc-300">
-                                {lead.interest_level || "-"}
-                              </span>
-                            </div>
-
-                            {/* Event Date */}
-                            <p className="mt-2 text-zinc-500">
-                              {lead.event_date || "-"}
-                            </p>
-                          </div>
-                        ))
-                      ) : (
-                        <p className="text-center text-zinc-500">
-                          No leads
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </div>
+        <LeadPipeline leads={leads || []} />
 
       </div>
     </main>
