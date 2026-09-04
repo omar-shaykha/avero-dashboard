@@ -33,6 +33,21 @@ const STATUS_OPTIONS = [
   { value: "lost", label: "Lost" },
 ];
 
+const STAGE_CONFIG: Record<string, { label: string; color: string; bgColor: string }> = {
+  new: { label: "New", color: "from-blue-500 to-blue-600", bgColor: "bg-blue-950/30" },
+  qualified: { label: "Qualified", color: "from-emerald-500 to-emerald-600", bgColor: "bg-emerald-950/30" },
+  quotation: { label: "Quotation", color: "from-amber-500 to-amber-600", bgColor: "bg-amber-950/30" },
+  negotiation: { label: "Negotiation", color: "from-purple-500 to-purple-600", bgColor: "bg-purple-950/30" },
+  won: { label: "Won", color: "from-green-500 to-green-600", bgColor: "bg-green-950/30" },
+  lost: { label: "Lost", color: "from-red-500 to-red-600", bgColor: "bg-red-950/30" },
+};
+
+const INTEREST_CONFIG: Record<string, { badge: string; dot: string }> = {
+  "High": { badge: "bg-red-900/40 text-red-300 border-red-700", dot: "bg-red-500" },
+  "Medium": { badge: "bg-amber-900/40 text-amber-300 border-amber-700", dot: "bg-amber-500" },
+  "Low": { badge: "bg-blue-900/40 text-blue-300 border-blue-700", dot: "bg-blue-500" },
+};
+
 export default function LeadPipeline({ leads: initialLeads }: LeadPipelineProps) {
   const [localLeads, setLocalLeads] = useState(initialLeads);
   const [selectedLead, setSelectedLead] = useState<LeadData | null>(null);
@@ -131,81 +146,108 @@ export default function LeadPipeline({ leads: initialLeads }: LeadPipelineProps)
     <>
       {/* Sales Pipeline */}
       <div className="mt-12">
-        <div className="mb-5">
+        <div className="mb-6">
           <h2 className="text-2xl font-semibold">Sales Pipeline</h2>
           <p className="mt-1 text-sm text-zinc-500">
             Lead progression across the AVERO AI sales process
           </p>
         </div>
 
-        <div className="overflow-x-auto">
-          <div className="flex gap-4 pb-4">
+        {/* Desktop Grid: 6 columns on lg+, scrolling on smaller screens */}
+        <div className="overflow-x-auto rounded-xl lg:overflow-visible">
+          <div className="grid gap-3 pb-2 lg:grid-cols-6 md:grid-cols-3 sm:grid-cols-2 min-w-max lg:min-w-0">
             {stages.map((stage) => {
               const stageLeads = getLeadsForStage(stage);
+              const config = STAGE_CONFIG[stage];
+              
               return (
                 <div
                   key={stage}
-                  className="min-w-[240px] rounded-2xl border border-zinc-800 bg-zinc-950 p-4"
+                  className="w-[260px] lg:w-auto flex flex-col rounded-lg border border-zinc-800 bg-zinc-950/50 backdrop-blur-sm overflow-hidden"
                 >
                   {/* Stage Header */}
-                  <div className="mb-4 border-b border-zinc-800 pb-3">
-                    <h3 className="font-semibold capitalize">
-                      {stage} ({stageLeads.length})
-                    </h3>
+                  <div className={`${config.bgColor} border-b border-zinc-800 px-4 py-3`}>
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <div className={`h-2 w-2 rounded-full bg-gradient-to-r ${config.color} flex-shrink-0`} />
+                        <h3 className="font-semibold text-white capitalize truncate">
+                          {config.label}
+                        </h3>
+                      </div>
+                      <span className="inline-flex items-center justify-center min-w-fit px-2 py-1 rounded-full bg-zinc-900/80 text-xs font-medium text-zinc-300">
+                        {stageLeads.length}
+                      </span>
+                    </div>
                   </div>
 
                   {/* Lead Cards */}
-                  <div className="flex flex-col gap-3">
+                  <div className="flex flex-col gap-2 p-3">
                     {stageLeads.length > 0 ? (
-                      stageLeads.map((lead) => (
-                        <button
-                          key={lead.id}
-                          onClick={() => {
-                            setSelectedLead(lead);
-                            setSelectedStatus(lead.status || "new");
-                          }}
-                          className="cursor-pointer rounded-lg border border-zinc-700 bg-zinc-900 p-3 text-left text-xs transition-colors hover:border-zinc-600 hover:bg-zinc-800"
-                        >
-                          {/* Customer Name */}
-                          <p className="font-medium text-white">
-                            {lead.customers?.name || "Unknown"}
-                          </p>
+                      stageLeads.map((lead) => {
+                        const interestConfig = INTEREST_CONFIG[lead.interest_level] || 
+                          { badge: "bg-zinc-900/40 text-zinc-300 border-zinc-700", dot: "bg-zinc-500" };
+                        
+                        return (
+                          <button
+                            key={lead.id}
+                            onClick={() => {
+                              setSelectedLead(lead);
+                              setSelectedStatus(lead.status || "new");
+                            }}
+                            className="group relative w-full text-left rounded-lg border border-zinc-700 bg-zinc-900/40 p-3 transition-all duration-200 hover:border-zinc-600 hover:bg-zinc-900/60 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-zinc-600"
+                          >
+                            {/* Customer Name */}
+                            <p className="font-medium text-white text-sm truncate">
+                              {lead.customers?.name || "Unknown"}
+                            </p>
 
-                          {/* Phone */}
-                          <p className="mt-1 text-zinc-400">
-                            {lead.customers?.phone || "-"}
-                          </p>
+                            {/* Phone */}
+                            {lead.customers?.phone && (
+                              <p className="mt-1 text-xs text-zinc-400 truncate">
+                                📞 {lead.customers.phone}
+                              </p>
+                            )}
 
-                          {/* Service */}
-                          <p className="text-zinc-400">
-                            {lead.service_type || "-"}
-                          </p>
+                            {/* Service + City in one line */}
+                            <div className="mt-2 flex items-center justify-between gap-1 text-xs text-zinc-400">
+                              {lead.service_type && (
+                                <span className="truncate">{lead.service_type}</span>
+                              )}
+                              {lead.city && (
+                                <span className="truncate text-right">📍 {lead.city}</span>
+                              )}
+                            </div>
 
-                          {/* City */}
-                          <p className="text-zinc-400">
-                            {lead.city || "-"}
-                          </p>
+                            {/* People Count + Event Date */}
+                            {(lead.people_count || lead.event_date) && (
+                              <div className="mt-2 flex items-center justify-between gap-1 text-xs text-zinc-400">
+                                {lead.people_count && (
+                                  <span>👥 {lead.people_count}</span>
+                                )}
+                                {lead.event_date && (
+                                  <span className="truncate text-right">📅 {lead.event_date}</span>
+                                )}
+                              </div>
+                            )}
 
-                          {/* People Count */}
-                          <p className="text-zinc-400">
-                            People: {lead.people_count ?? "-"}
-                          </p>
-
-                          {/* Interest Badge */}
-                          <div className="mt-2">
-                            <span className="inline-block rounded-full border border-zinc-600 px-2 py-1 text-xs text-zinc-300">
-                              {lead.interest_level || "-"}
-                            </span>
-                          </div>
-
-                          {/* Event Date */}
-                          <p className="mt-2 text-zinc-500">
-                            {lead.event_date || "-"}
-                          </p>
-                        </button>
-                      ))
+                            {/* Interest Badge */}
+                            {lead.interest_level && (
+                              <div className="mt-2 flex items-center gap-2">
+                                <div className={`flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-medium border ${interestConfig.badge}`}>
+                                  <span className={`h-1.5 w-1.5 rounded-full ${interestConfig.dot}`} />
+                                  {lead.interest_level}
+                                </div>
+                              </div>
+                            )}
+                          </button>
+                        );
+                      })
                     ) : (
-                      <p className="text-center text-zinc-500">No leads</p>
+                      <div className="flex flex-col items-center justify-center gap-2 py-8 text-center">
+                        <div className="text-xl">📭</div>
+                        <p className="text-xs font-medium text-zinc-400">No leads</p>
+                        <p className="text-xs text-zinc-500">Leads in this stage will appear here</p>
+                      </div>
                     )}
                   </div>
                 </div>
@@ -218,17 +260,17 @@ export default function LeadPipeline({ leads: initialLeads }: LeadPipelineProps)
       {/* Lead Details Modal */}
       {selectedLead && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
           onClick={closeModal}
         >
           <div
-            className="relative max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-zinc-700 bg-zinc-950 p-6 text-white shadow-2xl"
+            className="relative max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-xl border border-zinc-700 bg-zinc-950 p-6 text-white shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Close Button */}
             <button
               onClick={closeModal}
-              className="absolute right-4 top-4 rounded-full p-2 text-zinc-400 hover:bg-zinc-800 hover:text-white"
+              className="absolute right-4 top-4 rounded-full p-2 text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-white"
               aria-label="Close"
             >
               <svg
@@ -293,7 +335,7 @@ export default function LeadPipeline({ leads: initialLeads }: LeadPipelineProps)
                         fill="currentColor"
                         viewBox="0 0 24 24"
                       >
-                        <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.67-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.076 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421-7.403h-.004a9.87 9.87 0 00-9.746 13.795c.326.842.603 1.487.928 2.595l.6 1.894 1.994-.51c1.457.363 2.92.37 4.511-.07 5.823-1.604 9.376-7.099 8.856-13.072-.52-5.973-5.354-10.439-11.139-10.239z" />
+                        <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.8[...]
                       </svg>
                       Open WhatsApp
                     </a>
@@ -307,7 +349,7 @@ export default function LeadPipeline({ leads: initialLeads }: LeadPipelineProps)
                         fill="currentColor"
                         viewBox="0 0 24 24"
                       >
-                        <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.67-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.076 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421-7.403h-.004a9.87 9.87 0 00-9.746 13.795c.326.842.603 1.487.928 2.595l.6 1.894 1.994-.51c1.457.363 2.92.37 4.511-.07 5.823-1.604 9.376-7.099 8.856-13.072-.52-5.973-5.354-10.439-11.139-10.239z" />
+                        <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.8[...]
                       </svg>
                       Open WhatsApp
                     </button>
@@ -323,7 +365,7 @@ export default function LeadPipeline({ leads: initialLeads }: LeadPipelineProps)
                 <select
                   value={selectedStatus}
                   onChange={handleStatusChange}
-                  className="w-full rounded-lg border border-zinc-700 bg-zinc-900 px-4 py-2 text-white focus:border-zinc-600 focus:outline-none"
+                  className="w-full rounded-lg border border-zinc-700 bg-zinc-900 px-4 py-2 text-white transition-colors focus:border-zinc-600 focus:outline-none focus:ring-2 focus:ring-zinc-600/50"
                 >
                   {STATUS_OPTIONS.map((option) => (
                     <option key={option.value} value={option.value}>
@@ -392,13 +434,13 @@ export default function LeadPipeline({ leads: initialLeads }: LeadPipelineProps)
                 </div>
                 <div className="flex items-start justify-between">
                   <span className="text-sm text-zinc-400">Interest Level</span>
-                  <span className="inline-block rounded-full border border-zinc-600 px-2 py-1 text-xs font-medium text-zinc-300">
+                  <span className={`inline-block rounded-md px-2 py-1 text-xs font-medium border ${INTEREST_CONFIG[selectedLead.interest_level]?.badge || "bg-zinc-900/40 text-zinc-300 border-zinc-700"}`}>
                     {selectedLead.interest_level || "-"}
                   </span>
                 </div>
                 <div className="flex items-start justify-between">
                   <span className="text-sm text-zinc-400">Current Status</span>
-                  <span className="inline-block rounded-full bg-zinc-800 px-2 py-1 text-xs font-medium capitalize">
+                  <span className="inline-block rounded-md bg-zinc-800 px-2 py-1 text-xs font-medium capitalize">
                     {selectedLead.status || "new"}
                   </span>
                 </div>
