@@ -6,19 +6,37 @@ export default async function Home() {
 
   const supabase = createClient(supabaseUrl, supabaseSecretKey);
 
-  const { count: totalCustomers } = await supabase
+  const {
+    count: totalCustomers,
+    error: customersError,
+  } = await supabase
     .from("customers")
     .select("*", { count: "exact", head: true });
 
-  const { count: hotLeads } = await supabase
+  const {
+    count: hotLeads,
+    error: hotLeadsError,
+  } = await supabase
     .from("leads")
     .select("*", { count: "exact", head: true })
     .eq("interest_level", "High");
 
-  const { count: quotations } = await supabase
+  const {
+    count: quotations,
+    error: quotationsError,
+  } = await supabase
     .from("leads")
     .select("*", { count: "exact", head: true })
     .eq("status", "quotation");
+
+  console.log("SUPABASE DEBUG", {
+    totalCustomers,
+    customersError,
+    hotLeads,
+    hotLeadsError,
+    quotations,
+    quotationsError,
+  });
 
   return (
     <main className="min-h-screen bg-black text-white p-10">
