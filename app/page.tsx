@@ -37,7 +37,8 @@ export default async function Home() {
       updated_at,
       customers (
         name,
-        phone
+        phone,
+        email
       )
     `)
     .order("updated_at", { ascending: false });
@@ -96,6 +97,7 @@ export default async function Home() {
                 <tr>
                   <th className="p-4 font-medium">Customer</th>
                   <th className="p-4 font-medium">Phone</th>
+                  <th className="p-4 font-medium">Email</th>
                   <th className="p-4 font-medium">Service</th>
                   <th className="p-4 font-medium">City</th>
                   <th className="p-4 font-medium">People</th>
@@ -118,6 +120,10 @@ export default async function Home() {
 
                       <td className="p-4 text-zinc-400">
                         {lead.customers?.phone || "-"}
+                      </td>
+
+                      <td className="p-4 text-zinc-400">
+                        {lead.customers?.email || "-"}
                       </td>
 
                       <td className="p-4">
@@ -152,7 +158,7 @@ export default async function Home() {
                 ) : (
                   <tr>
                     <td
-                      colSpan={8}
+                      colSpan={9}
                       className="p-10 text-center text-zinc-500"
                     >
                       No leads found
