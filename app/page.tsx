@@ -1,6 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { redirect } from "next/navigation";
 import { createClient as createServerClient } from "@/lib/supabase/server";
+import LogoutButton from "@/app/components/LogoutButton";
 import LeadPipeline from "@/app/components/LeadPipeline";
 
 export const dynamic = "force-dynamic";
@@ -71,9 +72,13 @@ export default async function Home() {
       <div className="mx-auto max-w-7xl">
 
         {/* Header */}
-        <div>
-          <h1 className="text-4xl font-bold tracking-tight">AVERO</h1>
-          <p className="mt-2 text-zinc-400">AI Sales Dashboard</p>
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h1 className="text-4xl font-bold tracking-tight">AVERO</h1>
+            <p className="mt-2 text-zinc-400">AI Sales Dashboard</p>
+          </div>
+
+          <LogoutButton />
         </div>
 
         {/* Stats */}
