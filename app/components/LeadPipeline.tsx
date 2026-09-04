@@ -14,7 +14,7 @@ interface LeadData {
   notes: string | null;
   updated_at: string;
   customers: {
-    name: string | null;
+    name: string;
     phone: string | null;
     email: string | null;
   } | null;
@@ -44,6 +44,12 @@ export default function LeadPipeline({ leads }: LeadPipelineProps) {
 
   const closeModal = () => {
     setSelectedLead(null);
+  };
+
+  const getWhatsAppUrl = (phone: string | null | undefined) => {
+    if (!phone) return null;
+    const cleanPhone = phone.replace(/\D/g, "");
+    return cleanPhone ? `https://wa.me/${cleanPhone}` : null;
   };
 
   return (
@@ -191,6 +197,46 @@ export default function LeadPipeline({ leads }: LeadPipelineProps) {
                 </div>
               </div>
             </div>
+
+            {/* WhatsApp Button */}
+            {(() => {
+              const whatsappUrl = getWhatsAppUrl(selectedLead.customers?.phone);
+              return (
+                <div className="mt-6">
+                  {whatsappUrl ? (
+                    <a
+                      href={whatsappUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex w-full items-center justify-center gap-2 rounded-lg bg-green-600 px-4 py-3 font-medium text-white transition-colors hover:bg-green-700 active:bg-green-800"
+                    >
+                      <svg
+                        className="h-5 w-5"
+                        fill="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.67-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.076 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421-7.403h-.004a9.87 9.87 0 00-9.746 13.795c.326.842.603 1.487.928 2.595l.6 1.894 1.994-.51c1.457.363 2.92.37 4.511-.07 5.823-1.604 9.376-7.099 8.856-13.072-.52-5.973-5.354-10.439-11.139-10.239z" />
+                      </svg>
+                      Open WhatsApp
+                    </a>
+                  ) : (
+                    <button
+                      disabled
+                      className="flex w-full items-center justify-center gap-2 rounded-lg bg-zinc-800 px-4 py-3 font-medium text-zinc-500 cursor-not-allowed opacity-50"
+                    >
+                      <svg
+                        className="h-5 w-5"
+                        fill="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.67-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.076 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421-7.403h-.004a9.87 9.87 0 00-9.746 13.795c.326.842.603 1.487.928 2.595l.6 1.894 1.994-.51c1.457.363 2.92.37 4.511-.07 5.823-1.604 9.376-7.099 8.856-13.072-.52-5.973-5.354-10.439-11.139-10.239z" />
+                      </svg>
+                      Open WhatsApp
+                    </button>
+                  )}
+                </div>
+              );
+            })()}
 
             {/* Lead Information Section */}
             <div className="mt-6 border-t border-zinc-800 pt-6">
