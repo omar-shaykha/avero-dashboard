@@ -14,10 +14,10 @@ interface LeadData {
   notes: string | null;
   updated_at: string;
   customers: {
-    name: string;
+    name: string | null;
     phone: string | null;
     email: string | null;
-  } | null;
+  }[] | null;
 }
 
 interface LeadPipelineProps {
@@ -84,12 +84,12 @@ export default function LeadPipeline({ leads }: LeadPipelineProps) {
                         >
                           {/* Customer Name */}
                           <p className="font-medium text-white">
-                            {lead.customers?.name || "Unknown"}
+                            {lead.customers?.[0]?.name || "Unknown"}
                           </p>
 
                           {/* Phone */}
                           <p className="mt-1 text-zinc-400">
-                            {lead.customers?.phone || "-"}
+                            {lead.customers?.[0]?.phone || "-"}
                           </p>
 
                           {/* Service */}
@@ -174,19 +174,19 @@ export default function LeadPipeline({ leads }: LeadPipelineProps) {
                 <div className="flex items-start justify-between">
                   <span className="text-sm text-zinc-400">Name</span>
                   <span className="text-right font-medium">
-                    {selectedLead.customers?.name || "-"}
+                    {selectedLead.customers?.[0]?.name || "-"}
                   </span>
                 </div>
                 <div className="flex items-start justify-between">
                   <span className="text-sm text-zinc-400">Phone</span>
                   <span className="text-right font-medium">
-                    {selectedLead.customers?.phone || "-"}
+                    {selectedLead.customers?.[0]?.phone || "-"}
                   </span>
                 </div>
                 <div className="flex items-start justify-between">
                   <span className="text-sm text-zinc-400">Email</span>
                   <span className="break-all text-right font-medium">
-                    {selectedLead.customers?.email || "-"}
+                    {selectedLead.customers?.[0]?.email || "-"}
                   </span>
                 </div>
               </div>
