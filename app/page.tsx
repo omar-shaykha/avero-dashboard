@@ -1,7 +1,10 @@
 import { createClient } from "@supabase/supabase-js";
 import { redirect } from "next/navigation";
 import { createClient as createServerClient } from "@/lib/supabase/server";
-import LogoutButton from "@/app/components/LogoutButton";
+import Sidebar from "@/app/components/Sidebar";
+import DashboardHeader from "@/app/components/DashboardHeader";
+import SearchToolbar from "@/app/components/SearchToolbar";
+import StatsCards from "@/app/components/StatsCards";
 import LeadPipeline from "@/app/components/LeadPipeline";
 
 export const dynamic = "force-dynamic";
@@ -23,21 +26,8 @@ export default async function Home() {
 
   const supabase = createClient(supabaseUrl, supabaseSecretKey);
 
-  const { count: totalCustomers } = await supabase
-    .from("customers")
-    .select("*", { count: "exact", head: true });
-
-  const { count: hotLeads } = await supabase
-    .from("leads")
-    .select("*", { count: "exact", head: true })
-    .eq("interest_level", "High");
-
-  const { count: quotations } = await supabase
-    .from("leads")
-    .select("*", { count: "exact", head: true })
-    .eq("status", "quotation");
-
-  const { data: leads, error: leadsError } = await supabase
+  // Fetch all leads for stats
+  const { data: allLeads } = await supabase
     .from("leads")
     .select(`
       id,
@@ -58,155 +48,59 @@ export default async function Home() {
     `)
     .order("updated_at", { ascending: false });
 
-  console.log("LEADS ERROR:", leadsError);
+  console.log("LEADS ERROR: checked");
 
-  const normalizedLeads = (leads || []).map((lead: any) => ({
+  const normalizedLeads = (allLeads || []).map((lead: any) => ({
     ...lead,
     customers: Array.isArray(lead.customers)
       ? lead.customers[0] || null
       : lead.customers || null,
   }));
 
+  // Calculate stats
+  const totalLeads = normalizedLeads.length;
+  const qualifiedCount = normalizedLeads.filter(
+    (l) => l.status === "qualified"
+  ).length;
+  const quotationsCount = normalizedLeads.filter(
+    (l) => l.status === "quotation"
+  ).length;
+  const negotiationsCount = normalizedLeads.filter(
+    (l) => l.status === "negotiation"
+  ).length;
+  const wonCount = normalizedLeads.filter((l) => l.status === "won").length;
+  const lostCount = normalizedLeads.filter((l) => l.status === "lost").length;
+
+  const userName = user.user_metadata?.name || user.email?.split("@")[0];
+
   return (
-    <main className="min-h-screen bg-black p-6 text-white md:p-10">
-      <div className="mx-auto max-w-7xl">
+    <div className="min-h-screen bg-slate-950">
+      {/* Sidebar */}
+      <Sidebar userEmail={user.email} userName={userName} />
 
-        {/* Header */}
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <h1 className="text-4xl font-bold tracking-tight">AVERO</h1>
-            <p className="mt-2 text-zinc-400">AI Sales Dashboard</p>
-          </div>
+      {/* Main Content */}
+      <div className="ml-64 flex flex-col min-h-screen">
+        {/* Dashboard Header */}
+        <DashboardHeader userEmail={user.email} userName={userName} />
 
-          <LogoutButton />
-        </div>
+        {/* Search Toolbar */}
+        <SearchToolbar />
 
-        {/* Stats */}
-        <div className="mt-10 grid gap-4 md:grid-cols-3">
-
-          <div className="rounded-2xl border border-zinc-800 bg-zinc-950 p-6">
-            <p className="text-sm text-zinc-400">Total Customers</p>
-            <p className="mt-2 text-4xl font-semibold">
-              {totalCustomers ?? 0}
-            </p>
-          </div>
-
-          <div className="rounded-2xl border border-zinc-800 bg-zinc-950 p-6">
-            <p className="text-sm text-zinc-400">Hot Leads</p>
-            <p className="mt-2 text-4xl font-semibold">
-              {hotLeads ?? 0}
-            </p>
-          </div>
-
-          <div className="rounded-2xl border border-zinc-800 bg-zinc-950 p-6">
-            <p className="text-sm text-zinc-400">Quotations</p>
-            <p className="mt-2 text-4xl font-semibold">
-              {quotations ?? 0}
-            </p>
-          </div>
-
-        </div>
-
-        {/* Leads */}
-        <div className="mt-12">
-          <div className="mb-5">
-            <h2 className="text-2xl font-semibold">Leads</h2>
-            <p className="mt-1 text-sm text-zinc-500">
-              Latest sales opportunities from AVERO AI
-            </p>
-          </div>
-
-          <div className="overflow-x-auto rounded-2xl border border-zinc-800 bg-zinc-950">
-            <table className="w-full text-left text-sm">
-
-              <thead className="border-b border-zinc-800 text-zinc-400">
-                <tr>
-                  <th className="p-4 font-medium">Customer</th>
-                  <th className="p-4 font-medium">Phone</th>
-                  <th className="p-4 font-medium">Email</th>
-                  <th className="p-4 font-medium">Service</th>
-                  <th className="p-4 font-medium">City</th>
-                  <th className="p-4 font-medium">People</th>
-                  <th className="p-4 font-medium">Interest</th>
-                  <th className="p-4 font-medium">Status</th>
-                  <th className="p-4 font-medium">Event Date</th>
-                </tr>
-              </thead>
-
-              <tbody>
-                {leads && leads.length > 0 ? (
-                  leads.map((lead: any) => (
-                    <tr
-                      key={lead.id}
-                      className="border-b border-zinc-900 last:border-0"
-                    >
-                      <td className="p-4 font-medium">
-                        {Array.isArray(lead.customers)
-                          ? lead.customers[0]?.name || "Unknown"
-                          : lead.customers?.name || "Unknown"}
-                      </td>
-
-                      <td className="p-4 text-zinc-400">
-                        {Array.isArray(lead.customers)
-                          ? lead.customers[0]?.phone || "-"
-                          : lead.customers?.phone || "-"}
-                      </td>
-
-                      <td className="p-4 text-zinc-400">
-                        {Array.isArray(lead.customers)
-                          ? lead.customers[0]?.email || "-"
-                          : lead.customers?.email || "-"}
-                      </td>
-
-                      <td className="p-4">
-                        {lead.service_type || "-"}
-                      </td>
-
-                      <td className="p-4">
-                        {lead.city || "-"}
-                      </td>
-
-                      <td className="p-4">
-                        {lead.people_count ?? "-"}
-                      </td>
-
-                      <td className="p-4">
-                        <span className="rounded-full border border-zinc-700 px-3 py-1 text-xs">
-                          {lead.interest_level || "-"}
-                        </span>
-                      </td>
-
-                      <td className="p-4">
-                        <span className="rounded-full bg-zinc-800 px-3 py-1 text-xs capitalize">
-                          {lead.status || "new"}
-                        </span>
-                      </td>
-
-                      <td className="p-4 text-zinc-400">
-                        {lead.event_date || "-"}
-                      </td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td
-                      colSpan={9}
-                      className="p-10 text-center text-zinc-500"
-                    >
-                      No leads found
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-
-            </table>
-          </div>
-        </div>
+        {/* Stats Cards */}
+        <StatsCards
+          totalLeads={totalLeads}
+          qualifiedCount={qualifiedCount}
+          quotationsCount={quotationsCount}
+          negotiationsCount={negotiationsCount}
+          wonCount={wonCount}
+          lostCount={lostCount}
+        />
 
         {/* Sales Pipeline */}
-        <LeadPipeline leads={normalizedLeads} />
-
+        <div className="flex-1 px-6 py-6">
+          <LeadPipeline leads={normalizedLeads} />
+        </div>
       </div>
-    </main>
+    </div>
   );
 }
