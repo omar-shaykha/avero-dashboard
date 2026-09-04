@@ -24,8 +24,24 @@ interface LeadPipelineProps {
   leads: LeadData[];
 }
 
-export default function LeadPipeline({ leads }: LeadPipelineProps) {
+const STATUS_OPTIONS = [
+  { value: "new", label: "New" },
+  { value: "qualified", label: "Qualified" },
+  { value: "quotation", label: "Quotation" },
+  { value: "negotiation", label: "Negotiation" },
+  { value: "won", label: "Won" },
+  { value: "lost", label: "Lost" },
+];
+
+export default function LeadPipeline({ leads: initialLeads }: LeadPipelineProps) {
+  const [localLeads, setLocalLeads] = useState(initialLeads);
   const [selectedLead, setSelectedLead] = useState<LeadData | null>(null);
+  const [selectedStatus, setSelectedStatus] = useState<string>("");
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [updateMessage, setUpdateMessage] = useState<{
+    type: "success" | "error";
+    text: string;
+  } | null>(null);
 
   const stages = [
     "new",
@@ -37,19 +53,78 @@ export default function LeadPipeline({ leads }: LeadPipelineProps) {
   ];
 
   const getLeadsForStage = (stage: string) => {
-    return leads?.filter(
+    return localLeads?.filter(
       (lead) => (lead.status || "new").toLowerCase() === stage
     ) || [];
   };
 
   const closeModal = () => {
     setSelectedLead(null);
+    setSelectedStatus("");
+    setUpdateMessage(null);
   };
 
   const getWhatsAppUrl = (phone: string | null | undefined) => {
     if (!phone) return null;
     const cleanPhone = phone.replace(/\D/g, "");
     return cleanPhone ? `https://wa.me/${cleanPhone}` : null;
+  };
+
+  const handleStatusChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setSelectedStatus(e.target.value);
+    setUpdateMessage(null);
+  };
+
+  const handleUpdateStatus = async () => {
+    if (!selectedLead || !selectedStatus) return;
+
+    setIsUpdating(true);
+    setUpdateMessage(null);
+
+    try {
+      const response = await fetch(
+        `/api/leads/${selectedLead.id}/status`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status: selectedStatus }),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error("Failed to update status");
+      }
+
+      // Update local leads state
+      setLocalLeads((current) =>
+        current.map((lead) =>
+          lead.id === selectedLead.id
+            ? { ...lead, status: selectedStatus }
+            : lead
+        )
+      );
+
+      // Update selected lead
+      setSelectedLead((current) =>
+        current ? { ...current, status: selectedStatus } : current
+      );
+
+      setUpdateMessage({
+        type: "success",
+        text: "Status updated",
+      });
+
+      // Clear selection after success
+      setSelectedStatus("");
+    } catch (error) {
+      console.error("Error updating status:", error);
+      setUpdateMessage({
+        type: "error",
+        text: "Failed to update status",
+      });
+    } finally {
+      setIsUpdating(false);
+    }
   };
 
   return (
@@ -85,7 +160,10 @@ export default function LeadPipeline({ leads }: LeadPipelineProps) {
                       stageLeads.map((lead) => (
                         <button
                           key={lead.id}
-                          onClick={() => setSelectedLead(lead)}
+                          onClick={() => {
+                            setSelectedLead(lead);
+                            setSelectedStatus(lead.status || "new");
+                          }}
                           className="cursor-pointer rounded-lg border border-zinc-700 bg-zinc-900 p-3 text-left text-xs transition-colors hover:border-zinc-600 hover:bg-zinc-800"
                         >
                           {/* Customer Name */}
@@ -238,6 +316,46 @@ export default function LeadPipeline({ leads }: LeadPipelineProps) {
               );
             })()}
 
+            {/* Status Update Section */}
+            <div className="mt-6 border-t border-zinc-800 pt-6">
+              <h3 className="font-semibold text-zinc-200">Update Status</h3>
+              <div className="mt-4 space-y-3">
+                <select
+                  value={selectedStatus}
+                  onChange={handleStatusChange}
+                  className="w-full rounded-lg border border-zinc-700 bg-zinc-900 px-4 py-2 text-white focus:border-zinc-600 focus:outline-none"
+                >
+                  {STATUS_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+
+                <button
+                  onClick={handleUpdateStatus}
+                  disabled={
+                    isUpdating || selectedStatus === (selectedLead.status || "new")
+                  }
+                  className="w-full rounded-lg bg-blue-600 px-4 py-2 font-medium text-white transition-colors hover:bg-blue-700 disabled:bg-zinc-700 disabled:text-zinc-500 disabled:cursor-not-allowed"
+                >
+                  {isUpdating ? "Updating..." : "Update Status"}
+                </button>
+
+                {updateMessage && (
+                  <div
+                    className={`rounded-lg px-3 py-2 text-sm font-medium ${
+                      updateMessage.type === "success"
+                        ? "bg-green-900 text-green-200"
+                        : "bg-red-900 text-red-200"
+                    }`}
+                  >
+                    {updateMessage.text}
+                  </div>
+                )}
+              </div>
+            </div>
+
             {/* Lead Information Section */}
             <div className="mt-6 border-t border-zinc-800 pt-6">
               <h3 className="font-semibold text-zinc-200">Lead Information</h3>
@@ -279,7 +397,7 @@ export default function LeadPipeline({ leads }: LeadPipelineProps) {
                   </span>
                 </div>
                 <div className="flex items-start justify-between">
-                  <span className="text-sm text-zinc-400">Status</span>
+                  <span className="text-sm text-zinc-400">Current Status</span>
                   <span className="inline-block rounded-full bg-zinc-800 px-2 py-1 text-xs font-medium capitalize">
                     {selectedLead.status || "new"}
                   </span>
