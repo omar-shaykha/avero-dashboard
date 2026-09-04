@@ -82,6 +82,20 @@ export default async function Home() {
               <p className="text-sm text-slate-500">
                 Please contact your administrator to set up your account.
               </p>
+
+              {/* Temporary Debug Info */}
+              <div className="mt-8 pt-6 border-t border-slate-700 space-y-2 text-xs">
+                <p className="text-slate-500">
+                  <span className="font-mono text-slate-400">Authenticated User ID:</span> <br />
+                  <span className="font-mono text-yellow-400/80">{user.id}</span>
+                </p>
+                <p className="text-slate-500">
+                  <span className="font-mono text-slate-400">Profile Error:</span> <br />
+                  <span className="font-mono text-yellow-400/80">
+                    {userProfileError?.message || "none"}
+                  </span>
+                </p>
+              </div>
             </div>
           </div>
         </div>
