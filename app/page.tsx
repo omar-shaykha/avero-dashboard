@@ -1,9 +1,22 @@
 import { createClient } from "@supabase/supabase-js";
+import { redirect } from "next/navigation";
+import { createClient as createServerClient } from "@/lib/supabase/server";
 import LeadPipeline from "@/app/components/LeadPipeline";
 
 export const dynamic = "force-dynamic";
 
 export default async function Home() {
+  // Check authentication
+  const authClient = await createServerClient();
+  const {
+    data: { user },
+  } = await authClient.auth.getUser();
+
+  if (!user) {
+    redirect("/login");
+  }
+
+  // CRM data client (service-role)
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
   const supabaseSecretKey = process.env.SUPABASE_SECRET_KEY!;
 
