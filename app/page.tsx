@@ -3,74 +3,35 @@ import { createClient } from "@supabase/supabase-js";
 import { getAuthorizationContext } from "@/lib/auth/authorization";
 import Sidebar from "@/app/components/Sidebar";
 import DashboardHeader from "@/app/components/DashboardHeader";
-import SearchToolbar from "@/app/components/SearchToolbar";
-import StatsCards from "@/app/components/StatsCards";
-import LeadPipeline from "@/app/components/LeadPipeline";
+import AnalyticsOverview from "@/app/components/AnalyticsOverview";
 import type { LeadData } from "@/app/components/LeadPipeline";
 
 export const dynamic = "force-dynamic";
 
 export default async function Home() {
-  // Check authentication
   const access = await getAuthorizationContext();
   if (!access) {
     redirect("/login");
   }
+
   const user = access.user;
-
-  // CRM data client (service-role)
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-  const supabaseSecretKey = process.env.SUPABASE_SECRET_KEY!;
-
-  const supabase = createClient(supabaseUrl, supabaseSecretKey);
-
-  // Step 1: Get user's company_id from user_profiles
   const userProfile = access.profile;
+  const userName = user.email?.split("@")[0];
 
-  // Check if company_id exists - if not, show empty state
   if (!userProfile.company_id) {
-    const userName = user.email?.split("@")[0];
-
     return (
       <div className="min-h-screen bg-slate-950">
-        {/* Sidebar */}
         <Sidebar userEmail={user.email} userName={userName} access={access} />
-
-        {/* Main Content */}
-        <div className="ml-64 flex flex-col min-h-screen">
-          {/* Dashboard Header */}
+        <div className="ml-64 flex min-h-screen flex-col">
           <DashboardHeader userEmail={user.email} userName={userName} />
-
-          {/* Empty State */}
-          <div className="flex-1 flex items-center justify-center px-6 py-12">
+          <div className="flex flex-1 items-center justify-center px-6 py-12">
             <div className="w-full max-w-md text-center">
-              <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-slate-800/50 border border-slate-700 mb-6">
-                <svg
-                  className="w-8 h-8 text-slate-400"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={1.5}
-                    d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                  />
-                </svg>
+              <div className="mb-6 inline-flex h-16 w-16 items-center justify-center rounded-full border border-slate-700 bg-slate-800/50">
+                <span className="text-2xl text-slate-400">i</span>
               </div>
-
-              <h2 className="text-2xl font-bold text-white mb-2">
-                Account not configured
-              </h2>
-
-              <p className="text-slate-400 mb-8">
-                Your account is not assigned to a company yet.
-              </p>
-
-              <p className="text-sm text-slate-500">
-                Please contact your administrator to set up your account.
-              </p>
+              <h2 className="mb-2 text-2xl font-bold text-white">Account not configured</h2>
+              <p className="mb-8 text-slate-400">Your account is not assigned to a company yet.</p>
+              <p className="text-sm text-slate-500">Please contact your administrator to set up your account.</p>
             </div>
           </div>
         </div>
@@ -78,9 +39,11 @@ export default async function Home() {
     );
   }
 
-  const companyId = userProfile.company_id;
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SECRET_KEY!
+  );
 
-  // Step 2: Fetch all leads filtered by company_id
   const { data: allLeads, error: leadsError } = await supabase
     .from("leads")
     .select(`
@@ -93,70 +56,40 @@ export default async function Home() {
       event_date,
       city,
       notes,
+      estimated_value,
+      created_at,
       updated_at,
       customers (
         name,
         phone,
-        email
+        email,
+        source
       )
     `)
-    .eq("company_id", companyId)
+    .eq("company_id", userProfile.company_id)
     .order("updated_at", { ascending: false });
 
   if (leadsError) {
     console.error("Leads error:", leadsError);
   }
 
-  const normalizedLeads: LeadData[] = (allLeads || []).map((lead: Record<string, unknown>) => ({
+  const normalizedLeads = (allLeads || []).map((lead: Record<string, unknown>) => ({
     ...lead,
     customers: Array.isArray(lead.customers)
       ? lead.customers[0] || null
       : lead.customers || null,
-  })) as LeadData[];
-
-  // Calculate stats
-  const totalLeads = normalizedLeads.length;
-  const qualifiedCount = normalizedLeads.filter(
-    (l) => l.status === "qualified"
-  ).length;
-  const quotationsCount = normalizedLeads.filter(
-    (l) => l.status === "quotation"
-  ).length;
-  const negotiationsCount = normalizedLeads.filter(
-    (l) => l.status === "negotiation"
-  ).length;
-  const wonCount = normalizedLeads.filter((l) => l.status === "won").length;
-  const lostCount = normalizedLeads.filter((l) => l.status === "lost").length;
-
-  const userName = user.email?.split("@")[0];
+  })) as (LeadData & {
+    created_at?: string | null;
+    estimated_value?: number | null;
+    customers: (LeadData["customers"] & { source?: string | null }) | null;
+  })[];
 
   return (
     <div className="min-h-screen bg-slate-950">
-      {/* Sidebar */}
       <Sidebar userEmail={user.email} userName={userName} access={access} />
-
-      {/* Main Content */}
-      <div className="ml-64 flex flex-col min-h-screen">
-        {/* Dashboard Header */}
+      <div className="ml-64 flex min-h-screen flex-col">
         <DashboardHeader userEmail={user.email} userName={userName} />
-
-        {/* Search Toolbar */}
-        <SearchToolbar />
-
-        {/* Stats Cards */}
-        <StatsCards
-          totalLeads={totalLeads}
-          qualifiedCount={qualifiedCount}
-          quotationsCount={quotationsCount}
-          negotiationsCount={negotiationsCount}
-          wonCount={wonCount}
-          lostCount={lostCount}
-        />
-
-        {/* Sales Pipeline */}
-        <div className="flex-1 px-6 py-6">
-          <LeadPipeline leads={normalizedLeads} />
-        </div>
+        <AnalyticsOverview leads={normalizedLeads} />
       </div>
     </div>
   );
