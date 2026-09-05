@@ -3,120 +3,44 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import AveroBrand from "@/app/components/AveroBrand";
 
 export default function LoginPage() {
   const router = useRouter();
   const supabase = createClient();
-
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    setError(null);
-    setIsLoading(true);
-
+    e.preventDefault(); setError(null); setIsLoading(true);
     try {
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email: email.trim(),
-        password,
-      });
-
-      if (signInError) {
-        setError(signInError.message || "Failed to sign in");
-        setIsLoading(false);
-        return;
-      }
-
-      router.push("/");
-      router.refresh();
+      const { error: signInError } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
+      if (signInError) { setError(signInError.message || "Failed to sign in"); setIsLoading(false); return; }
+      router.push("/"); router.refresh();
     } catch (err) {
-      console.error("Sign in error:", err);
-      setError("An unexpected error occurred");
-      setIsLoading(false);
+      console.error("Sign in error:", err); setError("An unexpected error occurred"); setIsLoading(false);
     }
   };
 
   return (
-    <main className="min-h-screen bg-black p-6 text-white">
-      <div className="flex items-center justify-center min-h-screen">
+    <main className="relative min-h-screen overflow-hidden bg-[#020617] p-6 text-white">
+      <div className="pointer-events-none absolute left-[-10%] top-[-20%] h-[520px] w-[520px] rounded-full bg-blue-600/10 blur-3xl" />
+      <div className="pointer-events-none absolute bottom-[-25%] right-[-10%] h-[520px] w-[520px] rounded-full bg-violet-600/10 blur-3xl" />
+      <div className="relative flex min-h-[calc(100vh-3rem)] items-center justify-center">
         <div className="w-full max-w-md">
-          {/* Header */}
-          <div className="mb-12 text-center">
-            <h1 className="text-4xl font-bold tracking-tight">AVERO</h1>
-            <h2 className="mt-4 text-2xl font-semibold">AVERO CRM</h2>
-            <p className="mt-2 text-zinc-400">
-              Sign in to access your AI Sales Dashboard
-            </p>
-          </div>
-
-          {/* Login Card */}
-          <div className="rounded-2xl border border-zinc-800 bg-zinc-950 p-8">
-            <form onSubmit={handleSubmit} className="space-y-6">
-              {/* Email Field */}
-              <div>
-                <label
-                  htmlFor="email"
-                  className="block text-sm font-medium text-zinc-300"
-                >
-                  Email
-                </label>
-                <input
-                  id="email"
-                  type="email"
-                  placeholder="you@example.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  disabled={isLoading}
-                  required
-                  className="mt-2 w-full rounded-lg border border-zinc-700 bg-zinc-900 px-4 py-2.5 text-white placeholder-zinc-500 focus:border-zinc-600 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
-                />
-              </div>
-
-              {/* Password Field */}
-              <div>
-                <label
-                  htmlFor="password"
-                  className="block text-sm font-medium text-zinc-300"
-                >
-                  Password
-                </label>
-                <input
-                  id="password"
-                  type="password"
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  disabled={isLoading}
-                  required
-                  className="mt-2 w-full rounded-lg border border-zinc-700 bg-zinc-900 px-4 py-2.5 text-white placeholder-zinc-500 focus:border-zinc-600 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
-                />
-              </div>
-
-              {/* Error Message */}
-              {error && (
-                <div className="rounded-lg bg-red-900/30 border border-red-800 px-4 py-3 text-sm text-red-300">
-                  {error}
-                </div>
-              )}
-
-              {/* Sign In Button */}
-              <button
-                type="submit"
-                disabled={isLoading || !email || !password}
-                className="w-full rounded-lg bg-blue-600 px-4 py-2.5 font-medium text-white transition-colors hover:bg-blue-700 disabled:bg-zinc-700 disabled:text-zinc-500 disabled:cursor-not-allowed"
-              >
-                {isLoading ? "Signing in..." : "Sign In"}
-              </button>
+          <div className="mb-10 flex justify-center"><AveroBrand /></div>
+          <div className="rounded-3xl border border-slate-800/80 bg-slate-950/70 p-8 shadow-[0_24px_90px_rgba(0,0,0,0.42)] backdrop-blur-xl">
+            <div className="mb-7"><p className="text-xs font-semibold uppercase tracking-[0.22em] text-blue-400">Secure Workspace</p><h1 className="mt-2 text-2xl font-bold">Welcome back</h1><p className="mt-2 text-sm text-slate-400">Sign in to your AVERO AI operations workspace.</p></div>
+            <form onSubmit={handleSubmit} className="space-y-5">
+              <div><label htmlFor="email" className="block text-sm font-medium text-slate-300">Email</label><input id="email" type="email" placeholder="you@example.com" value={email} onChange={(e)=>setEmail(e.target.value)} disabled={isLoading} required className="mt-2 w-full rounded-xl border border-slate-800 bg-slate-900/80 px-4 py-3 text-white outline-none transition focus:border-blue-500/60 focus:ring-2 focus:ring-blue-500/10 disabled:opacity-50" /></div>
+              <div><label htmlFor="password" className="block text-sm font-medium text-slate-300">Password</label><input id="password" type="password" placeholder="••••••••" value={password} onChange={(e)=>setPassword(e.target.value)} disabled={isLoading} required className="mt-2 w-full rounded-xl border border-slate-800 bg-slate-900/80 px-4 py-3 text-white outline-none transition focus:border-blue-500/60 focus:ring-2 focus:ring-blue-500/10 disabled:opacity-50" /></div>
+              {error && <div className="rounded-xl border border-rose-500/25 bg-rose-500/10 px-4 py-3 text-sm text-rose-300">{error}</div>}
+              <button type="submit" disabled={isLoading || !email || !password} className="w-full rounded-xl bg-gradient-to-r from-blue-600 to-cyan-500 px-4 py-3 font-semibold text-white shadow-[0_10px_30px_rgba(37,99,235,0.22)] transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50">{isLoading ? "Signing in..." : "Sign in to AVERO"}</button>
             </form>
           </div>
-
-          {/* Footer */}
-          <div className="mt-8 text-center text-sm text-zinc-500">
-            <p>© 2024 AVERO AI. All rights reserved.</p>
-          </div>
+          <p className="mt-7 text-center text-[11px] uppercase tracking-[0.16em] text-slate-600">AVERO Intelligent Operations Platform</p>
         </div>
       </div>
     </main>
