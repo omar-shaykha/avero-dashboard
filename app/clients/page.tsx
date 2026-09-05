@@ -19,11 +19,6 @@ interface User {
   email?: string;
 }
 
-interface UserProfile {
-  company_id: string;
-  name?: string;
-}
-
 const AVERO_INTERNAL_ID = "9fbdd617-fdc4-4c1d-b16b-b1d3118bf3d9";
 
 export default function ClientsPage() {

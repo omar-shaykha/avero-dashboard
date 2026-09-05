@@ -20,6 +20,7 @@ export default function Sidebar({ userEmail, userName }: SidebarProps) {
     { label: "Analytics", icon: "📉", href: "/analytics" },
     { label: "AI Assistant", icon: "✨", href: "/assistant" },
     { label: "Settings", icon: "⚙️", href: "/settings" },
+    { label: "Clients", icon: "🏢", href: "/clients" },
   ];
 
   const isActive = (href: string) => {
