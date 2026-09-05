@@ -1,297 +1,113 @@
 "use client";
 
 import { useState } from "react";
+import { useLanguage } from "./LanguageProvider";
 import {
-  Inbox,
-  BadgeCheck,
-  FileText,
-  Handshake,
-  Trophy,
-  CircleX,
-  Phone,
-  ClipboardList,
-  MapPin,
-  Users,
-  CalendarDays,
-  Flame,
-  type LucideIcon,
+  Inbox, BadgeCheck, FileText, Handshake, Trophy, CircleX, Phone,
+  ClipboardList, MapPin, Users, CalendarDays, Flame, X, type LucideIcon,
 } from "lucide-react";
 
 export interface LeadData {
-  id: string;
-  title: string;
-  service_type: string;
-  status: string;
-  interest_level: string;
-  people_count: number | null;
-  event_date: string | null;
-  city: string | null;
-  notes: string | null;
-  updated_at: string;
-  customers: {
-    name: string;
-    phone: string | null;
-    email: string | null;
-  } | null;
+  id: string; title: string; service_type: string; status: string; interest_level: string;
+  people_count: number | null; event_date: string | null; city: string | null;
+  notes: string | null; updated_at: string;
+  customers: { name: string; phone: string | null; email: string | null } | null;
 }
 
-interface LeadPipelineProps {
-  leads: LeadData[];
-}
+interface LeadPipelineProps { leads: LeadData[]; }
 
-const STATUS_OPTIONS = [
-  { value: "new", label: "New" },
-  { value: "qualified", label: "Qualified" },
-  { value: "quotation", label: "Quotation" },
-  { value: "negotiation", label: "Negotiation" },
-  { value: "won", label: "Won" },
-  { value: "lost", label: "Lost" },
-];
-
-const STAGE_CONFIG: Record<string, { label: string; accentColor: string; bgColor: string; icon: LucideIcon }> = {
-  new: { label: "New", accentColor: "bg-blue-500", bgColor: "bg-slate-800/30", icon: Inbox },
-  qualified: { label: "Qualified", accentColor: "bg-emerald-500", bgColor: "bg-slate-800/30", icon: BadgeCheck },
-  quotation: { label: "Quotation", accentColor: "bg-amber-500", bgColor: "bg-slate-800/30", icon: FileText },
-  negotiation: { label: "Negotiation", accentColor: "bg-purple-500", bgColor: "bg-slate-800/30", icon: Handshake },
-  won: { label: "Won", accentColor: "bg-green-500", bgColor: "bg-slate-800/30", icon: Trophy },
-  lost: { label: "Lost", accentColor: "bg-red-500", bgColor: "bg-slate-800/30", icon: CircleX },
+const STAGES: Record<string, { icon: LucideIcon; accent: string }> = {
+  new: { icon: Inbox, accent: "bg-blue-500" },
+  qualified: { icon: BadgeCheck, accent: "bg-emerald-500" },
+  quotation: { icon: FileText, accent: "bg-amber-500" },
+  negotiation: { icon: Handshake, accent: "bg-purple-500" },
+  won: { icon: Trophy, accent: "bg-green-500" },
+  lost: { icon: CircleX, accent: "bg-red-500" },
 };
 
-const INTEREST_CONFIG: Record<string, { badge: string; icon: string }> = {
-  "High": { badge: "bg-red-900/40 text-red-300 border-red-700", icon: "text-red-400" },
-  "Medium": { badge: "bg-amber-900/40 text-amber-300 border-amber-700", icon: "text-amber-400" },
-  "Low": { badge: "bg-blue-900/40 text-blue-300 border-blue-700", icon: "text-blue-400" },
+const INTEREST_CONFIG: Record<string, string> = {
+  High: "bg-red-900/40 text-red-300 border-red-700",
+  Medium: "bg-amber-900/40 text-amber-300 border-amber-700",
+  Low: "bg-blue-900/40 text-blue-300 border-blue-700",
 };
 
 export default function LeadPipeline({ leads: initialLeads }: LeadPipelineProps) {
+  const { t, language } = useLanguage();
   const [localLeads, setLocalLeads] = useState(initialLeads);
   const [selectedLead, setSelectedLead] = useState<LeadData | null>(null);
-  const [selectedStatus, setSelectedStatus] = useState<string>("");
+  const [selectedStatus, setSelectedStatus] = useState("");
   const [isUpdating, setIsUpdating] = useState(false);
-  const [updateMessage, setUpdateMessage] = useState<{
-    type: "success" | "error";
-    text: string;
-  } | null>(null);
+  const [updateMessage, setUpdateMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
-  const stages = [
-    "new",
-    "qualified",
-    "quotation",
-    "negotiation",
-    "won",
-    "lost",
-  ];
+  const stageLabel = (stage: string) => t(stage === "quotation" ? "quotation" : stage === "negotiation" ? "negotiation" : stage);
+  const interestLabel = (value: string) => value ? t(value.toLowerCase()) : "-";
+  const leadsFor = (stage: string) => localLeads.filter((lead) => (lead.status || "new").toLowerCase() === stage);
 
-  const getLeadsForStage = (stage: string) => {
-    return localLeads?.filter(
-      (lead) => (lead.status || "new").toLowerCase() === stage
-    ) || [];
+  const relativeDate = (value: string) => {
+    const days = Math.floor((Date.now() - new Date(value).getTime()) / 86400000);
+    if (days <= 0) return t("today");
+    if (days === 1) return t("yesterday");
+    return language === "ar" ? `منذ ${days} أيام` : `${days} ${t("daysAgo")}`;
   };
 
-  const closeModal = () => {
-    setSelectedLead(null);
-    setSelectedStatus("");
-    setUpdateMessage(null);
-  };
-
-  const getWhatsAppUrl = (phone: string | null | undefined) => {
-    if (!phone) return null;
-    const cleanPhone = phone.replace(/\D/g, "");
-    return cleanPhone ? `https://wa.me/${cleanPhone}` : null;
-  };
-
-  const handleStatusChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setSelectedStatus(e.target.value);
-    setUpdateMessage(null);
-  };
+  const closeModal = () => { setSelectedLead(null); setSelectedStatus(""); setUpdateMessage(null); };
+  const whatsappUrl = (phone?: string | null) => phone ? `https://wa.me/${phone.replace(/\D/g, "")}` : null;
 
   const handleUpdateStatus = async () => {
     if (!selectedLead || !selectedStatus) return;
-
-    setIsUpdating(true);
-    setUpdateMessage(null);
-
+    setIsUpdating(true); setUpdateMessage(null);
     try {
-      const response = await fetch(
-        `/api/leads/${selectedLead.id}/status`,
-        {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ status: selectedStatus }),
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error("Failed to update status");
-      }
-
-      // Update local leads state
-      setLocalLeads((current) =>
-        current.map((lead) =>
-          lead.id === selectedLead.id
-            ? { ...lead, status: selectedStatus }
-            : lead
-        )
-      );
-
-      // Update selected lead
-      setSelectedLead((current) =>
-        current ? { ...current, status: selectedStatus } : current
-      );
-
-      setUpdateMessage({
-        type: "success",
-        text: "Status updated",
+      const response = await fetch(`/api/leads/${selectedLead.id}/status`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: selectedStatus }),
       });
-
-      // Clear selection after success
-      setSelectedStatus("");
-    } catch (error) {
-      console.error("Error updating status:", error);
-      setUpdateMessage({
-        type: "error",
-        text: "Failed to update status",
-      });
-    } finally {
-      setIsUpdating(false);
-    }
+      if (!response.ok) throw new Error("update failed");
+      setLocalLeads((current) => current.map((lead) => lead.id === selectedLead.id ? { ...lead, status: selectedStatus } : lead));
+      setSelectedLead((current) => current ? { ...current, status: selectedStatus } : current);
+      setUpdateMessage({ type: "success", text: t("statusUpdated") });
+    } catch {
+      setUpdateMessage({ type: "error", text: t("statusUpdateFailed") });
+    } finally { setIsUpdating(false); }
   };
 
   return (
     <>
-      {/* Sales Pipeline */}
       <div>
         <div className="mb-6">
-          <h2 className="text-2xl font-semibold text-white">Sales Pipeline</h2>
-          <p className="mt-1 text-sm text-slate-400">
-            Lead progression across the AVERO AI sales process
-          </p>
+          <h2 className="text-2xl font-semibold text-white">{t("salesPipeline")}</h2>
+          <p className="mt-1 text-sm text-slate-400">{t("salesPipelineDesc")}</p>
         </div>
 
-        {/* Desktop Grid: 6 columns on lg+, scrolling on smaller screens */}
         <div className="overflow-x-auto rounded-lg lg:overflow-visible">
-          <div className="grid gap-3 pb-2 lg:grid-cols-6 md:grid-cols-3 sm:grid-cols-2 min-w-max lg:min-w-0">
-            {stages.map((stage) => {
-              const stageLeads = getLeadsForStage(stage);
-              const config = STAGE_CONFIG[stage];
-              
+          <div className="grid min-w-max gap-3 pb-2 sm:grid-cols-2 md:grid-cols-3 lg:min-w-0 lg:grid-cols-6">
+            {Object.keys(STAGES).map((stage) => {
+              const stageLeads = leadsFor(stage);
+              const { icon: Icon, accent } = STAGES[stage];
               return (
-                <div
-                  key={stage}
-                  className="w-[280px] lg:w-auto flex flex-col rounded-lg border border-slate-700 bg-slate-900 overflow-hidden"
-                >
-                  {/* Stage Header with Accent Line */}
-                  <div className={`${config.accentColor} h-1`} />
-                  <div className="px-4 py-3 border-b border-slate-700">
+                <div key={stage} className="flex w-[280px] flex-col overflow-hidden rounded-lg border border-slate-700 bg-slate-900 lg:w-auto">
+                  <div className={`${accent} h-1`} />
+                  <div className="border-b border-slate-700 px-4 py-3">
                     <div className="flex items-center justify-between gap-2">
-                      <h3 className="flex items-center gap-2 font-semibold text-white capitalize">
-                        <config.icon size={18} strokeWidth={1.8} />
-                        {config.label}
-                      </h3>
-                      <span className="inline-flex items-center justify-center px-2 py-1 rounded-full bg-slate-800 text-xs font-medium text-slate-300">
-                        {stageLeads.length}
-                      </span>
+                      <h3 className="flex items-center gap-2 font-semibold text-white"><Icon size={18}/>{stageLabel(stage)}</h3>
+                      <span className="rounded-full bg-slate-800 px-2 py-1 text-xs font-medium text-slate-300">{stageLeads.length}</span>
                     </div>
                   </div>
-
-                  {/* Lead Cards */}
                   <div className="flex flex-col gap-2 p-3">
-                    {stageLeads.length > 0 ? (
-                      stageLeads.map((lead) => {
-                        const interestConfig = INTEREST_CONFIG[lead.interest_level] || 
-                          { badge: "bg-slate-800/40 text-slate-300 border-slate-700", icon: "text-slate-400" };
-                        
-                        return (
-                          <button
-                            key={lead.id}
-                            onClick={() => {
-                              setSelectedLead(lead);
-                              setSelectedStatus(lead.status || "new");
-                            }}
-                            className="group relative w-full text-left rounded-lg border border-slate-700 bg-slate-800 p-3 transition-all duration-200 hover:border-slate-600 hover:bg-slate-800/80 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-blue-500/50"
-                          >
-                            {/* Customer Name */}
-                            <p className="font-medium text-white text-sm truncate">
-                              {lead.customers?.name || "Unknown"}
-                            </p>
-
-                            {/* Time since update */}
-                            {lead.updated_at && (
-                              <p className="mt-0.5 text-xs text-slate-400">
-                                {(() => {
-                                  const date = new Date(lead.updated_at);
-                                  const now = new Date();
-                                  const days = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
-                                  if (days === 0) return "Today";
-                                  if (days === 1) return "Yesterday";
-                                  return `${days}d ago`;
-                                })()}
-                              </p>
-                            )}
-
-                            {/* Phone */}
-                            {lead.customers?.phone && (
-                              <p className="mt-1.5 flex items-center gap-1 text-xs text-slate-300 truncate">
-                                <Phone size={13} strokeWidth={1.8} className="shrink-0" />
-                                {lead.customers.phone}
-                              </p>
-                            )}
-
-                            {/* Service + City */}
-                            {(lead.service_type || lead.city) && (
-                              <div className="mt-1.5 flex items-center justify-between gap-1 text-xs text-slate-400">
-                                {lead.service_type && (
-                                  <span className="flex items-center gap-1 truncate">
-                                    <ClipboardList size={13} strokeWidth={1.8} className="shrink-0" />
-                                    {lead.service_type}
-                                  </span>
-                                )}
-                                {lead.city && (
-                                  <span className="flex items-center gap-1 truncate text-right">
-                                    <MapPin size={13} strokeWidth={1.8} className="shrink-0" />
-                                    {lead.city}
-                                  </span>
-                                )}
-                              </div>
-                            )}
-
-                            {/* People Count + Event Date */}
-                            {(lead.people_count || lead.event_date) && (
-                              <div className="mt-1.5 flex items-center justify-between gap-1 text-xs text-slate-400">
-                                {lead.people_count && (
-                                  <span className="flex items-center gap-1">
-                                    <Users size={13} strokeWidth={1.8} className="shrink-0" />
-                                    {lead.people_count}
-                                  </span>
-                                )}
-                                {lead.event_date && (
-                                  <span className="flex items-center gap-1 truncate text-right">
-                                    <CalendarDays size={13} strokeWidth={1.8} className="shrink-0" />
-                                    {lead.event_date}
-                                  </span>
-                                )}
-                              </div>
-                            )}
-
-                            {/* Interest Badge */}
-                            {lead.interest_level && (
-                              <div className="mt-2 flex items-center gap-1">
-                                <div className={`flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-medium border ${interestConfig.badge}`}>
-                                  <Flame size={12} strokeWidth={1.8} className={interestConfig.icon} />
-                                  {lead.interest_level}
-                                </div>
-                              </div>
-                            )}
-                          </button>
-                        );
-                      })
-                    ) : (
-                      <div className="flex flex-col items-center justify-center gap-2 py-12 text-center">
-                        <Inbox size={32} strokeWidth={1.8} className="text-slate-600" />
-                        <p className="text-xs font-medium text-slate-400">No leads</p>
-                        <p className="text-xs text-slate-500">Leads in this stage will appear here</p>
-                      </div>
-                    )}
+                    {stageLeads.length ? stageLeads.map((lead) => (
+                      <button key={lead.id} onClick={() => { setSelectedLead(lead); setSelectedStatus(lead.status || "new"); setUpdateMessage(null); }} className="w-full rounded-lg border border-slate-700 bg-slate-800 p-3 text-start transition hover:border-slate-600 hover:bg-slate-800/80">
+                        <p className="truncate text-sm font-medium text-white">{lead.customers?.name || t("unknown")}</p>
+                        {lead.updated_at && <p className="mt-0.5 text-xs text-slate-400">{relativeDate(lead.updated_at)}</p>}
+                        {lead.customers?.phone && <p className="mt-1.5 flex items-center gap-1 truncate text-xs text-slate-300"><Phone size={13}/>{lead.customers.phone}</p>}
+                        {(lead.service_type || lead.city) && <div className="mt-1.5 flex items-center justify-between gap-1 text-xs text-slate-400">
+                          {lead.service_type && <span className="flex items-center gap-1 truncate"><ClipboardList size={13}/>{lead.service_type}</span>}
+                          {lead.city && <span className="flex items-center gap-1 truncate"><MapPin size={13}/>{lead.city}</span>}
+                        </div>}
+                        {(lead.people_count || lead.event_date) && <div className="mt-1.5 flex items-center justify-between gap-1 text-xs text-slate-400">
+                          {lead.people_count && <span className="flex items-center gap-1"><Users size={13}/>{lead.people_count}</span>}
+                          {lead.event_date && <span className="flex items-center gap-1 truncate"><CalendarDays size={13}/>{lead.event_date}</span>}
+                        </div>}
+                        {lead.interest_level && <div className="mt-2"><span className={`inline-flex items-center gap-1 rounded border px-1.5 py-0.5 text-xs font-medium ${INTEREST_CONFIG[lead.interest_level] || "border-slate-700 bg-slate-800 text-slate-300"}`}><Flame size={12}/>{interestLabel(lead.interest_level)}</span></div>}
+                      </button>
+                    )) : <div className="flex flex-col items-center justify-center gap-2 py-12 text-center"><Inbox size={32} className="text-slate-600"/><p className="text-xs font-medium text-slate-400">{t("noLeads")}</p><p className="text-xs text-slate-500">{t("noLeadsStage")}</p></div>}
                   </div>
                 </div>
               );
@@ -300,215 +116,53 @@ export default function LeadPipeline({ leads: initialLeads }: LeadPipelineProps)
         </div>
       </div>
 
-      {/* Lead Details Modal */}
       {selectedLead && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
-          onClick={closeModal}
-        >
-          <div
-            className="relative max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-lg border border-slate-700 bg-slate-900 p-6 text-white shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Close Button */}
-            <button
-              onClick={closeModal}
-              className="absolute right-4 top-4 rounded-full p-2 text-slate-400 transition-colors hover:bg-slate-800 hover:text-white"
-              aria-label="Close"
-            >
-              <svg
-                className="h-6 w-6"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M6 18L18 6M6 6l12 12"
-                />
-              </svg>
-            </button>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm" onClick={closeModal}>
+          <div className="relative max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-xl border border-slate-700 bg-slate-900 p-6 text-white shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <button onClick={closeModal} className={`absolute top-4 rounded-full p-2 text-slate-400 hover:bg-slate-800 hover:text-white ${language === "ar" ? "left-4" : "right-4"}`} aria-label={t("close")}><X size={20}/></button>
+            <h2 className="text-2xl font-bold">{t("leadDetails")}</h2>
 
-            {/* Header */}
-            <h2 className="pr-8 text-2xl font-bold">Lead Details</h2>
+            <Section title={t("customerInfo")}>
+              <Info label={t("name")} value={selectedLead.customers?.name}/>
+              <Info label={t("phone")} value={selectedLead.customers?.phone}/>
+              <Info label={t("email")} value={selectedLead.customers?.email}/>
+            </Section>
 
-            {/* Customer Information Section */}
-            <div className="mt-6 border-t border-slate-700 pt-6">
-              <h3 className="font-semibold text-slate-200">
-                Customer Information
-              </h3>
-              <div className="mt-4 space-y-3">
-                <div className="flex items-start justify-between">
-                  <span className="text-sm text-slate-400">Name</span>
-                  <span className="text-right font-medium">
-                    {selectedLead.customers?.name || "-"}
-                  </span>
-                </div>
-                <div className="flex items-start justify-between">
-                  <span className="text-sm text-slate-400">Phone</span>
-                  <span className="text-right font-medium">
-                    {selectedLead.customers?.phone || "-"}
-                  </span>
-                </div>
-                <div className="flex items-start justify-between">
-                  <span className="text-sm text-slate-400">Email</span>
-                  <span className="break-all text-right font-medium">
-                    {selectedLead.customers?.email || "-"}
-                  </span>
-                </div>
-              </div>
+            <div className="mt-6">
+              {whatsappUrl(selectedLead.customers?.phone) ? <a href={whatsappUrl(selectedLead.customers?.phone)!} target="_blank" rel="noopener noreferrer" className="flex w-full items-center justify-center rounded-lg bg-green-600 px-4 py-3 font-medium text-white hover:bg-green-700">{t("openWhatsapp")}</a> : <button disabled className="w-full rounded-lg bg-slate-800 px-4 py-3 text-slate-500">{t("openWhatsapp")}</button>}
             </div>
 
-            {/* WhatsApp Button */}
-            {(() => {
-              const whatsappUrl = getWhatsAppUrl(selectedLead.customers?.phone);
-              return (
-                <div className="mt-6">
-                  {whatsappUrl ? (
-                    <a
-                      href={whatsappUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex w-full items-center justify-center gap-2 rounded-lg bg-green-600 px-4 py-3 font-medium text-white transition-colors hover:bg-green-700 active:bg-green-800"
-                    >
-                      <svg
-                        className="h-5 w-5"
-                        fill="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.807-.923-1.346-1.923-1.518-2.394-.149-.353-.047-.645.106-.845.148-.176.381-.453.595-.689.206-.224.413-.565.413-1.032 0-.467-.165-.945-.679-1.374-.167-.153-1.432-1.323-1.432-1.323s-.809-.656-1.414-.656c-.738 0-1.413.656-1.414 1.378 0 .849.5 1.735 1.165 2.827.562 1.003 2.282 3.989 5.323 5.387.569.2 1.462.342 2.817.342.96 0 1.68-.196 2.008-.359 0 0 .932-.519 1.846-1.794.563-.796.96-1.47 1.195-2.094.188-.52.261-.87-.049-1.585-.269-.606-.995-1.541-2.337-1.541-.772 0-1.196.593-1.738 1.154z" />
-                      </svg>
-                      Open WhatsApp
-                    </a>
-                  ) : (
-                    <button
-                      disabled
-                      className="flex w-full items-center justify-center gap-2 rounded-lg bg-slate-800 px-4 py-3 font-medium text-slate-500 cursor-not-allowed opacity-50"
-                    >
-                      <svg
-                        className="h-5 w-5"
-                        fill="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.807-.923-1.346-1.923-1.518-2.394-.149-.353-.047-.645.106-.845.148-.176.381-.453.595-.689.206-.224.413-.565.413-1.032 0-.467-.165-.945-.679-1.374-.167-.153-1.432-1.323-1.432-1.323s-.809-.656-1.414-.656c-.738 0-1.413.656-1.414 1.378 0 .849.5 1.735 1.165 2.827.562 1.003 2.282 3.989 5.323 5.387.569.2 1.462.342 2.817.342.96 0 1.68-.196 2.008-.359 0 0 .932-.519 1.846-1.794.563-.796.96-1.47 1.195-2.094.188-.52.261-.87-.049-1.585-.269-.606-.995-1.541-2.337-1.541-.772 0-1.196.593-1.738 1.154z" />
-                      </svg>
-                      Open WhatsApp
-                    </button>
-                  )}
-                </div>
-              );
-            })()}
+            <Section title={t("updateStatus")}>
+              <select value={selectedStatus} onChange={(e) => { setSelectedStatus(e.target.value); setUpdateMessage(null); }} className="w-full rounded-lg border border-slate-700 bg-slate-800 px-4 py-2 text-white">
+                {Object.keys(STAGES).map((stage) => <option key={stage} value={stage}>{stageLabel(stage)}</option>)}
+              </select>
+              <button onClick={handleUpdateStatus} disabled={isUpdating || selectedStatus === (selectedLead.status || "new")} className="mt-3 w-full rounded-lg bg-blue-600 px-4 py-2 font-medium text-white hover:bg-blue-700 disabled:bg-slate-700 disabled:text-slate-500">{isUpdating ? t("updating") : t("updateStatus")}</button>
+              {updateMessage && <div className={`mt-3 rounded-lg px-3 py-2 text-sm ${updateMessage.type === "success" ? "bg-green-900 text-green-200" : "bg-red-900 text-red-200"}`}>{updateMessage.text}</div>}
+            </Section>
 
-            {/* Status Update Section */}
-            <div className="mt-6 border-t border-slate-700 pt-6">
-              <h3 className="font-semibold text-slate-200">Update Status</h3>
-              <div className="mt-4 space-y-3">
-                <select
-                  value={selectedStatus}
-                  onChange={handleStatusChange}
-                  className="w-full rounded-lg border border-slate-700 bg-slate-800 px-4 py-2 text-white transition-colors focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
-                >
-                  {STATUS_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
+            <Section title={t("leadInfo")}>
+              <Info label={t("title")} value={selectedLead.title}/>
+              <Info label={t("service")} value={selectedLead.service_type}/>
+              <Info label={t("city")} value={selectedLead.city}/>
+              <Info label={t("peopleCount")} value={selectedLead.people_count?.toString()}/>
+              <Info label={t("eventDate")} value={selectedLead.event_date}/>
+              <Info label={t("interestLevel")} value={interestLabel(selectedLead.interest_level)}/>
+              <Info label={t("currentStatus")} value={stageLabel(selectedLead.status || "new")}/>
+            </Section>
 
-                <button
-                  onClick={handleUpdateStatus}
-                  disabled={
-                    isUpdating || selectedStatus === (selectedLead.status || "new")
-                  }
-                  className="w-full rounded-lg bg-blue-600 px-4 py-2 font-medium text-white transition-colors hover:bg-blue-700 disabled:bg-slate-700 disabled:text-slate-500 disabled:cursor-not-allowed"
-                >
-                  {isUpdating ? "Updating..." : "Update Status"}
-                </button>
-
-                {updateMessage && (
-                  <div
-                    className={`rounded-lg px-3 py-2 text-sm font-medium ${
-                      updateMessage.type === "success"
-                        ? "bg-green-900 text-green-200"
-                        : "bg-red-900 text-red-200"
-                    }`}
-                  >
-                    {updateMessage.text}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Lead Information Section */}
-            <div className="mt-6 border-t border-slate-700 pt-6">
-              <h3 className="font-semibold text-slate-200">Lead Information</h3>
-              <div className="mt-4 space-y-3">
-                <div className="flex items-start justify-between">
-                  <span className="text-sm text-slate-400">Title</span>
-                  <span className="text-right font-medium">
-                    {selectedLead.title || "-"}
-                  </span>
-                </div>
-                <div className="flex items-start justify-between">
-                  <span className="text-sm text-slate-400">Service</span>
-                  <span className="text-right font-medium">
-                    {selectedLead.service_type || "-"}
-                  </span>
-                </div>
-                <div className="flex items-start justify-between">
-                  <span className="text-sm text-slate-400">City</span>
-                  <span className="text-right font-medium">
-                    {selectedLead.city || "-"}
-                  </span>
-                </div>
-                <div className="flex items-start justify-between">
-                  <span className="text-sm text-slate-400">People Count</span>
-                  <span className="text-right font-medium">
-                    {selectedLead.people_count ?? "-"}
-                  </span>
-                </div>
-                <div className="flex items-start justify-between">
-                  <span className="text-sm text-slate-400">Event Date</span>
-                  <span className="text-right font-medium">
-                    {selectedLead.event_date || "-"}
-                  </span>
-                </div>
-                <div className="flex items-start justify-between">
-                  <span className="text-sm text-slate-400">Interest Level</span>
-                  <span className={`inline-block rounded-md px-2 py-1 text-xs font-medium border ${INTEREST_CONFIG[selectedLead.interest_level]?.badge || "bg-slate-800/40 text-slate-300 border-slate-700"}`}>
-                    {selectedLead.interest_level || "-"}
-                  </span>
-                </div>
-                <div className="flex items-start justify-between">
-                  <span className="text-sm text-slate-400">Current Status</span>
-                  <span className="inline-block rounded-md bg-slate-800 px-2 py-1 text-xs font-medium capitalize">
-                    {selectedLead.status || "new"}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* Notes Section */}
-            {selectedLead.notes && (
-              <div className="mt-6 border-t border-slate-700 pt-6">
-                <h3 className="font-semibold text-slate-200">Notes</h3>
-                <p className="mt-2 text-sm text-slate-300">
-                  {selectedLead.notes}
-                </p>
-              </div>
-            )}
-
-            {/* Updated At */}
-            <div className="mt-6 border-t border-slate-700 pt-4">
-              <p className="text-xs text-slate-500">
-                Last updated: {new Date(selectedLead.updated_at).toLocaleString()}
-              </p>
-            </div>
+            {selectedLead.notes && <Section title={t("notes")}><p className="text-sm text-slate-300">{selectedLead.notes}</p></Section>}
+            <div className="mt-6 border-t border-slate-700 pt-4 text-xs text-slate-500">{t("lastUpdated")}: {new Date(selectedLead.updated_at).toLocaleString(language === "ar" ? "ar-SA" : "en-SA")}</div>
           </div>
         </div>
       )}
     </>
   );
+}
+
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return <div className="mt-6 border-t border-slate-700 pt-6"><h3 className="font-semibold text-slate-200">{title}</h3><div className="mt-4 space-y-3">{children}</div></div>;
+}
+
+function Info({ label, value }: { label: string; value?: string | null }) {
+  return <div className="flex items-start justify-between gap-4"><span className="text-sm text-slate-400">{label}</span><span className="text-end font-medium">{value || "-"}</span></div>;
 }
