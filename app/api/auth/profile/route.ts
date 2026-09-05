@@ -31,7 +31,7 @@ export async function GET() {
     // Fetch user profile
     const { data: userProfile, error: profileError } = await supabase
       .from("user_profiles")
-      .select("company_id, name")
+      .select("company_id, role, name")
       .eq("user_id", user.id)
       .single();
 
@@ -46,6 +46,7 @@ export async function GET() {
     return new Response(
       JSON.stringify({
         company_id: userProfile?.company_id,
+        role: userProfile?.role,
         name: userProfile?.name,
       }),
       {
