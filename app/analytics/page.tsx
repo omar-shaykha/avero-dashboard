@@ -8,6 +8,7 @@ import AdvancedAnalytics from "@/app/components/AdvancedAnalytics";
 export const dynamic = "force-dynamic";
 
 export default async function AnalyticsPage() {
+  // AVERO Analytics V1 — force a fresh preview build from this branch.
   const access = await getAuthorizationContext();
   if (!access) redirect("/login");
   if (!canAccess(access, "analytics", "view_analytics")) {
