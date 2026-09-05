@@ -28,10 +28,10 @@ export async function GET() {
 
     const supabase = createClient(supabaseUrl, supabaseSecretKey);
 
-    // Fetch user profile
+    // Fetch user profile - including all fields to diagnose
     const { data: userProfile, error: profileError } = await supabase
       .from("user_profiles")
-      .select("company_id, role, name")
+      .select("*")
       .eq("user_id", user.id)
       .single();
 
@@ -43,11 +43,24 @@ export async function GET() {
       );
     }
 
+    // Extract the fields we need
+    const company_id = userProfile?.company_id;
+    const role = userProfile?.role;
+    const name = userProfile?.name;
+
+    console.log("Debug profile response:", {
+      user_id: user.id,
+      company_id,
+      role,
+      name,
+      all_fields: Object.keys(userProfile || {}),
+    });
+
     return new Response(
       JSON.stringify({
-        company_id: userProfile?.company_id,
-        role: userProfile?.role,
-        name: userProfile?.name,
+        company_id,
+        role,
+        name,
       }),
       {
         status: 200,
