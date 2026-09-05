@@ -6,15 +6,17 @@ interface AddClientModalProps {
   onClose: () => void;
   onSubmit: (data: {
     companyName: string;
-    whatsappPhoneNumberId: string;
     adminEmail: string;
+    temporaryPassword: string;
+    whatsappPhoneNumberId: string;
   }) => Promise<void>;
 }
 
 export default function AddClientModal({ onClose, onSubmit }: AddClientModalProps) {
   const [companyName, setCompanyName] = useState("");
-  const [whatsappPhoneNumberId, setWhatsappPhoneNumberId] = useState("");
   const [adminEmail, setAdminEmail] = useState("");
+  const [temporaryPassword, setTemporaryPassword] = useState("");
+  const [whatsappPhoneNumberId, setWhatsappPhoneNumberId] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>("");
 
@@ -39,14 +41,31 @@ export default function AddClientModal({ onClose, onSubmit }: AddClientModalProp
       return;
     }
 
+    if (!temporaryPassword.trim()) {
+      setError("Temporary password is required");
+      return;
+    }
+
+    if (temporaryPassword.length < 8) {
+      setError("Password must be at least 8 characters");
+      return;
+    }
+
     setLoading(true);
 
     try {
       await onSubmit({
         companyName: companyName.trim(),
-        whatsappPhoneNumberId: whatsappPhoneNumberId.trim(),
         adminEmail: adminEmail.trim(),
+        temporaryPassword: temporaryPassword.trim(),
+        whatsappPhoneNumberId: whatsappPhoneNumberId.trim(),
       });
+
+      // Clear sensitive data after successful submission
+      setCompanyName("");
+      setAdminEmail("");
+      setTemporaryPassword("");
+      setWhatsappPhoneNumberId("");
     } catch (err) {
       setError("Failed to create client");
     } finally {
@@ -92,21 +111,6 @@ export default function AddClientModal({ onClose, onSubmit }: AddClientModalProp
             />
           </div>
 
-          {/* WhatsApp Phone Number ID */}
-          <div>
-            <label className="block text-sm font-medium text-slate-200 mb-2">
-              WhatsApp Phone Number ID
-            </label>
-            <input
-              type="text"
-              value={whatsappPhoneNumberId}
-              onChange={(e) => setWhatsappPhoneNumberId(e.target.value)}
-              className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-              placeholder="e.g., 1234567890"
-              disabled={loading}
-            />
-          </div>
-
           {/* Admin Email */}
           <div>
             <label className="block text-sm font-medium text-slate-200 mb-2">
@@ -120,9 +124,39 @@ export default function AddClientModal({ onClose, onSubmit }: AddClientModalProp
               placeholder="e.g., admin@acme.com"
               disabled={loading}
             />
+          </div>
+
+          {/* Temporary Password */}
+          <div>
+            <label className="block text-sm font-medium text-slate-200 mb-2">
+              Temporary Password *
+            </label>
+            <input
+              type="password"
+              value={temporaryPassword}
+              onChange={(e) => setTemporaryPassword(e.target.value)}
+              className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+              placeholder="Minimum 8 characters"
+              disabled={loading}
+            />
             <p className="text-xs text-slate-400 mt-1">
-              User must already have a login account
+              Share this password securely with the admin
             </p>
+          </div>
+
+          {/* WhatsApp Phone Number ID */}
+          <div>
+            <label className="block text-sm font-medium text-slate-200 mb-2">
+              WhatsApp Phone Number ID
+            </label>
+            <input
+              type="text"
+              value={whatsappPhoneNumberId}
+              onChange={(e) => setWhatsappPhoneNumberId(e.target.value)}
+              className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+              placeholder="e.g., 1234567890"
+              disabled={loading}
+            />
           </div>
 
           {/* Buttons */}
