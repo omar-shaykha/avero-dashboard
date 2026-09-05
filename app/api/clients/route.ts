@@ -31,14 +31,18 @@ export async function GET() {
 
     const supabase = createClient(supabaseUrl, supabaseSecretKey);
 
-    // Verify user belongs to AVERO Internal
+    // Verify user belongs to AVERO Internal AND has admin role
     const { data: userProfile, error: userProfileError } = await supabase
       .from("user_profiles")
-      .select("company_id")
+      .select("company_id, role")
       .eq("user_id", user.id)
       .single();
 
-    if (userProfileError || userProfile?.company_id !== AVERO_INTERNAL_ID) {
+    if (
+      userProfileError ||
+      userProfile?.company_id !== AVERO_INTERNAL_ID ||
+      userProfile?.role !== "admin"
+    ) {
       return new Response(
         JSON.stringify({ error: "Forbidden: Access restricted" }),
         { status: 403, headers: { "Content-Type": "application/json" } }
@@ -126,14 +130,18 @@ export async function POST(request: Request) {
 
     const supabase = createClient(supabaseUrl, supabaseSecretKey);
 
-    // Verify user belongs to AVERO Internal
+    // Verify user belongs to AVERO Internal AND has admin role
     const { data: userProfile, error: userProfileError } = await supabase
       .from("user_profiles")
-      .select("company_id")
+      .select("company_id, role")
       .eq("user_id", user.id)
       .single();
 
-    if (userProfileError || userProfile?.company_id !== AVERO_INTERNAL_ID) {
+    if (
+      userProfileError ||
+      userProfile?.company_id !== AVERO_INTERNAL_ID ||
+      userProfile?.role !== "admin"
+    ) {
       return new Response(
         JSON.stringify({ error: "Forbidden: Access restricted" }),
         { status: 403, headers: { "Content-Type": "application/json" } }
