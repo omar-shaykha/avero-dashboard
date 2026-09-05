@@ -3,8 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import { getAuthorizationContext } from "@/lib/auth/authorization";
 import Sidebar from "@/app/components/Sidebar";
 import DashboardHeader from "@/app/components/DashboardHeader";
-import BusinessOverviewV2 from "@/app/components/BusinessOverviewV2";
-import type { LeadData } from "@/app/components/LeadPipeline";
+import UniversalAiDashboard from "@/app/components/UniversalAiDashboard";
 
 export const dynamic = "force-dynamic";
 
@@ -13,50 +12,26 @@ export default async function Home() {
   if (!access) redirect("/login");
 
   const user = access.user;
-  const userProfile = access.profile;
   const userName = user.email?.split("@")[0];
+  const companyId = access.profile.company_id;
 
-  if (!userProfile.company_id) {
-    return (
-      <div className="min-h-screen bg-slate-950">
-        <Sidebar userEmail={user.email} userName={userName} access={access} />
-        <div className="ml-64 flex min-h-screen flex-col">
-          <DashboardHeader userEmail={user.email} userName={userName} />
-          <div className="flex flex-1 items-center justify-center px-6 py-12">
-            <div className="w-full max-w-md text-center">
-              <h2 className="mb-2 text-2xl font-bold text-white">Account not configured</h2>
-              <p className="text-slate-400">Your account is not assigned to a company yet.</p>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
+  if (!companyId) {
+    return <div className="min-h-screen bg-slate-950"><Sidebar userEmail={user.email} userName={userName} access={access}/><div className="ml-64 flex min-h-screen flex-col"><DashboardHeader userEmail={user.email} userName={userName}/><div className="flex flex-1 items-center justify-center text-slate-400">Account not configured.</div></div></div>;
   }
 
   const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SECRET_KEY!);
-  const { data: allLeads, error } = await supabase
-    .from("leads")
-    .select(`id,title,service_type,status,interest_level,people_count,event_date,city,notes,estimated_value,created_at,updated_at,customers(name,phone,email,source)`)
-    .eq("company_id", userProfile.company_id)
-    .order("updated_at", { ascending: false });
-
-  if (error) console.error("Dashboard leads error:", error);
-
-  const normalizedLeads = (allLeads || []).map((lead: Record<string, unknown>) => ({
-    ...lead,
-    customers: Array.isArray(lead.customers) ? lead.customers[0] || null : lead.customers || null,
-  })) as (LeadData & {
-    created_at?: string | null;
-    estimated_value?: number | null;
-    customers: (LeadData["customers"] & { source?: string | null }) | null;
-  })[];
+  const { data: leads, error } = await supabase.from("leads").select("id,status").eq("company_id", companyId);
+  if (error) console.error("Dashboard sales snapshot error:", error);
+  const rows = leads || [];
+  const count = (status: string) => rows.filter((lead) => (lead.status || "new").toLowerCase() === status).length;
+  const features = access.profile.role === "super_admin" ? ["ai_sales","ai_marketing","ai_hr","ai_support"] : access.features;
 
   return (
     <div className="min-h-screen bg-slate-950">
       <Sidebar userEmail={user.email} userName={userName} access={access} />
       <div className="ml-64 flex min-h-screen flex-col">
         <DashboardHeader userEmail={user.email} userName={userName} />
-        <BusinessOverviewV2 leads={normalizedLeads} />
+        <UniversalAiDashboard features={features} sales={{ total: rows.length, qualified: count("qualified"), quotation: count("quotation"), negotiation: count("negotiation"), won: count("won"), lost: count("lost") }} />
       </div>
     </div>
   );
