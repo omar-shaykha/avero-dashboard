@@ -86,8 +86,9 @@ export default function ClientsPage() {
 
   const handleAddClient = async (formData: {
     companyName: string;
-    whatsappPhoneNumberId: string;
     adminEmail: string;
+    temporaryPassword: string;
+    whatsappPhoneNumberId: string;
   }) => {
     try {
       const response = await fetch("/api/clients", {
@@ -95,21 +96,19 @@ export default function ClientsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           company_name: formData.companyName.trim(),
+          admin_email: formData.adminEmail.trim(),
+          temporary_password: formData.temporaryPassword.trim(),
           whatsapp_phone_number_id: formData.whatsappPhoneNumberId.trim(),
-          user_email: formData.adminEmail.trim(),
         }),
       });
 
       const data = await response.json();
 
       if (!response.ok) {
-        if (
-          response.status === 400 &&
-          data.error?.includes("Auth user not found")
-        ) {
-          alert(
-            "Create the user's login account first, then try again."
-          );
+        if (response.status === 409) {
+          alert(`Conflict: ${data.error || "Unable to create client"}`);
+        } else if (response.status === 400) {
+          alert(`Invalid input: ${data.error || "Please check your entries"}`);
         } else {
           alert(`Error: ${data.error || "Failed to create client"}`);
         }
