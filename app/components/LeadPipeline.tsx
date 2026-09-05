@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-interface LeadData {
+export interface LeadData {
   id: string;
   title: string;
   service_type: string;

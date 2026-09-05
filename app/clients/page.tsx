@@ -19,8 +19,6 @@ interface User {
   email?: string;
 }
 
-const AVERO_INTERNAL_ID = "9fbdd617-fdc4-4c1d-b16b-b1d3118bf3d9";
-
 export default function ClientsPage() {
   const router = useRouter();
   const [companies, setCompanies] = useState<Company[]>([]);
@@ -55,7 +53,7 @@ export default function ClientsPage() {
         const profileData = await profileRes.json();
 
         // Check both company_id AND role
-        if (profileData.company_id !== AVERO_INTERNAL_ID || profileData.role !== "admin") {
+        if (profileData.role !== "super_admin") {
           setAccessDenied(true);
           setLoading(false);
           return;

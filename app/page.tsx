@@ -1,24 +1,22 @@
-import { createClient } from "@supabase/supabase-js";
 import { redirect } from "next/navigation";
-import { createClient as createServerClient } from "@/lib/supabase/server";
+import { createClient } from "@supabase/supabase-js";
+import { getAuthorizationContext } from "@/lib/auth/authorization";
 import Sidebar from "@/app/components/Sidebar";
 import DashboardHeader from "@/app/components/DashboardHeader";
 import SearchToolbar from "@/app/components/SearchToolbar";
 import StatsCards from "@/app/components/StatsCards";
 import LeadPipeline from "@/app/components/LeadPipeline";
+import type { LeadData } from "@/app/components/LeadPipeline";
 
 export const dynamic = "force-dynamic";
 
 export default async function Home() {
   // Check authentication
-  const authClient = await createServerClient();
-  const {
-    data: { user },
-  } = await authClient.auth.getUser();
-
-  if (!user) {
+  const access = await getAuthorizationContext();
+  if (!access) {
     redirect("/login");
   }
+  const user = access.user;
 
   // CRM data client (service-role)
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -27,25 +25,16 @@ export default async function Home() {
   const supabase = createClient(supabaseUrl, supabaseSecretKey);
 
   // Step 1: Get user's company_id from user_profiles
-  const { data: userProfile, error: userProfileError } = await supabase
-    .from("user_profiles")
-    .select("company_id")
-    .eq("user_id", user.id)
-    .single();
-
-  // Handle userProfileError explicitly
-  if (userProfileError) {
-    console.error("User profile error:", userProfileError);
-  }
+  const userProfile = access.profile;
 
   // Check if company_id exists - if not, show empty state
-  if (!userProfile?.company_id) {
-    const userName = user.user_metadata?.name || user.email?.split("@")[0];
+  if (!userProfile.company_id) {
+    const userName = user.email?.split("@")[0];
 
     return (
       <div className="min-h-screen bg-slate-950">
         {/* Sidebar */}
-        <Sidebar userEmail={user.email} userName={userName} />
+        <Sidebar userEmail={user.email} userName={userName} access={access} />
 
         {/* Main Content */}
         <div className="ml-64 flex flex-col min-h-screen">
@@ -118,12 +107,12 @@ export default async function Home() {
     console.error("Leads error:", leadsError);
   }
 
-  const normalizedLeads = (allLeads || []).map((lead: any) => ({
+  const normalizedLeads: LeadData[] = (allLeads || []).map((lead: Record<string, unknown>) => ({
     ...lead,
     customers: Array.isArray(lead.customers)
       ? lead.customers[0] || null
       : lead.customers || null,
-  }));
+  })) as LeadData[];
 
   // Calculate stats
   const totalLeads = normalizedLeads.length;
@@ -139,12 +128,12 @@ export default async function Home() {
   const wonCount = normalizedLeads.filter((l) => l.status === "won").length;
   const lostCount = normalizedLeads.filter((l) => l.status === "lost").length;
 
-  const userName = user.user_metadata?.name || user.email?.split("@")[0];
+  const userName = user.email?.split("@")[0];
 
   return (
     <div className="min-h-screen bg-slate-950">
       {/* Sidebar */}
-      <Sidebar userEmail={user.email} userName={userName} />
+      <Sidebar userEmail={user.email} userName={userName} access={access} />
 
       {/* Main Content */}
       <div className="ml-64 flex flex-col min-h-screen">
