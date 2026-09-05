@@ -12,7 +12,7 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
   const { id } = await params;
   const supabase = admin();
   const [{ data: features, error: fError }, { data: assigned, error: aError }, { data: company }] = await Promise.all([
-    supabase.from("features").select("id,key,name,description").order("key"),
+    supabase.from("features").select("id,key").order("key"),
     supabase.from("company_features").select("feature_id,enabled,expires_at").eq("company_id", id),
     supabase.from("companies").select("id,name").eq("id", id).maybeSingle(),
   ]);
