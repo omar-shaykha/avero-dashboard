@@ -7,16 +7,7 @@ import LogoutButton from "./LogoutButton";
 import AveroBrand from "./AveroBrand";
 import { useLanguage } from "./LanguageProvider";
 import type { AuthorizationContext } from "@/lib/auth/authorization";
-import {
-  LayoutDashboard,
-  UsersRound,
-  ChartNoAxesCombined,
-  Sparkles,
-  Building2,
-  ChevronDown,
-  ChevronRight,
-  Bot,
-} from "lucide-react";
+import { LayoutDashboard, UsersRound, ChartNoAxesCombined, Sparkles, Building2, ChevronDown, ChevronRight, Bot } from "lucide-react";
 
 interface SidebarProps { userEmail?: string; userName?: string; access?: AuthorizationContext | null; }
 
@@ -53,10 +44,9 @@ export default function Sidebar({ userEmail, userName, access }: SidebarProps) {
   const rtl = language === "ar";
 
   return (
-    <div className={`fixed top-0 flex h-screen w-64 flex-col border-slate-800/80 bg-[radial-gradient(circle_at_top_left,rgba(37,99,235,0.10),transparent_28%),#020617] ${rtl ? "right-0 border-l" : "left-0 border-r"}`}>
+    <div className="fixed left-0 top-0 flex h-screen w-64 flex-col border-r border-slate-800/80 bg-[radial-gradient(circle_at_top_left,rgba(37,99,235,0.10),transparent_28%),#020617]">
       <div className="border-b border-slate-800/80 px-5 py-5"><AveroBrand /></div>
-
-      <nav className="flex-1 space-y-2 overflow-y-auto p-4">
+      <nav className="flex-1 space-y-2 overflow-y-auto p-4" dir={rtl ? "rtl" : "ltr"}>
         <Link href="/" className={`flex items-center gap-3 rounded-xl px-4 py-3 transition-all ${pathname === "/" ? "border border-blue-500/25 bg-gradient-to-r from-blue-500/15 to-cyan-400/5 text-blue-300" : "text-slate-300 hover:bg-slate-900/80 hover:text-white"}`}>
           <LayoutDashboard size={18} strokeWidth={1.8}/><span className="text-sm font-medium">{t("dashboard")}</span>
         </Link>
