@@ -52,7 +52,7 @@ export async function GET() {
     // Fetch all companies
     const { data: companies, error: companiesError } = await supabase
       .from("companies")
-      .select("id, name, phone_number_id, created_at")
+      .select("id, name, whatsapp_phone_number_id, created_at")
       .order("created_at", { ascending: false });
 
     console.log("Companies query result:", {
