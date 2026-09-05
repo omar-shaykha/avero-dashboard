@@ -176,14 +176,17 @@ export async function POST(request: Request) {
     const trimmedCompanyName = company_name.trim();
     const trimmedWhatsappId = whatsapp_phone_number_id?.trim() || null;
 
-    // 4. Check if Auth user exists by email
+    // 4. Check if Auth user exists by email using listUsers
     let existingAuthUser = null;
     try {
-      const { data: authUserData, error: getUserError } =
-        await supabase.auth.admin.getUserByEmail(trimmedEmail);
+      const { data: authUsers, error: listUsersError } =
+        await supabase.auth.admin.listUsers();
 
-      if (!getUserError && authUserData) {
-        existingAuthUser = authUserData;
+      if (!listUsersError && authUsers && authUsers.users) {
+        // Find matching user by normalized email
+        existingAuthUser = authUsers.users.find(
+          (u) => u.email?.toLowerCase() === trimmedEmail.toLowerCase()
+        ) || null;
       }
     } catch (err) {
       console.error("Error checking for existing user:", err);
