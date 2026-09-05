@@ -5,6 +5,17 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import LogoutButton from "./LogoutButton";
 import type { AuthorizationContext } from "@/lib/auth/authorization";
+import {
+  LayoutDashboard,
+  Sparkles,
+  UsersRound,
+  ChartNoAxesCombined,
+  Megaphone,
+  BriefcaseBusiness,
+  MessagesSquare,
+  Building2,
+  type LucideIcon,
+} from "lucide-react";
 
 interface SidebarProps {
   userEmail?: string;
@@ -24,15 +35,21 @@ export default function Sidebar({ userEmail, userName, access }: SidebarProps) {
   }, [access]);
   const currentAccess = access ?? loadedAccess;
 
-  const navItems = [
-    { label: "Dashboard", icon: "📊", href: "/" },
-    { label: "AI Sales", icon: "✨", href: "/ai-sales", feature: "ai_sales", permission: "view_ai_sales" },
-    { label: "CRM", icon: "👥", href: "/crm", feature: "crm", permission: "view_crm" },
-    { label: "Analytics", icon: "📉", href: "/analytics", feature: "analytics", permission: "view_analytics" },
-    { label: "AI Marketing", icon: "📣", href: "/ai-marketing", feature: "ai_marketing", permission: "view_ai_marketing" },
-    { label: "AI HR", icon: "🧑‍💼", href: "/ai-hr", feature: "ai_hr", permission: "view_ai_hr" },
-    { label: "AI Support", icon: "💬", href: "/ai-support", feature: "ai_support", permission: "view_ai_support" },
-    { label: "Clients", icon: "🏢", href: "/clients", permission: "manage_clients" },
+  const navItems: {
+    label: string;
+    icon: LucideIcon;
+    href: string;
+    feature?: string;
+    permission?: string;
+  }[] = [
+    { label: "Dashboard", icon: LayoutDashboard, href: "/" },
+    { label: "AI Sales", icon: Sparkles, href: "/ai-sales", feature: "ai_sales", permission: "view_ai_sales" },
+    { label: "CRM", icon: UsersRound, href: "/crm", feature: "crm", permission: "view_crm" },
+    { label: "Analytics", icon: ChartNoAxesCombined, href: "/analytics", feature: "analytics", permission: "view_analytics" },
+    { label: "AI Marketing", icon: Megaphone, href: "/ai-marketing", feature: "ai_marketing", permission: "view_ai_marketing" },
+    { label: "AI HR", icon: BriefcaseBusiness, href: "/ai-hr", feature: "ai_hr", permission: "view_ai_hr" },
+    { label: "AI Support", icon: MessagesSquare, href: "/ai-support", feature: "ai_support", permission: "view_ai_support" },
+    { label: "Clients", icon: Building2, href: "/clients", permission: "manage_clients" },
   ];
   const visibleNavItems = navItems.filter((item) =>
     !item.feature && !item.permission ||
@@ -69,6 +86,7 @@ export default function Sidebar({ userEmail, userName, access }: SidebarProps) {
       <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
         {visibleNavItems.map((item) => {
           const active = isActive(item.href);
+          const Icon = item.icon;
           return (
             <Link
               key={item.href}
@@ -79,7 +97,7 @@ export default function Sidebar({ userEmail, userName, access }: SidebarProps) {
                   : "text-slate-300 hover:bg-slate-800/50"
               }`}
             >
-              <span className="text-lg">{item.icon}</span>
+              <Icon size={18} strokeWidth={1.8} />
               <span className="text-sm font-medium">{item.label}</span>
             </Link>
           );

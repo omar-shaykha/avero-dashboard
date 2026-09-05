@@ -1,5 +1,15 @@
 "use client";
 
+import {
+  UsersRound,
+  BadgeCheck,
+  FileText,
+  Handshake,
+  Trophy,
+  CircleX,
+  type LucideIcon,
+} from "lucide-react";
+
 interface StatsCardsProps {
   totalLeads: number;
   qualifiedCount: number;
@@ -9,13 +19,13 @@ interface StatsCardsProps {
   lostCount: number;
 }
 
-const ICONS: Record<string, string> = {
-  total: "👥",
-  qualified: "✓",
-  quotation: "📋",
-  negotiation: "💼",
-  won: "🏆",
-  lost: "✕",
+const ICONS: Record<string, LucideIcon> = {
+  total: UsersRound,
+  qualified: BadgeCheck,
+  quotation: FileText,
+  negotiation: Handshake,
+  won: Trophy,
+  lost: CircleX,
 };
 
 const COLORS: Record<
@@ -96,6 +106,7 @@ export default function StatsCards({
       {statsData.map((stat) => {
         const colorConfig = COLORS[stat.colorKey];
         const count = values[stat.value];
+        const Icon = ICONS[stat.colorKey];
         return (
           <div
             key={stat.label}
@@ -107,8 +118,8 @@ export default function StatsCards({
                 <p className="text-2xl font-bold text-white">{count}</p>
                 <p className="text-xs text-slate-400 mt-1">{stat.metric}</p>
               </div>
-              <div className={`text-2xl ${colorConfig.icon}`}>
-                {ICONS[stat.colorKey]}
+              <div className={colorConfig.icon}>
+                <Icon size={22} strokeWidth={1.8} />
               </div>
             </div>
           </div>

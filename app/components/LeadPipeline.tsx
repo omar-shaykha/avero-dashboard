@@ -1,6 +1,21 @@
 "use client";
 
 import { useState } from "react";
+import {
+  Inbox,
+  BadgeCheck,
+  FileText,
+  Handshake,
+  Trophy,
+  CircleX,
+  Phone,
+  ClipboardList,
+  MapPin,
+  Users,
+  CalendarDays,
+  Flame,
+  type LucideIcon,
+} from "lucide-react";
 
 export interface LeadData {
   id: string;
@@ -33,19 +48,19 @@ const STATUS_OPTIONS = [
   { value: "lost", label: "Lost" },
 ];
 
-const STAGE_CONFIG: Record<string, { label: string; accentColor: string; bgColor: string }> = {
-  new: { label: "New", accentColor: "bg-blue-500", bgColor: "bg-slate-800/30" },
-  qualified: { label: "Qualified", accentColor: "bg-emerald-500", bgColor: "bg-slate-800/30" },
-  quotation: { label: "Quotation", accentColor: "bg-amber-500", bgColor: "bg-slate-800/30" },
-  negotiation: { label: "Negotiation", accentColor: "bg-purple-500", bgColor: "bg-slate-800/30" },
-  won: { label: "Won", accentColor: "bg-green-500", bgColor: "bg-slate-800/30" },
-  lost: { label: "Lost", accentColor: "bg-red-500", bgColor: "bg-slate-800/30" },
+const STAGE_CONFIG: Record<string, { label: string; accentColor: string; bgColor: string; icon: LucideIcon }> = {
+  new: { label: "New", accentColor: "bg-blue-500", bgColor: "bg-slate-800/30", icon: Inbox },
+  qualified: { label: "Qualified", accentColor: "bg-emerald-500", bgColor: "bg-slate-800/30", icon: BadgeCheck },
+  quotation: { label: "Quotation", accentColor: "bg-amber-500", bgColor: "bg-slate-800/30", icon: FileText },
+  negotiation: { label: "Negotiation", accentColor: "bg-purple-500", bgColor: "bg-slate-800/30", icon: Handshake },
+  won: { label: "Won", accentColor: "bg-green-500", bgColor: "bg-slate-800/30", icon: Trophy },
+  lost: { label: "Lost", accentColor: "bg-red-500", bgColor: "bg-slate-800/30", icon: CircleX },
 };
 
-const INTEREST_CONFIG: Record<string, { badge: string; dot: string }> = {
-  "High": { badge: "bg-red-900/40 text-red-300 border-red-700", dot: "bg-red-500" },
-  "Medium": { badge: "bg-amber-900/40 text-amber-300 border-amber-700", dot: "bg-amber-500" },
-  "Low": { badge: "bg-blue-900/40 text-blue-300 border-blue-700", dot: "bg-blue-500" },
+const INTEREST_CONFIG: Record<string, { badge: string; icon: string }> = {
+  "High": { badge: "bg-red-900/40 text-red-300 border-red-700", icon: "text-red-400" },
+  "Medium": { badge: "bg-amber-900/40 text-amber-300 border-amber-700", icon: "text-amber-400" },
+  "Low": { badge: "bg-blue-900/40 text-blue-300 border-blue-700", icon: "text-blue-400" },
 };
 
 export default function LeadPipeline({ leads: initialLeads }: LeadPipelineProps) {
@@ -169,7 +184,8 @@ export default function LeadPipeline({ leads: initialLeads }: LeadPipelineProps)
                   <div className={`${config.accentColor} h-1`} />
                   <div className="px-4 py-3 border-b border-slate-700">
                     <div className="flex items-center justify-between gap-2">
-                      <h3 className="font-semibold text-white capitalize">
+                      <h3 className="flex items-center gap-2 font-semibold text-white capitalize">
+                        <config.icon size={18} strokeWidth={1.8} />
                         {config.label}
                       </h3>
                       <span className="inline-flex items-center justify-center px-2 py-1 rounded-full bg-slate-800 text-xs font-medium text-slate-300">
@@ -183,7 +199,7 @@ export default function LeadPipeline({ leads: initialLeads }: LeadPipelineProps)
                     {stageLeads.length > 0 ? (
                       stageLeads.map((lead) => {
                         const interestConfig = INTEREST_CONFIG[lead.interest_level] || 
-                          { badge: "bg-slate-800/40 text-slate-300 border-slate-700", dot: "bg-slate-500" };
+                          { badge: "bg-slate-800/40 text-slate-300 border-slate-700", icon: "text-slate-400" };
                         
                         return (
                           <button
@@ -215,8 +231,9 @@ export default function LeadPipeline({ leads: initialLeads }: LeadPipelineProps)
 
                             {/* Phone */}
                             {lead.customers?.phone && (
-                              <p className="mt-1.5 text-xs text-slate-300 truncate">
-                                📞 {lead.customers.phone}
+                              <p className="mt-1.5 flex items-center gap-1 text-xs text-slate-300 truncate">
+                                <Phone size={13} strokeWidth={1.8} className="shrink-0" />
+                                {lead.customers.phone}
                               </p>
                             )}
 
@@ -224,10 +241,16 @@ export default function LeadPipeline({ leads: initialLeads }: LeadPipelineProps)
                             {(lead.service_type || lead.city) && (
                               <div className="mt-1.5 flex items-center justify-between gap-1 text-xs text-slate-400">
                                 {lead.service_type && (
-                                  <span className="truncate">📋 {lead.service_type}</span>
+                                  <span className="flex items-center gap-1 truncate">
+                                    <ClipboardList size={13} strokeWidth={1.8} className="shrink-0" />
+                                    {lead.service_type}
+                                  </span>
                                 )}
                                 {lead.city && (
-                                  <span className="truncate text-right">📍 {lead.city}</span>
+                                  <span className="flex items-center gap-1 truncate text-right">
+                                    <MapPin size={13} strokeWidth={1.8} className="shrink-0" />
+                                    {lead.city}
+                                  </span>
                                 )}
                               </div>
                             )}
@@ -236,10 +259,16 @@ export default function LeadPipeline({ leads: initialLeads }: LeadPipelineProps)
                             {(lead.people_count || lead.event_date) && (
                               <div className="mt-1.5 flex items-center justify-between gap-1 text-xs text-slate-400">
                                 {lead.people_count && (
-                                  <span>👥 {lead.people_count}</span>
+                                  <span className="flex items-center gap-1">
+                                    <Users size={13} strokeWidth={1.8} className="shrink-0" />
+                                    {lead.people_count}
+                                  </span>
                                 )}
                                 {lead.event_date && (
-                                  <span className="truncate text-right">📅 {lead.event_date}</span>
+                                  <span className="flex items-center gap-1 truncate text-right">
+                                    <CalendarDays size={13} strokeWidth={1.8} className="shrink-0" />
+                                    {lead.event_date}
+                                  </span>
                                 )}
                               </div>
                             )}
@@ -248,7 +277,7 @@ export default function LeadPipeline({ leads: initialLeads }: LeadPipelineProps)
                             {lead.interest_level && (
                               <div className="mt-2 flex items-center gap-1">
                                 <div className={`flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-medium border ${interestConfig.badge}`}>
-                                  <span className={`h-1 w-1 rounded-full ${interestConfig.dot}`} />
+                                  <Flame size={12} strokeWidth={1.8} className={interestConfig.icon} />
                                   {lead.interest_level}
                                 </div>
                               </div>
@@ -258,7 +287,7 @@ export default function LeadPipeline({ leads: initialLeads }: LeadPipelineProps)
                       })
                     ) : (
                       <div className="flex flex-col items-center justify-center gap-2 py-12 text-center">
-                        <div className="text-2xl">📭</div>
+                        <Inbox size={32} strokeWidth={1.8} className="text-slate-600" />
                         <p className="text-xs font-medium text-slate-400">No leads</p>
                         <p className="text-xs text-slate-500">Leads in this stage will appear here</p>
                       </div>

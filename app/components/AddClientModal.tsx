@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { X } from "lucide-react";
 
 interface AddClientModalProps {
   onClose: () => void;
@@ -83,7 +84,7 @@ export default function AddClientModal({ onClose, onSubmit }: AddClientModalProp
             onClick={onClose}
             className="text-slate-400 hover:text-slate-200 transition-colors"
           >
-            ✕
+            <X size={18} strokeWidth={1.8} />
           </button>
         </div>
 
