@@ -13,13 +13,11 @@ export default function LogoutButton() {
   const handleLogout = async () => {
     setIsLoading(true);
     const { error } = await supabase.auth.signOut();
-
     if (error) {
       console.error("Logout error:", error);
       setIsLoading(false);
       return;
     }
-
     router.push("/login");
     router.refresh();
   };
@@ -28,10 +26,11 @@ export default function LogoutButton() {
     <button
       onClick={handleLogout}
       disabled={isLoading}
-      className="rounded-lg bg-red-900/20 border border-red-800 px-4 py-2 text-sm font-medium text-red-400 transition-colors hover:bg-red-900/30 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+      title="Sign out"
+      aria-label="Sign out"
+      className="group flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-800 bg-slate-900/70 text-slate-400 shadow-sm transition-all hover:border-rose-500/30 hover:bg-rose-500/10 hover:text-rose-300 hover:shadow-[0_0_24px_rgba(244,63,94,0.10)] disabled:cursor-not-allowed disabled:opacity-50"
     >
-      <LogOut size={18} strokeWidth={1.8} />
-      {isLoading ? "Signing out..." : "Logout"}
+      <LogOut size={17} strokeWidth={1.9} className={isLoading ? "animate-pulse" : "transition-transform group-hover:translate-x-0.5"} />
     </button>
   );
 }
