@@ -10,13 +10,11 @@ import {
   LayoutDashboard,
   UsersRound,
   ChartNoAxesCombined,
-  Megaphone,
-  BriefcaseBusiness,
-  MessagesSquare,
+  Sparkles,
   Building2,
   ChevronDown,
   ChevronRight,
-  type LucideIcon,
+  Bot,
 } from "lucide-react";
 
 interface SidebarProps { userEmail?: string; userName?: string; access?: AuthorizationContext | null; }
@@ -25,27 +23,30 @@ export default function Sidebar({ userEmail, userName, access }: SidebarProps) {
   const pathname = usePathname();
   const [loadedAccess, setLoadedAccess] = useState(access);
   const [crmOpen, setCrmOpen] = useState(pathname?.startsWith("/crm") ?? false);
+  const [agentsOpen, setAgentsOpen] = useState(pathname?.startsWith("/ai-") ?? false);
 
   useEffect(() => {
     if (access !== undefined) return;
     fetch("/api/auth/access").then((r) => r.ok ? r.json() : null).then((d) => d && setLoadedAccess(d)).catch(() => undefined);
   }, [access]);
 
-  useEffect(() => { if (pathname?.startsWith("/crm")) setCrmOpen(true); }, [pathname]);
+  useEffect(() => {
+    if (pathname?.startsWith("/crm")) setCrmOpen(true);
+    if (pathname?.startsWith("/ai-")) setAgentsOpen(true);
+  }, [pathname]);
+
   const currentAccess = access ?? loadedAccess;
-
-  const navItems: { label: string; icon: LucideIcon; href: string; feature?: string; permission?: string }[] = [
-    { label: "Dashboard", icon: LayoutDashboard, href: "/" },
-    { label: "Analytics", icon: ChartNoAxesCombined, href: "/analytics", feature: "analytics", permission: "view_analytics" },
-    { label: "AI Marketing", icon: Megaphone, href: "/ai-marketing", feature: "ai_marketing", permission: "view_ai_marketing" },
-    { label: "AI HR", icon: BriefcaseBusiness, href: "/ai-hr", feature: "ai_hr", permission: "view_ai_hr" },
-    { label: "AI Support", icon: MessagesSquare, href: "/ai-support", feature: "ai_support", permission: "view_ai_support" },
-    { label: "Clients", icon: Building2, href: "/clients", permission: "manage_clients" },
-  ];
-
-  const canSee = (item: { feature?: string; permission?: string }) => !item.feature && !item.permission || currentAccess?.profile.role === "super_admin" || (item.feature && currentAccess?.features.includes(item.feature) && item.permission && currentAccess?.permissions.includes(item.permission));
-  const crmVisible = currentAccess?.profile.role === "super_admin" || (currentAccess?.features.includes("crm") && currentAccess?.permissions.includes("view_crm"));
-  const isActive = (href: string) => href === "/" ? pathname === "/" : pathname?.startsWith(href);
+  const isSuperAdmin = currentAccess?.profile.role === "super_admin";
+  const has = (feature: string, permission: string) => isSuperAdmin || !!(currentAccess?.features.includes(feature) && currentAccess?.permissions.includes(permission));
+  const crmVisible = isSuperAdmin || !!(currentAccess?.features.includes("crm") && currentAccess?.permissions.includes("view_crm"));
+  const agents = [
+    { label: "AI Sales Agent", href: "/ai-sales", show: has("ai_sales", "view_ai_sales") },
+    { label: "AI Marketing Agent", href: "/ai-marketing", show: has("ai_marketing", "view_ai_marketing") },
+    { label: "AI HR Agent", href: "/ai-hr", show: has("ai_hr", "view_ai_hr") },
+    { label: "AI Support Agent", href: "/ai-support", show: has("ai_support", "view_ai_support") },
+  ].filter((agent) => agent.show);
+  const analyticsVisible = has("analytics", "view_analytics");
+  const clientsVisible = isSuperAdmin || !!currentAccess?.permissions.includes("manage_clients");
   const initials = userName ? userName.split(" ").map((n) => n[0]).join("").toUpperCase() : userEmail?.[0]?.toUpperCase() || "U";
 
   return (
@@ -53,26 +54,36 @@ export default function Sidebar({ userEmail, userName, access }: SidebarProps) {
       <div className="border-b border-slate-800/80 px-5 py-5"><AveroBrand /></div>
 
       <nav className="flex-1 space-y-2 overflow-y-auto p-4">
-        {navItems.slice(0, 1).filter(canSee).map((item) => <NavItem key={item.href} item={item} active={!!isActive(item.href)} />)}
+        <Link href="/" className={`flex items-center gap-3 rounded-xl px-4 py-3 transition-all ${pathname === "/" ? "border border-blue-500/25 bg-gradient-to-r from-blue-500/15 to-cyan-400/5 text-blue-300" : "text-slate-300 hover:bg-slate-900/80 hover:text-white"}`}>
+          <LayoutDashboard size={18} strokeWidth={1.8}/><span className="text-sm font-medium">Dashboard</span>
+        </Link>
 
-        {crmVisible && (
+        {agents.length > 0 && (
           <div>
-            <button onClick={() => setCrmOpen((v) => !v)} className={`flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left transition-all ${pathname?.startsWith("/crm") ? "border border-blue-500/25 bg-gradient-to-r from-blue-500/15 to-cyan-400/5 text-blue-300 shadow-[inset_0_0_0_1px_rgba(59,130,246,0.04)]" : "text-slate-300 hover:bg-slate-900/80 hover:text-white"}`}>
-              <UsersRound size={18} strokeWidth={1.8} /><span className="flex-1 text-sm font-medium">CRM</span>{crmOpen ? <ChevronDown size={15}/> : <ChevronRight size={15}/>} 
+            <button onClick={() => setAgentsOpen((v) => !v)} className={`flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left transition-all ${pathname?.startsWith("/ai-") ? "border border-violet-500/25 bg-gradient-to-r from-violet-500/15 to-blue-400/5 text-violet-300" : "text-slate-300 hover:bg-slate-900/80 hover:text-white"}`}>
+              <Bot size={18} strokeWidth={1.8}/><span className="flex-1 text-sm font-medium">AI Agents</span>{agentsOpen ? <ChevronDown size={15}/> : <ChevronRight size={15}/>} 
             </button>
-            {crmOpen && (
-              <div className="ml-5 mt-2 space-y-1 border-l border-slate-800 pl-3">
-                <Sub href="/crm" label="CRM Hub" pathname={pathname} exact />
-                <Sub href="/crm/sales" label="AI Sales CRM" pathname={pathname} />
-                <Sub href="/crm/marketing" label="AI Marketing CRM" pathname={pathname} />
-                <Sub href="/crm/hr" label="AI HR CRM" pathname={pathname} />
-                <Sub href="/crm/support" label="AI Support CRM" pathname={pathname} />
-              </div>
-            )}
+            {agentsOpen && <div className="ml-5 mt-2 space-y-1 border-l border-slate-800 pl-3">{agents.map((agent) => <Sub key={agent.href} href={agent.href} label={agent.label} pathname={pathname} />)}</div>}
           </div>
         )}
 
-        {navItems.slice(1).filter(canSee).map((item) => <NavItem key={item.href} item={item} active={!!isActive(item.href)} />)}
+        {crmVisible && (
+          <div>
+            <button onClick={() => setCrmOpen((v) => !v)} className={`flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left transition-all ${pathname?.startsWith("/crm") ? "border border-blue-500/25 bg-gradient-to-r from-blue-500/15 to-cyan-400/5 text-blue-300" : "text-slate-300 hover:bg-slate-900/80 hover:text-white"}`}>
+              <UsersRound size={18} strokeWidth={1.8}/><span className="flex-1 text-sm font-medium">CRM</span>{crmOpen ? <ChevronDown size={15}/> : <ChevronRight size={15}/>} 
+            </button>
+            {crmOpen && <div className="ml-5 mt-2 space-y-1 border-l border-slate-800 pl-3">
+              <Sub href="/crm" label="CRM Hub" pathname={pathname} exact />
+              <Sub href="/crm/sales" label="AI Sales CRM" pathname={pathname} />
+              <Sub href="/crm/marketing" label="AI Marketing CRM" pathname={pathname} />
+              <Sub href="/crm/hr" label="AI HR CRM" pathname={pathname} />
+              <Sub href="/crm/support" label="AI Support CRM" pathname={pathname} />
+            </div>}
+          </div>
+        )}
+
+        {analyticsVisible && <Link href="/analytics" className={`flex items-center gap-3 rounded-xl px-4 py-3 transition-all ${pathname?.startsWith("/analytics") ? "border border-blue-500/25 bg-gradient-to-r from-blue-500/15 to-cyan-400/5 text-blue-300" : "text-slate-300 hover:bg-slate-900/80 hover:text-white"}`}><ChartNoAxesCombined size={18} strokeWidth={1.8}/><span className="text-sm font-medium">Analytics</span></Link>}
+        {clientsVisible && <Link href="/clients" className={`flex items-center gap-3 rounded-xl px-4 py-3 transition-all ${pathname?.startsWith("/clients") ? "border border-blue-500/25 bg-gradient-to-r from-blue-500/15 to-cyan-400/5 text-blue-300" : "text-slate-300 hover:bg-slate-900/80 hover:text-white"}`}><Building2 size={18} strokeWidth={1.8}/><span className="text-sm font-medium">Clients</span></Link>}
       </nav>
 
       <div className="border-t border-slate-800/80 p-4">
@@ -86,5 +97,7 @@ export default function Sidebar({ userEmail, userName, access }: SidebarProps) {
   );
 }
 
-function NavItem({ item, active }: { item: { label: string; icon: LucideIcon; href: string }; active: boolean }) { const Icon=item.icon; return <Link href={item.href} className={`flex items-center gap-3 rounded-xl px-4 py-3 transition-all ${active ? "border border-blue-500/25 bg-gradient-to-r from-blue-500/15 to-cyan-400/5 text-blue-300" : "text-slate-300 hover:bg-slate-900/80 hover:text-white"}`}><Icon size={18} strokeWidth={1.8}/><span className="text-sm font-medium">{item.label}</span></Link> }
-function Sub({ href, label, pathname, exact=false }: { href:string; label:string; pathname:string|null; exact?:boolean }) { const active=exact ? pathname===href : pathname?.startsWith(href); return <Link href={href} className={`block rounded-lg px-3 py-2 text-xs transition ${active ? "bg-blue-500/10 text-blue-300" : "text-slate-500 hover:bg-slate-900 hover:text-slate-300"}`}>{label}</Link> }
+function Sub({ href, label, pathname, exact=false }: { href:string; label:string; pathname:string|null; exact?:boolean }) {
+  const active = exact ? pathname === href : pathname?.startsWith(href);
+  return <Link href={href} className={`flex items-center gap-2 rounded-lg px-3 py-2 text-xs transition ${active ? "bg-blue-500/10 text-blue-300" : "text-slate-500 hover:bg-slate-900 hover:text-slate-300"}`}><Sparkles size={12}/>{label}</Link>;
+}
