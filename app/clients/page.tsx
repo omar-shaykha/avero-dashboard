@@ -10,7 +10,7 @@ import AddClientModal from "@/app/components/AddClientModal";
 interface Company {
   id: string;
   name: string;
-  phone_number_id?: string;
+  whatsapp_phone_number_id?: string;
   created_at: string;
 }
 
