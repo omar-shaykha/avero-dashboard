@@ -1,17 +1,11 @@
 import { createClient } from "@supabase/supabase-js";
-import { createClient as createServerClient } from "@/lib/supabase/server";
-
-const AVERO_INTERNAL_ID = "9fbdd617-fdc4-4c1d-b16b-b1d3118bf3d9";
+import { getAuthorizationContext, isSuperAdmin } from "@/lib/auth/authorization";
 
 export async function GET() {
   try {
     // Authenticate user
-    const authClient = await createServerClient();
-    const {
-      data: { user },
-    } = await authClient.auth.getUser();
-
-    if (!user) {
+    const context = await getAuthorizationContext();
+    if (!context) {
       return new Response(
         JSON.stringify({ error: "Unauthorized" }),
         { status: 401, headers: { "Content-Type": "application/json" } }
@@ -30,19 +24,7 @@ export async function GET() {
     }
 
     const supabase = createClient(supabaseUrl, supabaseSecretKey);
-
-    // Verify user belongs to AVERO Internal AND has admin role
-    const { data: userProfile, error: userProfileError } = await supabase
-      .from("user_profiles")
-      .select("company_id, role")
-      .eq("user_id", user.id)
-      .single();
-
-    if (
-      userProfileError ||
-      userProfile?.company_id !== AVERO_INTERNAL_ID ||
-      userProfile?.role !== "admin"
-    ) {
+    if (!isSuperAdmin(context)) {
       return new Response(
         JSON.stringify({ error: "Forbidden: Access restricted" }),
         { status: 403, headers: { "Content-Type": "application/json" } }
@@ -83,12 +65,8 @@ export async function POST(request: Request) {
 
   try {
     // 1. Authenticate requester
-    const authClient = await createServerClient();
-    const {
-      data: { user },
-    } = await authClient.auth.getUser();
-
-    if (!user) {
+    const context = await getAuthorizationContext();
+    if (!context) {
       return new Response(
         JSON.stringify({ error: "Unauthorized" }),
         { status: 401, headers: { "Content-Type": "application/json" } }
@@ -104,19 +82,8 @@ export async function POST(request: Request) {
     }
 
     const supabase = createClient(supabaseUrl, supabaseSecretKey);
-
-    // 2. Verify requester is AVERO Internal admin
-    const { data: requesterProfile, error: requesterProfileError } = await supabase
-      .from("user_profiles")
-      .select("company_id, role")
-      .eq("user_id", user.id)
-      .single();
-
-    if (
-      requesterProfileError ||
-      requesterProfile?.company_id !== AVERO_INTERNAL_ID ||
-      requesterProfile?.role !== "admin"
-    ) {
+    // Client provisioning remains a platform-only operation.
+    if (!isSuperAdmin(context)) {
       return new Response(
         JSON.stringify({ error: "Forbidden: Access restricted" }),
         { status: 403, headers: { "Content-Type": "application/json" } }

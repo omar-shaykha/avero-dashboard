@@ -1,27 +1,45 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import LogoutButton from "./LogoutButton";
+import type { AuthorizationContext } from "@/lib/auth/authorization";
 
 interface SidebarProps {
   userEmail?: string;
   userName?: string;
+  access?: AuthorizationContext | null;
 }
 
-export default function Sidebar({ userEmail, userName }: SidebarProps) {
+export default function Sidebar({ userEmail, userName, access }: SidebarProps) {
   const pathname = usePathname();
+  const [loadedAccess, setLoadedAccess] = useState(access);
+  useEffect(() => {
+    if (access !== undefined) return;
+    fetch("/api/auth/access")
+      .then((response) => response.ok ? response.json() : null)
+      .then((data) => data && setLoadedAccess(data))
+      .catch(() => undefined);
+  }, [access]);
+  const currentAccess = access ?? loadedAccess;
 
   const navItems = [
     { label: "Dashboard", icon: "📊", href: "/" },
-    { label: "Leads", icon: "👥", href: "/leads" },
-    { label: "Pipeline", icon: "📈", href: "/pipeline" },
-    { label: "Analytics", icon: "📉", href: "/analytics" },
-    { label: "AI Assistant", icon: "✨", href: "/assistant" },
-    { label: "Settings", icon: "⚙️", href: "/settings" },
-    { label: "Clients", icon: "🏢", href: "/clients" },
+    { label: "AI Sales", icon: "✨", href: "/ai-sales", feature: "ai_sales", permission: "view_ai_sales" },
+    { label: "CRM", icon: "👥", href: "/crm", feature: "crm", permission: "view_crm" },
+    { label: "Analytics", icon: "📉", href: "/analytics", feature: "analytics", permission: "view_analytics" },
+    { label: "AI Marketing", icon: "📣", href: "/ai-marketing", feature: "ai_marketing", permission: "view_ai_marketing" },
+    { label: "AI HR", icon: "🧑‍💼", href: "/ai-hr", feature: "ai_hr", permission: "view_ai_hr" },
+    { label: "AI Support", icon: "💬", href: "/ai-support", feature: "ai_support", permission: "view_ai_support" },
+    { label: "Clients", icon: "🏢", href: "/clients", permission: "manage_clients" },
   ];
+  const visibleNavItems = navItems.filter((item) =>
+    !item.feature && !item.permission ||
+    currentAccess?.profile.role === "super_admin" ||
+    (item.feature && currentAccess?.features.includes(item.feature) &&
+      item.permission && currentAccess?.permissions.includes(item.permission))
+  );
 
   const isActive = (href: string) => {
     if (href === "/" && pathname === "/") return true;
@@ -49,7 +67,7 @@ export default function Sidebar({ userEmail, userName }: SidebarProps) {
 
       {/* Navigation */}
       <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
-        {navItems.map((item) => {
+        {visibleNavItems.map((item) => {
           const active = isActive(item.href);
           return (
             <Link
