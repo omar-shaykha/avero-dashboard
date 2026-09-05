@@ -3,7 +3,7 @@
 interface Company {
   id: string;
   name: string;
-  phone_number_id?: string;
+  whatsapp_phone_number_id?: string;
   created_at: string;
 }
 
@@ -60,7 +60,7 @@ export default function ClientsTable({ companies }: ClientsTableProps) {
                 {company.id}
               </td>
               <td className="px-6 py-4 text-sm text-slate-300">
-                {company.phone_number_id || "—"}
+                {company.whatsapp_phone_number_id || "—"}
               </td>
               <td className="px-6 py-4 text-sm text-slate-400">
                 {formatDate(company.created_at)}
