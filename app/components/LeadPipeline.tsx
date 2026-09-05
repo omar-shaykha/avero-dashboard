@@ -57,10 +57,10 @@ const STAGE_CONFIG: Record<string, { label: string; accentColor: string; bgColor
   lost: { label: "Lost", accentColor: "bg-red-500", bgColor: "bg-slate-800/30", icon: CircleX },
 };
 
-const INTEREST_CONFIG: Record<string, { badge: string; dot: string }> = {
-  "High": { badge: "bg-red-900/40 text-red-300 border-red-700", dot: "bg-red-500" },
-  "Medium": { badge: "bg-amber-900/40 text-amber-300 border-amber-700", dot: "bg-amber-500" },
-  "Low": { badge: "bg-blue-900/40 text-blue-300 border-blue-700", dot: "bg-blue-500" },
+const INTEREST_CONFIG: Record<string, { badge: string; dot: string; icon: string }> = {
+  "High": { badge: "bg-red-900/40 text-red-300 border-red-700", dot: "bg-red-500", icon: "text-red-400" },
+  "Medium": { badge: "bg-amber-900/40 text-amber-300 border-amber-700", dot: "bg-amber-500", icon: "text-amber-400" },
+  "Low": { badge: "bg-blue-900/40 text-blue-300 border-blue-700", dot: "bg-blue-500", icon: "text-blue-400" },
 };
 
 export default function LeadPipeline({ leads: initialLeads }: LeadPipelineProps) {
@@ -199,7 +199,7 @@ export default function LeadPipeline({ leads: initialLeads }: LeadPipelineProps)
                     {stageLeads.length > 0 ? (
                       stageLeads.map((lead) => {
                         const interestConfig = INTEREST_CONFIG[lead.interest_level] || 
-                          { badge: "bg-slate-800/40 text-slate-300 border-slate-700", dot: "bg-slate-500" };
+                          { badge: "bg-slate-800/40 text-slate-300 border-slate-700", dot: "bg-slate-500", icon: "text-slate-400" };
                         
                         return (
                           <button
@@ -277,7 +277,7 @@ export default function LeadPipeline({ leads: initialLeads }: LeadPipelineProps)
                             {lead.interest_level && (
                               <div className="mt-2 flex items-center gap-1">
                                 <div className={`flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-medium border ${interestConfig.badge}`}>
-                                  <Flame size={12} strokeWidth={1.8} />
+                                  <Flame size={12} strokeWidth={1.8} className={interestConfig.icon} />
                                   {lead.interest_level}
                                 </div>
                               </div>
