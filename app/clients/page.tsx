@@ -44,7 +44,7 @@ export default function ClientsPage() {
         const userData = await userRes.json();
         setUser(userData);
 
-        // Fetch user profile to check company
+        // Fetch user profile to check company and role
         const profileRes = await fetch("/api/auth/profile");
         if (!profileRes.ok) {
           setAccessDenied(true);
@@ -54,7 +54,8 @@ export default function ClientsPage() {
 
         const profileData = await profileRes.json();
 
-        if (profileData.company_id !== AVERO_INTERNAL_ID) {
+        // Check both company_id AND role
+        if (profileData.company_id !== AVERO_INTERNAL_ID || profileData.role !== "admin") {
           setAccessDenied(true);
           setLoading(false);
           return;
