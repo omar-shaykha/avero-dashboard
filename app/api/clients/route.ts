@@ -55,22 +55,34 @@ export async function GET() {
       .select("id, name, phone_number_id, created_at")
       .order("created_at", { ascending: false });
 
+    console.log("Companies query result:", {
+      count: companies?.length || 0,
+      companies: companies,
+      error: companiesError,
+    });
+
     if (companiesError) {
       console.error("Supabase error:", companiesError);
       return new Response(
-        JSON.stringify({ error: "Failed to fetch companies" }),
+        JSON.stringify({ 
+          error: "Failed to fetch companies",
+          details: companiesError.message 
+        }),
         { status: 500, headers: { "Content-Type": "application/json" } }
       );
     }
 
-    return new Response(JSON.stringify(companies || []), {
+    const responseArray = companies || [];
+    console.log("Returning companies response:", responseArray);
+
+    return new Response(JSON.stringify(responseArray), {
       status: 200,
       headers: { "Content-Type": "application/json" },
     });
   } catch (error) {
     console.error("API error:", error);
     return new Response(
-      JSON.stringify({ error: "Internal server error" }),
+      JSON.stringify({ error: "Internal server error", details: String(error) }),
       { status: 500, headers: { "Content-Type": "application/json" } }
     );
   }
