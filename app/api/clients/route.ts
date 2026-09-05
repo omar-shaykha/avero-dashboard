@@ -197,7 +197,7 @@ export async function POST(request: Request) {
     if (!existingAuthUser) {
       // 5. Create Auth user server-side if doesn't exist
       try {
-        const { data: newAuthUser, error: createUserError } =
+        const { data: newAuthUserData, error: createUserError } =
           await supabase.auth.admin.createUser({
             email: trimmedEmail,
             password: trimmedPassword,
@@ -214,16 +214,16 @@ export async function POST(request: Request) {
           );
         }
 
-        if (!newAuthUser || !newAuthUser.id) {
+        if (!newAuthUserData?.user?.id) {
           return new Response(
             JSON.stringify({ error: "Failed to create Auth user" }),
             { status: 500, headers: { "Content-Type": "application/json" } }
           );
         }
 
-        createdUserId = newAuthUser.id;
+        createdUserId = newAuthUserData.user.id;
         authUserCreated = true;
-        console.log(`Created new Auth user: ${newAuthUser.id} for email: ${trimmedEmail}`);
+        console.log(`Created new Auth user: ${newAuthUserData.user.id} for email: ${trimmedEmail}`);
       } catch (err) {
         console.error("Unexpected error creating Auth user:", err);
         return new Response(
