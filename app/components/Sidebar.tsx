@@ -8,7 +8,6 @@ import AveroBrand from "./AveroBrand";
 import type { AuthorizationContext } from "@/lib/auth/authorization";
 import {
   LayoutDashboard,
-  Sparkles,
   UsersRound,
   ChartNoAxesCombined,
   Megaphone,
@@ -37,7 +36,6 @@ export default function Sidebar({ userEmail, userName, access }: SidebarProps) {
 
   const navItems: { label: string; icon: LucideIcon; href: string; feature?: string; permission?: string }[] = [
     { label: "Dashboard", icon: LayoutDashboard, href: "/" },
-    { label: "AI Sales", icon: Sparkles, href: "/ai-sales", feature: "ai_sales", permission: "view_ai_sales" },
     { label: "Analytics", icon: ChartNoAxesCombined, href: "/analytics", feature: "analytics", permission: "view_analytics" },
     { label: "AI Marketing", icon: Megaphone, href: "/ai-marketing", feature: "ai_marketing", permission: "view_ai_marketing" },
     { label: "AI HR", icon: BriefcaseBusiness, href: "/ai-hr", feature: "ai_hr", permission: "view_ai_hr" },
@@ -52,12 +50,10 @@ export default function Sidebar({ userEmail, userName, access }: SidebarProps) {
 
   return (
     <div className="fixed left-0 top-0 flex h-screen w-64 flex-col border-r border-slate-800/80 bg-[radial-gradient(circle_at_top_left,rgba(37,99,235,0.10),transparent_28%),#020617]">
-      <div className="border-b border-slate-800/80 px-5 py-5">
-        <AveroBrand />
-      </div>
+      <div className="border-b border-slate-800/80 px-5 py-5"><AveroBrand /></div>
 
       <nav className="flex-1 space-y-2 overflow-y-auto p-4">
-        {navItems.slice(0, 2).filter(canSee).map((item) => <NavItem key={item.href} item={item} active={!!isActive(item.href)} />)}
+        {navItems.slice(0, 1).filter(canSee).map((item) => <NavItem key={item.href} item={item} active={!!isActive(item.href)} />)}
 
         {crmVisible && (
           <div>
@@ -76,7 +72,7 @@ export default function Sidebar({ userEmail, userName, access }: SidebarProps) {
           </div>
         )}
 
-        {navItems.slice(2).filter(canSee).map((item) => <NavItem key={item.href} item={item} active={!!isActive(item.href)} />)}
+        {navItems.slice(1).filter(canSee).map((item) => <NavItem key={item.href} item={item} active={!!isActive(item.href)} />)}
       </nav>
 
       <div className="border-t border-slate-800/80 p-4">
