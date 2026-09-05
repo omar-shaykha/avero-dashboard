@@ -1,0 +1,170 @@
+"use client";
+
+import { useMemo, useState } from "react";
+import {
+  BadgeCheck,
+  CircleX,
+  FileText,
+  Handshake,
+  MessageCircle,
+  Minus,
+  Target,
+  TrendingDown,
+  TrendingUp,
+  Trophy,
+  UsersRound,
+  WalletCards,
+} from "lucide-react";
+
+type Lead = {
+  id: string;
+  service_type: string | null;
+  status: string | null;
+  estimated_value?: number | null;
+  created_at?: string | null;
+  updated_at: string;
+  customers: { source?: string | null } | null;
+};
+
+type RangeKey = "today" | "7d" | "30d" | "month" | "year";
+
+function startOfDay(date: Date) {
+  const d = new Date(date);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+function endOfDay(date: Date) {
+  const d = new Date(date);
+  d.setHours(23, 59, 59, 999);
+  return d;
+}
+
+function rangeFor(key: RangeKey) {
+  const now = new Date();
+  let start = startOfDay(now);
+  const end = endOfDay(now);
+  if (key === "7d") start = startOfDay(new Date(now.getFullYear(), now.getMonth(), now.getDate() - 6));
+  if (key === "30d") start = startOfDay(new Date(now.getFullYear(), now.getMonth(), now.getDate() - 29));
+  if (key === "month") start = startOfDay(new Date(now.getFullYear(), now.getMonth(), 1));
+  if (key === "year") start = startOfDay(new Date(now.getFullYear(), 0, 1));
+  const duration = end.getTime() - start.getTime() + 1;
+  const previousEnd = new Date(start.getTime() - 1);
+  const previousStart = new Date(previousEnd.getTime() - duration + 1);
+  return { start, end, previousStart, previousEnd };
+}
+
+function Trend({ current, previous }: { current: number; previous: number }) {
+  if (previous === 0) {
+    return <span className="inline-flex items-center gap-1 text-xs text-slate-500"><Minus size={13} /> No prior data</span>;
+  }
+  const change = ((current - previous) / previous) * 100;
+  const positive = change > 0;
+  const negative = change < 0;
+  const Icon = positive ? TrendingUp : negative ? TrendingDown : Minus;
+  return (
+    <span className={`inline-flex items-center gap-1 text-xs font-medium ${positive ? "text-emerald-400" : negative ? "text-rose-400" : "text-slate-400"}`}>
+      <Icon size={13} /> {Math.abs(change).toFixed(0)}% vs previous
+    </span>
+  );
+}
+
+function money(value: number) {
+  return new Intl.NumberFormat("en-SA", { style: "currency", currency: "SAR", maximumFractionDigits: 0 }).format(value);
+}
+
+export default function BusinessOverviewV2({ leads }: { leads: Lead[] }) {
+  const [range, setRange] = useState<RangeKey>("30d");
+
+  const a = useMemo(() => {
+    const r = rangeFor(range);
+    const when = (lead: Lead) => new Date(lead.created_at || lead.updated_at);
+    const inside = (lead: Lead, start: Date, end: Date) => when(lead) >= start && when(lead) <= end;
+    const current = leads.filter((l) => inside(l, r.start, r.end));
+    const previous = leads.filter((l) => inside(l, r.previousStart, r.previousEnd));
+    const count = (list: Lead[], status: string) => list.filter((l) => (l.status || "new").toLowerCase() === status).length;
+    const counts = Object.fromEntries(["qualified", "quotation", "negotiation", "won", "lost"].map((s) => [s, count(current, s)]));
+    const prev = Object.fromEntries(["qualified", "quotation", "negotiation", "won", "lost"].map((s) => [s, count(previous, s)]));
+    const conversion = current.length ? (counts.won / current.length) * 100 : 0;
+    const prevConversion = previous.length ? (prev.won / previous.length) * 100 : 0;
+    const pipeline = current.filter((l) => !["won", "lost"].includes((l.status || "new").toLowerCase())).reduce((sum, l) => sum + Number(l.estimated_value || 0), 0);
+    const prevPipeline = previous.filter((l) => !["won", "lost"].includes((l.status || "new").toLowerCase())).reduce((sum, l) => sum + Number(l.estimated_value || 0), 0);
+    const sources = new Map<string, number>();
+    current.forEach((l) => {
+      const source = (l.customers?.source || "Other").trim() || "Other";
+      sources.set(source, (sources.get(source) || 0) + 1);
+    });
+    return { current, previous, counts, prev, conversion, prevConversion, pipeline, prevPipeline, sources: [...sources.entries()].sort((x, y) => y[1] - x[1]) };
+  }, [leads, range]);
+
+  const cards = [
+    ["Total Leads", a.current.length, a.previous.length, UsersRound, "text-blue-400"],
+    ["Qualified", a.counts.qualified, a.prev.qualified, BadgeCheck, "text-emerald-400"],
+    ["Quotations", a.counts.quotation, a.prev.quotation, FileText, "text-amber-400"],
+    ["Negotiations", a.counts.negotiation, a.prev.negotiation, Handshake, "text-violet-400"],
+    ["Won", a.counts.won, a.prev.won, Trophy, "text-cyan-400"],
+    ["Lost", a.counts.lost, a.prev.lost, CircleX, "text-rose-400"],
+  ] as const;
+
+  return (
+    <main className="flex-1 overflow-x-hidden px-6 py-6 text-white">
+      <div className="mb-6 flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+        <div>
+          <p className="mb-1 text-xs font-semibold uppercase tracking-[0.2em] text-blue-400">AVERO Intelligence</p>
+          <h1 className="text-3xl font-bold">Business Overview</h1>
+          <p className="mt-2 text-sm text-slate-400">Live metrics from your CRM data. Comparisons are shown only when prior-period data exists.</p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {(["today", "7d", "30d", "month", "year"] as RangeKey[]).map((key) => (
+            <button key={key} onClick={() => setRange(key)} className={`rounded-lg border px-3 py-2 text-sm ${range === key ? "border-blue-500 bg-blue-500/15 text-blue-300" : "border-slate-700 bg-slate-900 text-slate-400"}`}>
+              {{ today: "Today", "7d": "7 Days", "30d": "30 Days", month: "This Month", year: "This Year" }[key]}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
+        {cards.map(([label, value, previous, Icon, accent]) => (
+          <div key={label} className="rounded-xl border border-slate-800 bg-slate-900/70 p-4">
+            <div className="mb-4 flex items-center justify-between"><span className="text-sm text-slate-400">{label}</span><Icon size={20} className={accent} /></div>
+            <div className="text-3xl font-semibold">{value}</div>
+            <div className="mt-2"><Trend current={value} previous={previous} /></div>
+          </div>
+        ))}
+      </section>
+
+      <section className="mt-4 grid gap-4 lg:grid-cols-2">
+        <div className="rounded-xl border border-slate-800 bg-slate-900/70 p-5">
+          <div className="flex items-start justify-between"><div><p className="text-sm text-slate-400">Conversion Rate</p><p className="mt-1 text-3xl font-semibold">{a.conversion.toFixed(1)}%</p></div><Target className="text-blue-400" /></div>
+          <div className="mt-3"><Trend current={a.conversion} previous={a.prevConversion} /></div>
+        </div>
+        <div className="rounded-xl border border-slate-800 bg-slate-900/70 p-5">
+          <div className="flex items-start justify-between"><div><p className="text-sm text-slate-400">Estimated Pipeline Value</p><p className="mt-1 text-3xl font-semibold">{money(a.pipeline)}</p></div><WalletCards className="text-emerald-400" /></div>
+          <div className="mt-3"><Trend current={a.pipeline} previous={a.prevPipeline} /></div>
+        </div>
+      </section>
+
+      <section className="mt-6 grid gap-6 xl:grid-cols-2">
+        <div className="rounded-xl border border-slate-800 bg-slate-900/70 p-5">
+          <h2 className="text-lg font-semibold">Current Sales Stages</h2>
+          <p className="mb-5 text-sm text-slate-500">Real counts for the selected period</p>
+          <div className="space-y-4">
+            {[["Qualified", a.counts.qualified], ["Quotation", a.counts.quotation], ["Negotiation", a.counts.negotiation], ["Won", a.counts.won], ["Lost", a.counts.lost]].map(([label, raw]) => {
+              const value = Number(raw); const pct = a.current.length ? (value / a.current.length) * 100 : 0;
+              return <div key={String(label)}><div className="mb-1 flex justify-between text-sm"><span className="text-slate-300">{label}</span><span>{value}</span></div><div className="h-2 rounded-full bg-slate-800"><div className="h-full rounded-full bg-blue-500" style={{ width: `${pct}%` }} /></div></div>;
+            })}
+          </div>
+        </div>
+        <div className="rounded-xl border border-slate-800 bg-slate-900/70 p-5">
+          <div className="mb-5 flex items-center gap-2"><MessageCircle className="text-blue-400" size={20} /><div><h2 className="text-lg font-semibold">Lead Sources</h2><p className="text-sm text-slate-500">Acquisition channels from customer records</p></div></div>
+          <div className="space-y-4">
+            {a.sources.length ? a.sources.map(([source, count]) => {
+              const pct = a.current.length ? (count / a.current.length) * 100 : 0;
+              return <div key={source}><div className="mb-1 flex justify-between text-sm"><span className="text-slate-300">{source}</span><span>{count}</span></div><div className="h-2 rounded-full bg-slate-800"><div className="h-full rounded-full bg-blue-500" style={{ width: `${pct}%` }} /></div></div>;
+            }) : <div className="py-10 text-center text-sm text-slate-500">No source data for this period.</div>}
+          </div>
+        </div>
+      </section>
+    </main>
+  );
+}
