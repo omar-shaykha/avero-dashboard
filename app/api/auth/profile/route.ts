@@ -4,74 +4,36 @@ import { createClient as createServerClient } from "@/lib/supabase/server";
 export async function GET() {
   try {
     const authClient = await createServerClient();
-    const {
-      data: { user },
-    } = await authClient.auth.getUser();
+    const { data: { user } } = await authClient.auth.getUser();
+    if (!user) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
-    if (!user) {
-      return new Response(
-        JSON.stringify({ error: "Unauthorized" }),
-        { status: 401, headers: { "Content-Type": "application/json" } }
-      );
-    }
-
-    // Create server-side Supabase client with secret key
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const supabaseSecretKey = process.env.SUPABASE_SECRET_KEY;
-
-    if (!supabaseUrl || !supabaseSecretKey) {
-      return new Response(
-        JSON.stringify({ error: "Missing Supabase configuration" }),
-        { status: 500, headers: { "Content-Type": "application/json" } }
-      );
-    }
+    if (!supabaseUrl || !supabaseSecretKey) return Response.json({ error: "Missing Supabase configuration" }, { status: 500 });
 
     const supabase = createClient(supabaseUrl, supabaseSecretKey);
-
-    // Fetch user profile - including all fields to diagnose
     const { data: userProfile, error: profileError } = await supabase
       .from("user_profiles")
-      .select("*")
+      .select("company_id,role,full_name,username,nickname,avatar_url")
       .eq("user_id", user.id)
-      .single();
+      .maybeSingle();
 
     if (profileError) {
-      console.error("Profile error:", profileError);
-      return new Response(
-        JSON.stringify({ error: "Failed to fetch profile" }),
-        { status: 500, headers: { "Content-Type": "application/json" } }
-      );
+      console.error("Profile lookup error:", profileError);
+      return Response.json({ error: "Failed to fetch profile" }, { status: 500 });
     }
+    if (!userProfile) return Response.json({ error: "Profile record not configured" }, { status: 404 });
 
-    // Extract the fields we need
-    const company_id = userProfile?.company_id;
-    const role = userProfile?.role;
-    const name = userProfile?.name;
-
-    console.log("Debug profile response:", {
-      user_id: user.id,
-      company_id,
-      role,
-      name,
-      all_fields: Object.keys(userProfile || {}),
+    return Response.json({
+      company_id: userProfile.company_id,
+      role: userProfile.role,
+      full_name: userProfile.full_name,
+      username: userProfile.username,
+      nickname: userProfile.nickname,
+      avatar_url: userProfile.avatar_url,
     });
-
-    return new Response(
-      JSON.stringify({
-        company_id,
-        role,
-        name,
-      }),
-      {
-        status: 200,
-        headers: { "Content-Type": "application/json" },
-      }
-    );
   } catch (error) {
-    console.error("API error:", error);
-    return new Response(
-      JSON.stringify({ error: "Internal server error" }),
-      { status: 500, headers: { "Content-Type": "application/json" } }
-    );
+    console.error("Profile API error:", error);
+    return Response.json({ error: "Internal server error" }, { status: 500 });
   }
 }
