@@ -1,4 +1,2 @@
-import ProtectedModulePage from "@/app/components/ProtectedModulePage";
-export default function AiHrPage() {
-  return <ProtectedModulePage feature="ai_hr" permission="view_ai_hr" title="AI HR" />;
-}
+import AiDepartmentWorkspace from "@/app/components/AiDepartmentWorkspace";
+export default function AiHrPage(){return <AiDepartmentWorkspace agent="hr" title="AI HR Department"/>}
