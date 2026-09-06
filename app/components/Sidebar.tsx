@@ -7,7 +7,7 @@ import LogoutButton from "./LogoutButton";
 import AveroBrand from "./AveroBrand";
 import { useLanguage } from "./LanguageProvider";
 import type { AuthorizationContext } from "@/lib/auth/authorization";
-import { LayoutDashboard, UsersRound, ChartNoAxesCombined, Sparkles, Building2, ChevronDown, ChevronRight, Bot } from "lucide-react";
+import { LayoutDashboard, UsersRound, ChartNoAxesCombined, Sparkles, Building2, ChevronDown, ChevronRight, Bot, Headphones } from "lucide-react";
 
 interface SidebarProps { userEmail?: string; userName?: string; access?: AuthorizationContext | null; }
 
@@ -48,6 +48,7 @@ export default function Sidebar({ userEmail, userName, access }: SidebarProps) {
 
         {analyticsVisible && <Link href="/analytics" className={`flex items-center gap-3 rounded-xl px-4 py-3 transition-all ${pathname?.startsWith("/analytics") ? "border border-blue-500/25 bg-gradient-to-r from-blue-500/15 to-cyan-400/5 text-blue-300" : "text-slate-300 hover:bg-slate-900/80 hover:text-white"}`}><ChartNoAxesCombined size={18}/><span className="text-sm font-medium">{t("analytics")}</span></Link>}
         {clientsVisible && <Link href="/clients" className={`flex items-center gap-3 rounded-xl px-4 py-3 transition-all ${pathname?.startsWith("/clients") ? "border border-blue-500/25 bg-gradient-to-r from-blue-500/15 to-cyan-400/5 text-blue-300" : "text-slate-300 hover:bg-slate-900/80 hover:text-white"}`}><Building2 size={18}/><span className="text-sm font-medium">{t("clients")}</span></Link>}
+        {isSuperAdmin && <Link href="/admin/help-center" className={`flex items-center gap-3 rounded-xl px-4 py-3 transition-all ${pathname?.startsWith("/admin/help-center") ? "border border-violet-500/25 bg-gradient-to-r from-violet-500/15 to-blue-400/5 text-violet-300" : "text-slate-300 hover:bg-slate-900/80 hover:text-white"}`}><Headphones size={18}/><span className="text-sm font-medium">{rtl?"صندوق الدعم":"Support Inbox"}</span></Link>}
       </nav>
       <div className="border-t border-slate-800/80 p-4"><div className="flex items-center gap-3 rounded-2xl border border-slate-800 bg-slate-900/55 p-3"><div className="flex h-10 w-10 items-center justify-center rounded-xl border border-blue-400/20 bg-gradient-to-br from-blue-500 to-cyan-500 text-sm font-semibold text-white">{initials}</div><div className="min-w-0 flex-1"><p className="truncate text-sm font-semibold text-white">{userName || userEmail || (rtl ? "مستخدم" : "User")}</p><p className="mt-0.5 text-[11px] uppercase tracking-[0.13em] text-slate-500">{rtl ? "لوحة الإدارة" : "Admin Console"}</p></div><LogoutButton/></div></div>
     </div>
