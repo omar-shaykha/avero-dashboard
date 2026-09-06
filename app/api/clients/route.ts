@@ -1,365 +1,184 @@
-import { createClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { getAuthorizationContext, isSuperAdmin } from "@/lib/auth/authorization";
+
+const json = (body: unknown, status = 200) => Response.json(body, { status });
+
+async function rollbackCreatedUser(supabase: SupabaseClient, userId: string | null) {
+  if (!userId) return;
+  const { error } = await supabase.auth.admin.deleteUser(userId);
+  if (error) console.error("Client provisioning rollback failed:", error);
+}
+
+async function findAuthUserByEmail(supabase: SupabaseClient, email: string) {
+  const normalized = email.toLowerCase();
+  const perPage = 1000;
+
+  for (let page = 1; page <= 10; page += 1) {
+    const { data, error } = await supabase.auth.admin.listUsers({ page, perPage });
+    if (error) throw error;
+    const users = data?.users || [];
+    const match = users.find((user) => user.email?.toLowerCase() === normalized);
+    if (match) return match;
+    if (users.length < perPage) return null;
+  }
+
+  throw new Error("Auth user lookup exceeded safe pagination limit");
+}
+
+function getAdminClient() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.SUPABASE_SECRET_KEY;
+  if (!url || !key) return null;
+  return createClient(url, key);
+}
 
 export async function GET() {
   try {
-    // Authenticate user
     const context = await getAuthorizationContext();
-    if (!context) {
-      return new Response(
-        JSON.stringify({ error: "Unauthorized" }),
-        { status: 401, headers: { "Content-Type": "application/json" } }
-      );
-    }
+    if (!context) return json({ error: "Unauthorized" }, 401);
+    if (!isSuperAdmin(context)) return json({ error: "Forbidden" }, 403);
 
-    // Create server-side Supabase client with secret key
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const supabaseSecretKey = process.env.SUPABASE_SECRET_KEY;
+    const supabase = getAdminClient();
+    if (!supabase) return json({ error: "Missing Supabase configuration" }, 500);
 
-    if (!supabaseUrl || !supabaseSecretKey) {
-      return new Response(
-        JSON.stringify({ error: "Missing Supabase configuration" }),
-        { status: 500, headers: { "Content-Type": "application/json" } }
-      );
-    }
-
-    const supabase = createClient(supabaseUrl, supabaseSecretKey);
-    if (!isSuperAdmin(context)) {
-      return new Response(
-        JSON.stringify({ error: "Forbidden: Access restricted" }),
-        { status: 403, headers: { "Content-Type": "application/json" } }
-      );
-    }
-
-    // Fetch all companies
-    const { data: companies, error: companiesError } = await supabase
+    const { data: companies, error } = await supabase
       .from("companies")
-      .select("id, name, whatsapp_phone_number_id, created_at")
+      .select("id,name,whatsapp_phone_number_id,created_at")
       .order("created_at", { ascending: false });
 
-    if (companiesError) {
-      console.error("Supabase error:", companiesError);
-      return new Response(
-        JSON.stringify({ error: "Failed to fetch companies" }),
-        { status: 500, headers: { "Content-Type": "application/json" } }
-      );
+    if (error) {
+      console.error("Clients list error:", error);
+      return json({ error: "Failed to fetch companies" }, 500);
     }
 
-    return new Response(JSON.stringify(companies || []), {
-      status: 200,
-      headers: { "Content-Type": "application/json" },
-    });
+    return json(companies || []);
   } catch (error) {
-    console.error("API error:", error);
-    return new Response(
-      JSON.stringify({ error: "Internal server error" }),
-      { status: 500, headers: { "Content-Type": "application/json" } }
-    );
+    console.error("Clients GET error:", error);
+    return json({ error: "Internal server error" }, 500);
   }
 }
 
 export async function POST(request: Request) {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseSecretKey = process.env.SUPABASE_SECRET_KEY;
   let createdUserId: string | null = null;
+  let supabase: SupabaseClient | null = null;
+  let provisioningCompleted = false;
 
   try {
-    // 1. Authenticate requester
     const context = await getAuthorizationContext();
-    if (!context) {
-      return new Response(
-        JSON.stringify({ error: "Unauthorized" }),
-        { status: 401, headers: { "Content-Type": "application/json" } }
-      );
-    }
+    if (!context) return json({ error: "Unauthorized" }, 401);
+    if (!isSuperAdmin(context)) return json({ error: "Forbidden" }, 403);
 
-    // Check server config
-    if (!supabaseUrl || !supabaseSecretKey) {
-      return new Response(
-        JSON.stringify({ error: "Missing Supabase configuration" }),
-        { status: 500, headers: { "Content-Type": "application/json" } }
-      );
-    }
+    supabase = getAdminClient();
+    if (!supabase) return json({ error: "Missing Supabase configuration" }, 500);
 
-    const supabase = createClient(supabaseUrl, supabaseSecretKey);
-    // Client provisioning remains a platform-only operation.
-    if (!isSuperAdmin(context)) {
-      return new Response(
-        JSON.stringify({ error: "Forbidden: Access restricted" }),
-        { status: 403, headers: { "Content-Type": "application/json" } }
-      );
-    }
-
-    // 3. Parse and validate input
-    const body = await request.json();
-    const {
-      company_name,
-      admin_email,
-      temporary_password,
-      whatsapp_phone_number_id,
-    } = body;
-
-    // Validate company_name
-    if (!company_name || typeof company_name !== "string") {
-      return new Response(
-        JSON.stringify({ error: "Company name is required" }),
-        { status: 400, headers: { "Content-Type": "application/json" } }
-      );
-    }
-
-    // Validate admin_email
-    if (!admin_email || typeof admin_email !== "string") {
-      return new Response(
-        JSON.stringify({ error: "Admin email is required" }),
-        { status: 400, headers: { "Content-Type": "application/json" } }
-      );
-    }
-
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(admin_email)) {
-      return new Response(
-        JSON.stringify({ error: "Invalid email format" }),
-        { status: 400, headers: { "Content-Type": "application/json" } }
-      );
-    }
-
-    // Validate temporary_password
-    if (!temporary_password || typeof temporary_password !== "string") {
-      return new Response(
-        JSON.stringify({ error: "Temporary password is required" }),
-        { status: 400, headers: { "Content-Type": "application/json" } }
-      );
-    }
-
-    if (temporary_password.length < 8) {
-      return new Response(
-        JSON.stringify({ error: "Password must be at least 8 characters" }),
-        { status: 400, headers: { "Content-Type": "application/json" } }
-      );
-    }
-
-    const trimmedEmail = admin_email.trim();
-    const trimmedPassword = temporary_password.trim();
-    const trimmedCompanyName = company_name.trim();
-    const trimmedWhatsappId = whatsapp_phone_number_id?.trim() || null;
-
-    // 4. Check if Auth user exists by email using listUsers
-    let existingAuthUser = null;
+    let body: Record<string, unknown>;
     try {
-      const { data: authUsers, error: listUsersError } =
-        await supabase.auth.admin.listUsers();
+      body = await request.json();
+    } catch {
+      return json({ error: "Invalid request body" }, 400);
+    }
 
-      if (!listUsersError && authUsers && authUsers.users) {
-        // Find matching user by normalized email
-        existingAuthUser = authUsers.users.find(
-          (u) => u.email?.toLowerCase() === trimmedEmail.toLowerCase()
-        ) || null;
-      }
-    } catch (err) {
-      console.error("Error checking for existing user:", err);
+    const companyName = typeof body.company_name === "string" ? body.company_name.trim() : "";
+    const adminEmail = typeof body.admin_email === "string" ? body.admin_email.trim().toLowerCase() : "";
+    const temporaryPassword = typeof body.temporary_password === "string" ? body.temporary_password : "";
+    const whatsappPhoneNumberId = body.whatsapp_phone_number_id == null || body.whatsapp_phone_number_id === ""
+      ? null
+      : typeof body.whatsapp_phone_number_id === "string"
+        ? body.whatsapp_phone_number_id.trim()
+        : "__invalid__";
+
+    if (!companyName) return json({ error: "Company name is required" }, 400);
+    if (companyName.length > 160) return json({ error: "Company name is too long" }, 400);
+
+    if (!adminEmail) return json({ error: "Admin email is required" }, 400);
+    if (adminEmail.length > 320 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(adminEmail)) {
+      return json({ error: "Invalid email format" }, 400);
+    }
+
+    if (!temporaryPassword) return json({ error: "Temporary password is required" }, 400);
+    if (temporaryPassword.length < 8 || temporaryPassword.length > 128) {
+      return json({ error: "Password must be between 8 and 128 characters" }, 400);
+    }
+
+    if (whatsappPhoneNumberId === "__invalid__" || (whatsappPhoneNumberId && !/^\d{6,32}$/.test(whatsappPhoneNumberId))) {
+      return json({ error: "Invalid WhatsApp phone number ID" }, 400);
+    }
+
+    let existingAuthUser;
+    try {
+      existingAuthUser = await findAuthUserByEmail(supabase, adminEmail);
+    } catch (error) {
+      console.error("Auth user lookup error:", error);
+      return json({ error: "Could not verify admin account" }, 500);
     }
 
     let authUserCreated = false;
 
     if (!existingAuthUser) {
-      // 5. Create Auth user server-side if doesn't exist
-      try {
-        const { data: newAuthUserData, error: createUserError } =
-          await supabase.auth.admin.createUser({
-            email: trimmedEmail,
-            password: trimmedPassword,
-            email_confirm: true,
-          });
+      const { data, error } = await supabase.auth.admin.createUser({
+        email: adminEmail,
+        password: temporaryPassword,
+        email_confirm: true,
+      });
 
-        if (createUserError) {
-          console.error("Auth user creation error:", createUserError);
-          return new Response(
-            JSON.stringify({
-              error: "Failed to create Auth user: " + createUserError.message,
-            }),
-            { status: 500, headers: { "Content-Type": "application/json" } }
-          );
-        }
-
-        if (!newAuthUserData?.user?.id) {
-          return new Response(
-            JSON.stringify({ error: "Failed to create Auth user" }),
-            { status: 500, headers: { "Content-Type": "application/json" } }
-          );
-        }
-
-        createdUserId = newAuthUserData.user.id;
-        authUserCreated = true;
-        console.log(`Created new Auth user: ${newAuthUserData.user.id} for email: ${trimmedEmail}`);
-      } catch (err) {
-        console.error("Unexpected error creating Auth user:", err);
-        return new Response(
-          JSON.stringify({ error: "Unexpected error creating Auth user" }),
-          { status: 500, headers: { "Content-Type": "application/json" } }
-        );
+      if (error || !data?.user?.id) {
+        console.error("Auth user creation error:", error);
+        return json({ error: "Failed to create admin account" }, 500);
       }
+
+      createdUserId = data.user.id;
+      authUserCreated = true;
     } else {
-      // 6. User already exists - check if they belong to another company
-      const { data: userProfiles, error: profilesError } = await supabase
+      const { data: profile, error } = await supabase
         .from("user_profiles")
         .select("company_id")
         .eq("user_id", existingAuthUser.id)
         .maybeSingle();
 
-      if (profilesError && profilesError.code !== "PGRST116") {
-        // PGRST116 = no rows returned (not an error in this case)
-        console.error("Error checking user profiles:", profilesError);
-        return new Response(
-          JSON.stringify({ error: "Failed to check existing user status" }),
-          { status: 500, headers: { "Content-Type": "application/json" } }
-        );
+      if (error) {
+        console.error("Existing admin profile lookup error:", error);
+        return json({ error: "Failed to verify existing admin account" }, 500);
       }
 
-      if (userProfiles) {
-        // User already belongs to a company
-        return new Response(
-          JSON.stringify({
-            error: `User ${trimmedEmail} already belongs to another company. Cannot reassign users.`,
-          }),
-          { status: 409, headers: { "Content-Type": "application/json" } }
-        );
+      if (profile?.company_id) {
+        return json({ error: "Admin account already belongs to a company" }, 409);
       }
     }
 
-    // 7. Call the RPC to create company and link user
-    let rpcCompanyId: string;
-    try {
-      const { data: rpcData, error: rpcError } = await supabase.rpc(
-        "create_client_company",
-        {
-          p_company_name: trimmedCompanyName,
-          p_whatsapp_phone_number_id: trimmedWhatsappId,
-          p_user_email: trimmedEmail,
-        }
-      );
+    const { data: companyId, error: rpcError } = await supabase.rpc("create_client_company", {
+      p_company_name: companyName,
+      p_whatsapp_phone_number_id: whatsappPhoneNumberId,
+      p_user_email: adminEmail,
+    });
 
-      if (rpcError) {
-        console.error("RPC error:", rpcError);
+    if (rpcError || !companyId) {
+      console.error("Client provisioning RPC error:", rpcError);
+      await rollbackCreatedUser(supabase, createdUserId);
+      createdUserId = null;
 
-        // Handle specific conflict errors
-        if (rpcError.message?.includes("already belongs to company")) {
-          // Rollback: delete the Auth user if we created it
-          if (authUserCreated && createdUserId) {
-            try {
-              await supabase.auth.admin.deleteUser(createdUserId);
-              console.log(`Rolled back Auth user: ${createdUserId}`);
-            } catch (rollbackErr) {
-              console.error("Failed to rollback Auth user:", rollbackErr);
-            }
-          }
-          return new Response(
-            JSON.stringify({
-              error: `User already belongs to another company. Cannot reassign.`,
-            }),
-            { status: 409, headers: { "Content-Type": "application/json" } }
-          );
-        }
-
-        if (rpcError.message?.includes("already assigned")) {
-          // Rollback: delete the Auth user if we created it
-          if (authUserCreated && createdUserId) {
-            try {
-              await supabase.auth.admin.deleteUser(createdUserId);
-              console.log(`Rolled back Auth user: ${createdUserId}`);
-            } catch (rollbackErr) {
-              console.error("Failed to rollback Auth user:", rollbackErr);
-            }
-          }
-          return new Response(
-            JSON.stringify({
-              error: "WhatsApp phone number is already assigned to another company",
-            }),
-            { status: 409, headers: { "Content-Type": "application/json" } }
-          );
-        }
-
-        // Generic RPC error
-        // Rollback: delete the Auth user if we created it
-        if (authUserCreated && createdUserId) {
-          try {
-            await supabase.auth.admin.deleteUser(createdUserId);
-            console.log(`Rolled back Auth user: ${createdUserId}`);
-          } catch (rollbackErr) {
-            console.error("Failed to rollback Auth user:", rollbackErr);
-          }
-        }
-
-        return new Response(
-          JSON.stringify({
-            error: rpcError.message || "Failed to create client company",
-          }),
-          { status: 500, headers: { "Content-Type": "application/json" } }
-        );
+      const message = rpcError?.message || "";
+      if (message.includes("already belongs to company")) {
+        return json({ error: "Admin account already belongs to a company" }, 409);
       }
-
-      if (rpcData === null || rpcData === undefined) {
-        if (authUserCreated && createdUserId) {
-          try {
-            await supabase.auth.admin.deleteUser(createdUserId);
-            console.log(`Rolled back Auth user: ${createdUserId}`);
-          } catch (rollbackErr) {
-            console.error("Failed to rollback Auth user:", rollbackErr);
-          }
-        }
-        return new Response(
-          JSON.stringify({ error: "Failed to create client company" }),
-          { status: 500, headers: { "Content-Type": "application/json" } }
-        );
+      if (message.includes("already assigned")) {
+        return json({ error: "WhatsApp phone number is already assigned to another company" }, 409);
       }
-
-      rpcCompanyId = rpcData;
-    } catch (err) {
-      console.error("Unexpected error calling RPC:", err);
-      if (authUserCreated && createdUserId) {
-        try {
-          await supabase.auth.admin.deleteUser(createdUserId);
-          console.log(`Rolled back Auth user: ${createdUserId}`);
-        } catch (rollbackErr) {
-          console.error("Failed to rollback Auth user:", rollbackErr);
-        }
-      }
-      return new Response(
-        JSON.stringify({ error: "Unexpected error creating client" }),
-        { status: 500, headers: { "Content-Type": "application/json" } }
-      );
+      return json({ error: "Failed to create client company" }, 500);
     }
 
-    // 8. Success - return response
-    return new Response(
-      JSON.stringify({
-        success: true,
-        company_id: rpcCompanyId,
-        company_name: trimmedCompanyName,
-        admin_email: trimmedEmail,
-        auth_user_created: authUserCreated,
-      }),
-      {
-        status: 201,
-        headers: { "Content-Type": "application/json" },
-      }
-    );
+    provisioningCompleted = true;
+    return json({
+      success: true,
+      company_id: companyId,
+      company_name: companyName,
+      admin_email: adminEmail,
+      auth_user_created: authUserCreated,
+    }, 201);
   } catch (error) {
-    console.error("API error:", error);
-
-    // Rollback: delete Auth user if we created it
-    if (createdUserId && supabaseUrl && supabaseSecretKey) {
-      try {
-        const supabase = createClient(supabaseUrl, supabaseSecretKey);
-        await supabase.auth.admin.deleteUser(createdUserId);
-        console.log(`Emergency rollback - deleted Auth user: ${createdUserId}`);
-      } catch (rollbackErr) {
-        console.error("Failed to rollback Auth user on exception:", rollbackErr);
-      }
+    console.error("Clients POST error:", error);
+    if (!provisioningCompleted && supabase && createdUserId) {
+      await rollbackCreatedUser(supabase, createdUserId);
     }
-
-    return new Response(
-      JSON.stringify({ error: "Internal server error" }),
-      { status: 500, headers: { "Content-Type": "application/json" } }
-    );
+    return json({ error: "Internal server error" }, 500);
   }
 }
