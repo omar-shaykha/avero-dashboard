@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type DragEvent, type LucideIcon } from "react";
 import Sidebar from "./Sidebar";
 import DashboardHeader from "./DashboardHeader";
 import {
   Activity,
+  AlertTriangle,
   Bot,
   Brain,
   Building2,
@@ -13,9 +14,11 @@ import {
   ClipboardList,
   Database,
   FileText,
+  Grip,
   MessageSquare,
   PenTool,
-  PhoneCall,
+  Play,
+  RotateCcw,
   Save,
   Send,
   Settings,
@@ -23,13 +26,35 @@ import {
   Sparkles,
   Upload,
   Users,
-  type LucideIcon,
 } from "lucide-react";
 
 type Agent = "sales" | "marketing" | "hr" | "support";
-type Tab = "command" | "live";
+type Tab = "command" | "workflow";
+type RunStatus = "queued" | "running" | "approval_required" | "completed" | "failed" | "cancelled" | string;
 
-type Station = { label: string; icon: LucideIcon };
+type WorkflowNode = {
+  id: string;
+  label: string;
+  type: string;
+  x: number;
+  y: number;
+};
+
+type WorkflowConnection = { from: string; to: string };
+type WorkflowLayout = { nodes: WorkflowNode[]; connections: WorkflowConnection[] };
+
+type LiveRun = {
+  id: string;
+  agent_key: string;
+  action: string | null;
+  status: RunStatus;
+  input: any;
+  output: any;
+  error_message: string | null;
+  created_at: string;
+  completed_at: string | null;
+};
+
 type AgentMeta = {
   title: string;
   officeName: string;
@@ -37,112 +62,154 @@ type AgentMeta = {
   accentText: string;
   accentBorder: string;
   accentBg: string;
-  botClass: string;
   icon: LucideIcon;
-  stations: Station[];
-  tasks: string[];
+  defaultLayout: WorkflowLayout;
   stats: { label: string; value: string; icon: LucideIcon }[];
+};
+
+const DEFAULT_LAYOUTS: Record<Agent, WorkflowLayout> = {
+  sales: {
+    nodes: [
+      { id: "inbox", label: "WhatsApp Inbox", type: "trigger", x: 40, y: 80 },
+      { id: "brain", label: "Company Brain", type: "brain", x: 260, y: 55 },
+      { id: "memory", label: "Customer Memory", type: "memory", x: 260, y: 190 },
+      { id: "crm", label: "CRM Desk", type: "crm", x: 500, y: 120 },
+      { id: "quotation", label: "Quotation", type: "action", x: 710, y: 70 },
+      { id: "reply", label: "Reply Sent", type: "output", x: 710, y: 210 },
+    ],
+    connections: [
+      { from: "inbox", to: "brain" },
+      { from: "brain", to: "memory" },
+      { from: "memory", to: "crm" },
+      { from: "crm", to: "quotation" },
+      { from: "crm", to: "reply" },
+    ],
+  },
+  marketing: {
+    nodes: [
+      { id: "brief", label: "Campaign Brief", type: "trigger", x: 40, y: 90 },
+      { id: "brand", label: "Brand Voice", type: "brain", x: 260, y: 55 },
+      { id: "content", label: "Content Desk", type: "action", x: 500, y: 80 },
+      { id: "approval", label: "Approval Queue", type: "approval", x: 710, y: 60 },
+      { id: "publish", label: "Publish / Schedule", type: "output", x: 710, y: 210 },
+    ],
+    connections: [
+      { from: "brief", to: "brand" },
+      { from: "brand", to: "content" },
+      { from: "content", to: "approval" },
+      { from: "approval", to: "publish" },
+    ],
+  },
+  hr: {
+    nodes: [
+      { id: "cv", label: "CV Inbox", type: "trigger", x: 40, y: 95 },
+      { id: "screen", label: "Screening", type: "action", x: 260, y: 55 },
+      { id: "match", label: "Job Match", type: "crm", x: 500, y: 90 },
+      { id: "interview", label: "Interview", type: "action", x: 710, y: 60 },
+      { id: "reply", label: "HR Reply", type: "output", x: 710, y: 210 },
+    ],
+    connections: [
+      { from: "cv", to: "screen" },
+      { from: "screen", to: "match" },
+      { from: "match", to: "interview" },
+      { from: "match", to: "reply" },
+    ],
+  },
+  support: {
+    nodes: [
+      { id: "ticket", label: "Ticket Inbox", type: "trigger", x: 40, y: 95 },
+      { id: "history", label: "Customer History", type: "memory", x: 260, y: 55 },
+      { id: "knowledge", label: "Knowledge Base", type: "brain", x: 260, y: 205 },
+      { id: "solution", label: "Solution Desk", type: "action", x: 500, y: 125 },
+      { id: "close", label: "Close Loop", type: "output", x: 710, y: 125 },
+    ],
+    connections: [
+      { from: "ticket", to: "history" },
+      { from: "ticket", to: "knowledge" },
+      { from: "history", to: "solution" },
+      { from: "knowledge", to: "solution" },
+      { from: "solution", to: "close" },
+    ],
+  },
 };
 
 const AGENTS: Record<Agent, AgentMeta> = {
   sales: {
     title: "AI Sales Agent",
-    officeName: "Sales Mini Office",
-    mission: "A tiny AI sales employee receives messages, checks the client brain, prepares quotations, updates CRM, and sends replies.",
+    officeName: "Real Sales Workflow",
+    mission: "Drag the blocks like Make, then watch real AI Sales activity from WhatsApp, CRM and AI runs.",
     accentText: "text-blue-300",
     accentBorder: "border-blue-500/30",
     accentBg: "bg-blue-500/10",
-    botClass: "sales-bot",
     icon: Bot,
-    stations: [
-      { label: "WhatsApp Inbox", icon: MessageSquare },
-      { label: "Company Brain", icon: Brain },
-      { label: "CRM Desk", icon: Database },
-      { label: "Quotation", icon: ClipboardList },
-      { label: "Reply Sent", icon: Send },
-    ],
-    tasks: ["New message received", "Reading company brain", "Checking customer memory", "Preparing quotation", "Updating CRM", "Sending WhatsApp reply"],
+    defaultLayout: DEFAULT_LAYOUTS.sales,
     stats: [
-      { label: "Conversations", value: "Live", icon: MessageSquare },
-      { label: "CRM", value: "Synced", icon: Database },
-      { label: "Quotations", value: "Ready", icon: ClipboardList },
+      { label: "Source", value: "Make + WhatsApp", icon: MessageSquare },
+      { label: "CRM", value: "Live", icon: Database },
+      { label: "Mode", value: "Real Runs", icon: Activity },
     ],
   },
   marketing: {
     title: "AI Marketing Department",
-    officeName: "Marketing Studio",
-    mission: "A small creative AI employee moves between brand voice, content desk, approvals, and publishing channels.",
+    officeName: "Real Marketing Workflow",
+    mission: "Build the marketing office blocks, then track real campaign drafts and approvals.",
     accentText: "text-violet-300",
     accentBorder: "border-violet-500/30",
     accentBg: "bg-violet-500/10",
-    botClass: "marketing-bot",
     icon: Sparkles,
-    stations: [
-      { label: "Brand Voice", icon: Brain },
-      { label: "Content Desk", icon: PenTool },
-      { label: "Campaign", icon: Sparkles },
-      { label: "Approval", icon: CheckCircle2 },
-      { label: "Publish", icon: Send },
-    ],
-    tasks: ["Reading brand voice", "Writing campaign idea", "Preparing caption", "Waiting approval", "Scheduling post", "Tracking engagement"],
+    defaultLayout: DEFAULT_LAYOUTS.marketing,
     stats: [
-      { label: "Content", value: "Drafting", icon: PenTool },
+      { label: "Content", value: "Drafts", icon: PenTool },
       { label: "Approvals", value: "Queue", icon: CheckCircle2 },
-      { label: "Channels", value: "Ready", icon: Send },
+      { label: "Mode", value: "Real Runs", icon: Activity },
     ],
   },
   hr: {
     title: "AI HR Department",
-    officeName: "HR Screening Office",
-    mission: "A tiny HR AI employee reads CVs, compares jobs, prepares interview steps, and organizes candidate follow-up.",
+    officeName: "Real HR Workflow",
+    mission: "Arrange CV, screening, job match and interview steps like a live HR workflow.",
     accentText: "text-emerald-300",
     accentBorder: "border-emerald-500/30",
     accentBg: "bg-emerald-500/10",
-    botClass: "hr-bot",
     icon: Users,
-    stations: [
-      { label: "CV Inbox", icon: FileText },
-      { label: "Screening", icon: Users },
-      { label: "Job Match", icon: ClipboardList },
-      { label: "Interview", icon: CalendarClock },
-      { label: "HR Reply", icon: Send },
-    ],
-    tasks: ["Receiving CV", "Reading experience", "Matching position", "Preparing interview", "Updating candidate file", "Sending HR reply"],
+    defaultLayout: DEFAULT_LAYOUTS.hr,
     stats: [
-      { label: "Candidates", value: "Screening", icon: Users },
+      { label: "CVs", value: "Screening", icon: FileText },
       { label: "Interviews", value: "Ready", icon: CalendarClock },
-      { label: "Records", value: "Synced", icon: Database },
+      { label: "Mode", value: "Real Runs", icon: Activity },
     ],
   },
   support: {
     title: "AI Support Agent",
-    officeName: "Support Help Desk",
-    mission: "A small support AI employee checks customer history, reads knowledge, solves tickets, and escalates when needed.",
+    officeName: "Real Support Workflow",
+    mission: "Move ticket, knowledge and solution blocks, then watch real support activity.",
     accentText: "text-orange-300",
     accentBorder: "border-orange-500/30",
     accentBg: "bg-orange-500/10",
-    botClass: "support-bot",
     icon: ShieldCheck,
-    stations: [
-      { label: "Ticket Inbox", icon: MessageSquare },
-      { label: "Customer History", icon: Database },
-      { label: "Knowledge", icon: Brain },
-      { label: "Solution", icon: ShieldCheck },
-      { label: "Close Loop", icon: CheckCircle2 },
-    ],
-    tasks: ["Receiving ticket", "Checking customer history", "Reading knowledge", "Drafting solution", "Escalating if needed", "Closing ticket"],
+    defaultLayout: DEFAULT_LAYOUTS.support,
     stats: [
-      { label: "Tickets", value: "Watching", icon: Activity },
+      { label: "Tickets", value: "Watching", icon: MessageSquare },
       { label: "Knowledge", value: "Loaded", icon: Brain },
-      { label: "Replies", value: "Ready", icon: Send },
+      { label: "Mode", value: "Real Runs", icon: Activity },
     ],
   },
+};
+
+const NODE_ICONS: Record<string, LucideIcon> = {
+  trigger: MessageSquare,
+  brain: Brain,
+  memory: Database,
+  crm: Database,
+  action: ClipboardList,
+  approval: CheckCircle2,
+  output: Send,
+  step: Activity,
 };
 
 export default function AiDepartmentWorkspace({ agent, title }: { agent: Agent; title: string }) {
   const meta = AGENTS[agent];
   const [activeTab, setActiveTab] = useState<Tab>("command");
-  const [activeTask, setActiveTask] = useState(0);
   const [data, setData] = useState<any>(null);
   const [form, setForm] = useState<any>({});
   const [saving, setSaving] = useState(false);
@@ -150,13 +217,24 @@ export default function AiDepartmentWorkspace({ agent, title }: { agent: Agent; 
   const [files, setFiles] = useState<any[]>([]);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState("");
+  const [layout, setLayout] = useState<WorkflowLayout>(meta.defaultLayout);
+  const [workflowDirty, setWorkflowDirty] = useState(false);
+  const [workflowSaving, setWorkflowSaving] = useState(false);
+  const [runs, setRuns] = useState<LiveRun[]>([]);
+  const [testTask, setTestTask] = useState("Test this agent with the current saved company brain and show me the next action.");
+  const [runningTest, setRunningTest] = useState(false);
 
   const displayTitle = title || meta.title;
+  const latestRun = runs[0];
+  const isLive = latestRun?.status === "running" || latestRun?.status === "queued";
+  const activeNodeId = getActiveNodeId(agent, latestRun);
 
   const load = async () => {
-    const [profileResponse, knowledgeResponse] = await Promise.all([
+    const [profileResponse, knowledgeResponse, workflowResponse, runsResponse] = await Promise.all([
       fetch(`/api/ai-departments/${agent}`, { cache: "no-store" }),
       fetch(`/api/ai-departments/${agent}/knowledge`, { cache: "no-store" }),
+      fetch(`/api/ai-departments/${agent}/workflow`, { cache: "no-store" }),
+      fetch(`/api/ai-departments/${agent}/runs`, { cache: "no-store" }),
     ]);
 
     if (profileResponse.ok) {
@@ -169,16 +247,37 @@ export default function AiDepartmentWorkspace({ agent, title }: { agent: Agent; 
       const payload = await knowledgeResponse.json();
       setFiles(payload.files || []);
     }
+
+    if (workflowResponse.ok) {
+      const payload = await workflowResponse.json();
+      setLayout(payload.layout?.nodes?.length ? payload.layout : meta.defaultLayout);
+      setWorkflowDirty(false);
+    }
+
+    if (runsResponse.ok) {
+      const payload = await runsResponse.json();
+      setRuns(payload.runs || []);
+    }
+  };
+
+  const loadRuns = async () => {
+    const response = await fetch(`/api/ai-departments/${agent}/runs`, { cache: "no-store" });
+    if (response.ok) {
+      const payload = await response.json();
+      setRuns(payload.runs || []);
+    }
   };
 
   useEffect(() => {
+    setLayout(meta.defaultLayout);
+    setRuns([]);
     load();
   }, [agent]);
 
   useEffect(() => {
-    const timer = window.setInterval(() => setActiveTask((current) => (current + 1) % meta.tasks.length), 1300);
+    const timer = window.setInterval(loadRuns, 6000);
     return () => window.clearInterval(timer);
-  }, [meta.tasks.length]);
+  }, [agent]);
 
   const set = (key: string, value: string) => setForm((current: any) => ({ ...current, [key]: value }));
 
@@ -195,6 +294,22 @@ export default function AiDepartmentWorkspace({ agent, title }: { agent: Agent; 
       setDone(true);
       await load();
     }
+  };
+
+  const saveWorkflow = async () => {
+    setWorkflowSaving(true);
+    const response = await fetch(`/api/ai-departments/${agent}/workflow`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ layout }),
+    });
+    setWorkflowSaving(false);
+    if (response.ok) setWorkflowDirty(false);
+  };
+
+  const resetWorkflow = () => {
+    setLayout(meta.defaultLayout);
+    setWorkflowDirty(true);
   };
 
   const upload = async (file?: File) => {
@@ -220,6 +335,18 @@ export default function AiDepartmentWorkspace({ agent, title }: { agent: Agent; 
     await load();
   };
 
+  const runRealTest = async () => {
+    if (!testTask.trim()) return;
+    setRunningTest(true);
+    await fetch(`/api/ai-departments/${agent}/run`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ task: testTask, channel: agent === "sales" ? "whatsapp" : "dashboard", content_type: "workflow_test" }),
+    }).catch(() => null);
+    setRunningTest(false);
+    await loadRuns();
+  };
+
   const commandTemplate = useMemo(
     () =>
       form.instructions ||
@@ -237,21 +364,19 @@ export default function AiDepartmentWorkspace({ agent, title }: { agent: Agent; 
             <section className={`overflow-hidden rounded-3xl border ${meta.accentBorder} bg-slate-900/70 p-6 shadow-2xl`}>
               <div className="grid gap-6 xl:grid-cols-[.9fr_1.1fr]">
                 <div>
-                  <p className={`text-xs font-bold uppercase tracking-[.28em] ${meta.accentText}`}>AVERO AI Department</p>
+                  <p className={`text-xs font-bold uppercase tracking-[.28em] ${meta.accentText}`}>AVERO Real AI Workflow</p>
                   <h1 className="mt-3 text-4xl font-black tracking-tight">{displayTitle}</h1>
                   <p className="mt-3 text-sm leading-6 text-slate-400">{meta.mission}</p>
                   <div className="mt-6 grid gap-3 sm:grid-cols-3">
-                    {meta.stats.map((stat) => (
-                      <SmallStat key={stat.label} stat={stat} />
-                    ))}
+                    {meta.stats.map((stat) => <SmallStat key={stat.label} stat={stat} />)}
                   </div>
                   <div className="mt-6 flex rounded-2xl border border-slate-800 bg-slate-950/60 p-1">
                     <TabButton active={activeTab === "command"} onClick={() => setActiveTab("command")} icon={Settings} text="Command" />
-                    <TabButton active={activeTab === "live"} onClick={() => setActiveTab("live")} icon={Bot} text="AI Office" />
+                    <TabButton active={activeTab === "workflow"} onClick={() => setActiveTab("workflow")} icon={Grip} text="Workflow" />
                   </div>
                 </div>
 
-                <OfficeScene meta={meta} activeTask={activeTask} compact />
+                <LiveSummary meta={meta} latestRun={latestRun} isLive={isLive} />
               </div>
             </section>
 
@@ -266,15 +391,72 @@ export default function AiDepartmentWorkspace({ agent, title }: { agent: Agent; 
                 uploading={uploading}
                 uploadError={uploadError}
                 commandTemplate={commandTemplate}
+                testTask={testTask}
+                runningTest={runningTest}
                 onSet={set}
                 onSave={save}
                 onUpload={upload}
+                onTestTask={setTestTask}
+                onRunTest={runRealTest}
               />
             ) : (
-              <LivePanel meta={meta} activeTask={activeTask} filesCount={files.length} />
+              <WorkflowPanel
+                meta={meta}
+                layout={layout}
+                setLayout={setLayout}
+                workflowDirty={workflowDirty}
+                setWorkflowDirty={setWorkflowDirty}
+                workflowSaving={workflowSaving}
+                onSave={saveWorkflow}
+                onReset={resetWorkflow}
+                runs={runs}
+                activeNodeId={activeNodeId}
+                isLive={isLive}
+                filesCount={files.length}
+              />
             )}
           </div>
         </main>
+      </div>
+    </div>
+  );
+}
+
+function getActiveNodeId(agent: Agent, run?: LiveRun) {
+  if (!run) return "inbox";
+  if (run.status === "failed" || run.status === "cancelled") return agent === "support" ? "solution" : "crm";
+  if (run.status === "approval_required") return agent === "marketing" ? "approval" : agent === "hr" ? "interview" : "quotation";
+  if (run.status === "completed") return agent === "support" ? "close" : "reply";
+  if (agent === "sales") return "crm";
+  if (agent === "marketing") return "content";
+  if (agent === "hr") return "screen";
+  return "solution";
+}
+
+function LiveSummary({ meta, latestRun, isLive }: { meta: AgentMeta; latestRun?: LiveRun; isLive: boolean }) {
+  const Icon = meta.icon;
+  return (
+    <div className="relative min-h-[250px] overflow-hidden rounded-3xl border border-slate-800 bg-slate-950/70 p-6">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,255,255,.08),transparent_60%)]" />
+      <div className="relative flex h-full flex-col justify-between">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-sm font-bold text-white">{meta.officeName}</p>
+            <p className="mt-1 text-xs text-slate-500">Connected to tenant AI runs. No fake auto-loop.</p>
+          </div>
+          <span className={`rounded-full px-3 py-1 text-xs font-bold ${isLive ? "bg-emerald-500/15 text-emerald-300" : "bg-slate-800 text-slate-400"}`}>{isLive ? "LIVE" : "STANDBY"}</span>
+        </div>
+        <div className="flex items-center justify-center py-8">
+          <div className={`relative flex h-28 w-28 items-center justify-center rounded-full border ${meta.accentBorder} ${meta.accentBg}`}>
+            {isLive && <span className="absolute h-full w-full animate-ping rounded-full border border-white/10" />}
+            <Icon className={meta.accentText} size={44} />
+          </div>
+        </div>
+        <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-4">
+          <p className="text-xs uppercase tracking-[.22em] text-slate-500">Latest real activity</p>
+          <p className="mt-2 text-sm font-semibold text-white">{latestRun ? `${latestRun.action || "AI run"} · ${latestRun.status}` : "No live runs yet"}</p>
+          <p className="mt-1 text-xs text-slate-500">{latestRun ? formatDate(latestRun.created_at) : "Run a real test or wait for Make/WhatsApp activity."}</p>
+        </div>
       </div>
     </div>
   );
@@ -290,9 +472,13 @@ function CommandPanel({
   uploading,
   uploadError,
   commandTemplate,
+  testTask,
+  runningTest,
   onSet,
   onSave,
   onUpload,
+  onTestTask,
+  onRunTest,
 }: {
   meta: AgentMeta;
   form: any;
@@ -303,24 +489,25 @@ function CommandPanel({
   uploading: boolean;
   uploadError: string;
   commandTemplate: string;
+  testTask: string;
+  runningTest: boolean;
   onSet: (key: string, value: string) => void;
   onSave: () => void;
   onUpload: (file?: File) => void;
+  onTestTask: (value: string) => void;
+  onRunTest: () => void;
 }) {
   return (
     <div className="grid gap-6 xl:grid-cols-[1fr_.75fr]">
       <div className="space-y-6">
         <section className="rounded-3xl border border-slate-800 bg-slate-900/60 p-6">
           <div className="flex items-start gap-4">
-            <div className={`rounded-2xl ${meta.accentBg} p-3 ${meta.accentText}`}>
-              <Building2 />
-            </div>
+            <div className={`rounded-2xl ${meta.accentBg} p-3 ${meta.accentText}`}><Building2 /></div>
             <div>
               <h2 className="text-xl font-bold">Company Brain</h2>
               <p className="mt-1 text-sm leading-6 text-slate-400">This is the client-specific brain. The agent uses this company only and never behaves like a generic AVERO bot.</p>
             </div>
           </div>
-
           <div className="mt-6 grid gap-4 md:grid-cols-2">
             <Field label="Industry" value={form.industry} onChange={(value) => onSet("industry", value)} />
             <Field label="Locations" value={form.locations} onChange={(value) => onSet("locations", value)} />
@@ -343,228 +530,209 @@ function CommandPanel({
               <option value="automatic">Automatic</option>
             </select>
           </div>
-
           <textarea value={commandTemplate} onChange={(event) => onSet("instructions", event.target.value)} rows={10} className="mt-5 w-full rounded-2xl border border-slate-800 bg-slate-950 p-4 text-sm leading-6 outline-none focus:border-blue-500" />
-
           <div className="mt-5 flex items-center justify-end gap-3">
             {done && <span className="text-sm font-semibold text-emerald-400">Saved ✓</span>}
-            <button onClick={onSave} disabled={saving || !data} className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold hover:bg-blue-500 disabled:opacity-50">
-              <Save size={16} />
-              {saving ? "Saving..." : "Save Brain"}
-            </button>
+            <button onClick={onSave} disabled={saving || !data} className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold hover:bg-blue-500 disabled:opacity-50"><Save size={16} />{saving ? "Saving..." : "Save Brain"}</button>
           </div>
         </section>
       </div>
 
       <aside className="space-y-6">
         <section className="rounded-3xl border border-slate-800 bg-slate-900/60 p-6">
-          <div className="flex items-center justify-between gap-4">
-            <div>
-              <h2 className="text-lg font-bold">PDF Knowledge</h2>
-              <p className="mt-1 text-sm text-slate-500">Menus, price lists, company profiles, policies, services and FAQs.</p>
-            </div>
-            <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-slate-700 bg-slate-950 px-4 py-2.5 text-sm font-semibold hover:border-blue-500">
-              <Upload size={16} />
-              {uploading ? "Uploading..." : "Upload"}
-              <input
-                type="file"
-                accept="application/pdf,.pdf"
-                className="hidden"
-                disabled={uploading}
-                onChange={(event) => {
-                  onUpload(event.target.files?.[0]);
-                  event.currentTarget.value = "";
-                }}
-              />
-            </label>
-          </div>
-          {uploadError && <p className="mt-3 text-sm text-red-400">{uploadError}</p>}
-          <div className="mt-4 space-y-2">
-            {files.length === 0 ? (
-              <p className="rounded-2xl border border-dashed border-slate-800 p-5 text-center text-sm text-slate-600">No PDF knowledge uploaded yet.</p>
-            ) : (
-              files.map((file) => (
-                <div key={file.id} className="flex items-center justify-between rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-3">
-                  <div className="flex items-center gap-3">
-                    <FileText size={18} className={meta.accentText} />
-                    <div>
-                      <p className="text-sm font-medium">{file.file_name}</p>
-                      <p className="text-xs text-slate-600">{Math.ceil((file.file_size || 0) / 1024)} KB</p>
-                    </div>
-                  </div>
-                  <span className="rounded-full bg-slate-800 px-2.5 py-1 text-xs text-slate-400">{file.status}</span>
-                </div>
-              ))
-            )}
-          </div>
+          <h2 className="text-lg font-bold">Run Real Test</h2>
+          <p className="mt-1 text-sm text-slate-500">This creates a real row in ai_agent_runs, then the Workflow board reacts to it.</p>
+          <textarea value={testTask} onChange={(event) => onTestTask(event.target.value)} rows={4} className="mt-4 w-full rounded-2xl border border-slate-800 bg-slate-950 p-3 text-sm outline-none focus:border-blue-500" />
+          <button onClick={onRunTest} disabled={runningTest || !testTask.trim()} className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-bold hover:bg-emerald-500 disabled:opacity-50"><Play size={16} />{runningTest ? "Running..." : "Run Real Test"}</button>
         </section>
 
-        <section className={`rounded-3xl border ${meta.accentBorder} ${meta.accentBg} p-6`}>
-          <h2 className="text-lg font-bold">Identity Lock</h2>
-          <p className="mt-2 text-sm leading-6 text-slate-300">The customer should feel they are speaking with this client company, not with AVERO. AVERO stays hidden as the platform.</p>
+        <section className="rounded-3xl border border-slate-800 bg-slate-900/60 p-6">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-bold">PDF Knowledge</h2>
+              <p className="mt-1 text-sm text-slate-500">Approved files for this agent.</p>
+            </div>
+            <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-slate-700 px-3 py-2 text-sm font-semibold hover:bg-slate-800">
+              <Upload size={15} /> {uploading ? "Uploading..." : "Upload"}
+              <input type="file" accept="application/pdf" className="hidden" onChange={(event) => onUpload(event.target.files?.[0])} disabled={uploading} />
+            </label>
+          </div>
+          {uploadError && <p className="mt-3 rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-300">{uploadError}</p>}
+          <div className="mt-4 space-y-2">
+            {files.length ? files.map((file) => <div key={file.id || file.file_name} className="rounded-xl border border-slate-800 bg-slate-950 p-3"><p className="text-sm font-semibold text-white">{file.file_name}</p><p className="mt-1 text-xs text-slate-500">{file.status || "uploaded"}</p></div>) : <p className="rounded-xl border border-dashed border-slate-700 p-4 text-sm text-slate-500">No PDF knowledge files yet.</p>}
+          </div>
         </section>
       </aside>
     </div>
   );
 }
 
-function LivePanel({ meta, activeTask, filesCount }: { meta: AgentMeta; activeTask: number; filesCount: number }) {
+function WorkflowPanel({
+  meta,
+  layout,
+  setLayout,
+  workflowDirty,
+  setWorkflowDirty,
+  workflowSaving,
+  onSave,
+  onReset,
+  runs,
+  activeNodeId,
+  isLive,
+  filesCount,
+}: {
+  meta: AgentMeta;
+  layout: WorkflowLayout;
+  setLayout: (layout: WorkflowLayout) => void;
+  workflowDirty: boolean;
+  setWorkflowDirty: (value: boolean) => void;
+  workflowSaving: boolean;
+  onSave: () => void;
+  onReset: () => void;
+  runs: LiveRun[];
+  activeNodeId: string;
+  isLive: boolean;
+  filesCount: number;
+}) {
+  const moveNode = (id: string, x: number, y: number) => {
+    setLayout({
+      ...layout,
+      nodes: layout.nodes.map((node) => node.id === id ? { ...node, x: Math.max(8, Math.min(800, x)), y: Math.max(8, Math.min(360, y)) } : node),
+    });
+    setWorkflowDirty(true);
+  };
+
+  const handleDragStart = (event: DragEvent<HTMLDivElement>, node: WorkflowNode) => {
+    event.dataTransfer.setData("nodeId", node.id);
+    event.dataTransfer.setData("offsetX", String(event.nativeEvent.offsetX));
+    event.dataTransfer.setData("offsetY", String(event.nativeEvent.offsetY));
+  };
+
+  const handleDrop = (event: DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    const nodeId = event.dataTransfer.getData("nodeId");
+    if (!nodeId) return;
+    const rect = event.currentTarget.getBoundingClientRect();
+    const offsetX = Number(event.dataTransfer.getData("offsetX") || 0);
+    const offsetY = Number(event.dataTransfer.getData("offsetY") || 0);
+    moveNode(nodeId, event.clientX - rect.left - offsetX, event.clientY - rect.top - offsetY);
+  };
+
   return (
-    <div className="grid gap-6 xl:grid-cols-[1fr_.38fr]">
-      <OfficeScene meta={meta} activeTask={activeTask} />
-      <div className="space-y-6">
-        <section className="rounded-3xl border border-slate-800 bg-slate-900/60 p-6">
-          <h2 className="text-lg font-bold">Now working</h2>
-          <div className="mt-4 space-y-2">
-            {meta.tasks.map((task, index) => (
-              <div key={task} className={`flex items-center gap-3 rounded-2xl border px-4 py-3 text-sm transition ${index === activeTask ? `${meta.accentBorder} ${meta.accentBg} text-white` : "border-slate-800 bg-slate-950/60 text-slate-500"}`}>
-                <span className={`h-2.5 w-2.5 rounded-full ${index === activeTask ? "animate-pulse bg-emerald-400" : "bg-slate-700"}`} />
-                {task}
+    <div className="grid gap-6 xl:grid-cols-[1fr_.36fr]">
+      <section className="rounded-3xl border border-slate-800 bg-slate-900/60 p-5">
+        <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div>
+            <h2 className="text-xl font-black">Workflow Builder</h2>
+            <p className="mt-1 text-sm text-slate-500">Drag blocks like Make. Save the layout per client and per agent.</p>
+          </div>
+          <div className="flex gap-2">
+            <button onClick={onReset} className="inline-flex items-center gap-2 rounded-xl border border-slate-700 px-3 py-2 text-sm font-semibold hover:bg-slate-800"><RotateCcw size={15} />Reset</button>
+            <button onClick={onSave} disabled={workflowSaving || !workflowDirty} className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-bold hover:bg-blue-500 disabled:opacity-50"><Save size={15} />{workflowSaving ? "Saving..." : workflowDirty ? "Save Workflow" : "Saved"}</button>
+          </div>
+        </div>
+
+        <div className="relative h-[460px] overflow-hidden rounded-3xl border border-slate-800 bg-slate-950" onDragOver={(event) => event.preventDefault()} onDrop={handleDrop}>
+          <div className="absolute inset-0 opacity-[.08]" style={{ backgroundImage: "linear-gradient(rgba(255,255,255,.9) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.9) 1px, transparent 1px)", backgroundSize: "32px 32px" }} />
+          <svg className="absolute inset-0 h-full w-full">
+            {layout.connections.map((connection) => {
+              const from = layout.nodes.find((node) => node.id === connection.from);
+              const to = layout.nodes.find((node) => node.id === connection.to);
+              if (!from || !to) return null;
+              const active = from.id === activeNodeId || to.id === activeNodeId;
+              return <line key={`${connection.from}-${connection.to}`} x1={from.x + 82} y1={from.y + 34} x2={to.x + 82} y2={to.y + 34} stroke={active ? "rgba(16,185,129,.9)" : "rgba(148,163,184,.22)"} strokeWidth={active ? 3 : 2} strokeDasharray={isLive ? "8 8" : "0"} />;
+            })}
+          </svg>
+
+          {layout.nodes.map((node) => (
+            <WorkflowNodeCard key={node.id} node={node} meta={meta} active={node.id === activeNodeId} onDragStart={handleDragStart} />
+          ))}
+
+          <div className="absolute bottom-4 left-4 rounded-2xl border border-slate-800 bg-slate-900/90 p-4 backdrop-blur">
+            <div className="flex items-center gap-3">
+              <div className={`rounded-2xl p-3 ${isLive ? "bg-emerald-500/15 text-emerald-300" : "bg-slate-800 text-slate-400"}`}><Bot size={22} /></div>
+              <div>
+                <p className="text-sm font-bold">AI mini employee</p>
+                <p className="text-xs text-slate-500">{isLive ? "Working from real run data" : "Waiting for a real Make/API event"}</p>
               </div>
-            ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <aside className="space-y-6">
+        <section className="rounded-3xl border border-slate-800 bg-slate-900/60 p-5">
+          <h3 className="text-lg font-bold">Live Signal</h3>
+          <div className="mt-4 grid gap-3">
+            <Signal label="Runs source" value="ai_agent_runs" />
+            <Signal label="Knowledge files" value={String(filesCount)} />
+            <Signal label="Workflow" value={workflowDirty ? "Unsaved changes" : "Saved"} />
           </div>
         </section>
 
-        <section className="rounded-3xl border border-slate-800 bg-slate-900/60 p-6">
-          <h2 className="text-lg font-bold">Office data</h2>
-          <div className="mt-4 grid gap-3">
-            <DataLine label="Knowledge files" value={String(filesCount)} />
-            <DataLine label="Isolation" value="Company + number + customer" />
-            <DataLine label="Status" value="Ready" />
+        <section className="rounded-3xl border border-slate-800 bg-slate-900/60 p-5">
+          <h3 className="text-lg font-bold">Latest Real Runs</h3>
+          <div className="mt-4 space-y-3">
+            {runs.length ? runs.slice(0, 6).map((run) => <RunCard key={run.id} run={run} />) : <p className="rounded-2xl border border-dashed border-slate-700 p-4 text-sm text-slate-500">No real runs yet. Run a test or send WhatsApp traffic.</p>}
           </div>
         </section>
-      </div>
+      </aside>
     </div>
   );
 }
 
-function OfficeScene({ meta, activeTask, compact = false }: { meta: AgentMeta; activeTask: number; compact?: boolean }) {
+function WorkflowNodeCard({ node, meta, active, onDragStart }: { node: WorkflowNode; meta: AgentMeta; active: boolean; onDragStart: (event: DragEvent<HTMLDivElement>, node: WorkflowNode) => void }) {
+  const Icon = NODE_ICONS[node.type] || Activity;
   return (
-    <section className={`relative overflow-hidden rounded-3xl border ${meta.accentBorder} bg-slate-950 p-5 ${compact ? "min-h-[300px]" : "min-h-[560px]"}`}>
-      <style>{`
-        @keyframes salesRun { 0%,100% { transform: translate(18px, 178px) } 20% { transform: translate(185px, 48px) } 40% { transform: translate(372px, 172px) } 60% { transform: translate(540px, 54px) } 80% { transform: translate(650px, 180px) } }
-        @keyframes marketingRun { 0%,100% { transform: translate(32px, 62px) } 24% { transform: translate(230px, 180px) } 46% { transform: translate(390px, 62px) } 68% { transform: translate(550px, 184px) } 86% { transform: translate(665px, 70px) } }
-        @keyframes hrRun { 0%,100% { transform: translate(22px, 190px) } 22% { transform: translate(210px, 60px) } 45% { transform: translate(390px, 190px) } 65% { transform: translate(548px, 62px) } 85% { transform: translate(660px, 188px) } }
-        @keyframes supportRun { 0%,100% { transform: translate(28px, 70px) } 20% { transform: translate(208px, 188px) } 42% { transform: translate(384px, 70px) } 63% { transform: translate(548px, 190px) } 84% { transform: translate(662px, 76px) } }
-        @keyframes bob { 0%,100% { margin-top: 0 } 50% { margin-top: -7px } }
-        .office-grid { background-image: linear-gradient(rgba(148,163,184,.08) 1px, transparent 1px), linear-gradient(90deg, rgba(148,163,184,.08) 1px, transparent 1px); background-size: 42px 42px; }
-        .office-bot { animation-duration: 8s; animation-timing-function: ease-in-out; animation-iteration-count: infinite; }
-        .office-bot-inner { animation: bob .8s ease-in-out infinite; }
-        .sales-bot { animation-name: salesRun; }
-        .marketing-bot { animation-name: marketingRun; }
-        .hr-bot { animation-name: hrRun; }
-        .support-bot { animation-name: supportRun; }
-        @media (prefers-reduced-motion: reduce) { .office-bot, .office-bot-inner { animation: none !important; } }
-      `}</style>
-      <div className="office-grid absolute inset-0 opacity-80" />
-      <div className={`absolute -right-20 -top-20 h-64 w-64 rounded-full ${meta.accentBg} blur-3xl`} />
-      <div className="relative z-10 flex items-center justify-between gap-4">
-        <div>
-          <p className={`text-xs font-bold uppercase tracking-[.24em] ${meta.accentText}`}>{meta.officeName}</p>
-          <h2 className="mt-2 text-2xl font-black">Tiny AI employee at work</h2>
-        </div>
-        <div className={`rounded-2xl border ${meta.accentBorder} ${meta.accentBg} px-4 py-3 text-sm font-semibold`}>
-          {meta.tasks[activeTask]}
-        </div>
+    <div draggable onDragStart={(event) => onDragStart(event, node)} className={`absolute w-40 cursor-move rounded-2xl border p-3 shadow-xl transition ${active ? `${meta.accentBorder} ${meta.accentBg} scale-[1.03]` : "border-slate-800 bg-slate-900 hover:border-slate-600"}`} style={{ left: node.x, top: node.y }}>
+      <div className="flex items-center justify-between gap-2">
+        <div className={`rounded-xl p-2 ${active ? meta.accentText : "text-slate-400"}`}><Icon size={18} /></div>
+        <Grip size={14} className="text-slate-600" />
       </div>
-
-      <div className={`relative z-10 mt-8 ${compact ? "h-[220px]" : "h-[430px]"}`}>
-        <div className="absolute inset-x-0 bottom-8 h-24 rounded-[2rem] border border-slate-800 bg-slate-900/70 shadow-2xl" />
-        <div className="absolute left-[46%] top-[38%] h-32 w-44 rounded-3xl border border-slate-700 bg-slate-900 p-4 shadow-2xl">
-          <div className="h-4 w-24 rounded-full bg-slate-700" />
-          <div className={`mt-4 h-12 rounded-2xl ${meta.accentBg} border ${meta.accentBorder}`} />
-          <p className="mt-3 text-center text-xs font-semibold text-slate-400">Main desk</p>
-        </div>
-
-        {meta.stations.map((station, index) => (
-          <StationCard key={station.label} station={station} index={index} meta={meta} active={index === activeTask % meta.stations.length} />
-        ))}
-
-        <div className={`office-bot ${meta.botClass} absolute left-0 top-0 z-20 h-16 w-16`}>
-          <div className="office-bot-inner flex h-16 w-16 flex-col items-center justify-center rounded-3xl border border-white/20 bg-slate-100 text-slate-950 shadow-2xl">
-            <Bot size={28} />
-            <div className="mt-1 flex gap-1">
-              <span className="h-1.5 w-1.5 rounded-full bg-slate-950" />
-              <span className="h-1.5 w-1.5 rounded-full bg-slate-950" />
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
+      <p className="mt-2 text-sm font-bold text-white">{node.label}</p>
+      <p className="mt-1 text-[11px] uppercase tracking-[.16em] text-slate-500">{node.type}</p>
+      {active && <div className="mt-3 flex items-center gap-2 text-xs font-semibold text-emerald-300"><span className="h-2 w-2 animate-pulse rounded-full bg-emerald-400" />Active</div>}
+    </div>
   );
 }
 
-function StationCard({ station, index, meta, active }: { station: Station; index: number; meta: AgentMeta; active: boolean }) {
-  const Icon = station.icon;
-  const positions = [
-    "left-2 top-24",
-    "left-[24%] top-2",
-    "left-[50%] bottom-10",
-    "right-[18%] top-4",
-    "right-3 bottom-20",
-  ];
-
+function RunCard({ run }: { run: LiveRun }) {
+  const failed = run.status === "failed" || run.status === "cancelled";
+  const pending = run.status === "running" || run.status === "queued";
   return (
-    <div className={`absolute ${positions[index]} w-36 rounded-2xl border p-3 shadow-xl transition ${active ? `${meta.accentBorder} ${meta.accentBg}` : "border-slate-800 bg-slate-900/80"}`}>
-      <Icon size={20} className={active ? meta.accentText : "text-slate-500"} />
-      <p className="mt-2 text-xs font-semibold text-white">{station.label}</p>
-      <span className={`mt-2 inline-flex rounded-full px-2 py-0.5 text-[10px] font-bold ${active ? "bg-emerald-400/15 text-emerald-300" : "bg-slate-800 text-slate-500"}`}>{active ? "Working" : "Ready"}</span>
+    <div className="rounded-2xl border border-slate-800 bg-slate-950 p-3">
+      <div className="flex items-center justify-between gap-3">
+        <p className="truncate text-sm font-bold text-white">{run.action || "AI run"}</p>
+        <span className={`rounded-full px-2 py-1 text-[11px] font-bold ${failed ? "bg-red-500/15 text-red-300" : pending ? "bg-blue-500/15 text-blue-300" : "bg-emerald-500/15 text-emerald-300"}`}>{run.status}</span>
+      </div>
+      <p className="mt-1 text-xs text-slate-500">{formatDate(run.created_at)}</p>
+      {run.error_message && <p className="mt-2 flex gap-2 rounded-xl border border-red-500/20 bg-red-500/10 p-2 text-xs text-red-300"><AlertTriangle size={14} />{run.error_message}</p>}
     </div>
   );
 }
 
 function SmallStat({ stat }: { stat: { label: string; value: string; icon: LucideIcon } }) {
   const Icon = stat.icon;
-  return (
-    <div className="rounded-2xl border border-slate-800 bg-slate-950/70 p-4">
-      <Icon size={18} className="text-slate-400" />
-      <p className="mt-3 text-xs text-slate-500">{stat.label}</p>
-      <p className="text-sm font-bold text-white">{stat.value}</p>
-    </div>
-  );
+  return <div className="rounded-2xl border border-slate-800 bg-slate-950/70 p-4"><Icon size={18} className="text-slate-400" /><p className="mt-3 text-xs text-slate-500">{stat.label}</p><p className="mt-1 text-sm font-bold text-white">{stat.value}</p></div>;
 }
 
-function StatusPill({ icon: Icon, text }: { icon: LucideIcon; text: string }) {
-  return (
-    <span className="inline-flex items-center gap-2 rounded-full border border-slate-700 bg-slate-900 px-3 py-1.5 text-xs font-semibold text-slate-300">
-      <Icon size={13} />
-      {text}
-    </span>
-  );
+function Signal({ label, value }: { label: string; value: string }) {
+  return <div className="flex items-center justify-between rounded-2xl border border-slate-800 bg-slate-950 p-3"><span className="text-sm text-slate-400">{label}</span><span className="text-sm font-bold text-white">{value}</span></div>;
 }
 
 function TabButton({ active, onClick, icon: Icon, text }: { active: boolean; onClick: () => void; icon: LucideIcon; text: string }) {
-  return (
-    <button onClick={onClick} className={`flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-bold transition ${active ? "bg-blue-600 text-white" : "text-slate-400 hover:bg-slate-900 hover:text-white"}`}>
-      <Icon size={16} />
-      {text}
-    </button>
-  );
+  return <button onClick={onClick} className={`flex-1 rounded-xl px-4 py-3 text-sm font-bold transition ${active ? "bg-blue-600 text-white" : "text-slate-400 hover:bg-slate-900 hover:text-white"}`}><span className="inline-flex items-center justify-center gap-2"><Icon size={16} />{text}</span></button>;
 }
 
 function Field({ label, value, onChange }: { label: string; value?: string; onChange: (value: string) => void }) {
-  return (
-    <label className="text-sm font-medium text-slate-400">
-      {label}
-      <input value={value || ""} onChange={(event) => onChange(event.target.value)} className="mt-2 w-full rounded-xl border border-slate-800 bg-slate-950 px-4 py-3 text-white outline-none focus:border-blue-500" />
-    </label>
-  );
+  return <label className="block"><span className="mb-2 block text-sm font-semibold text-slate-300">{label}</span><input value={value || ""} onChange={(event) => onChange(event.target.value)} className="w-full rounded-2xl border border-slate-800 bg-slate-950 px-4 py-3 text-sm outline-none focus:border-blue-500" /></label>;
 }
 
 function Area({ label, value, onChange }: { label: string; value?: string; onChange: (value: string) => void }) {
-  return (
-    <label className="text-sm font-medium text-slate-400">
-      {label}
-      <textarea rows={4} value={value || ""} onChange={(event) => onChange(event.target.value)} className="mt-2 w-full rounded-xl border border-slate-800 bg-slate-950 p-4 text-white outline-none focus:border-blue-500" />
-    </label>
-  );
+  return <label className="block"><span className="mb-2 block text-sm font-semibold text-slate-300">{label}</span><textarea value={value || ""} onChange={(event) => onChange(event.target.value)} rows={4} className="w-full rounded-2xl border border-slate-800 bg-slate-950 px-4 py-3 text-sm outline-none focus:border-blue-500" /></label>;
 }
 
-function DataLine({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex items-center justify-between rounded-2xl border border-slate-800 bg-slate-950/60 px-4 py-3 text-sm">
-      <span className="text-slate-500">{label}</span>
-      <span className="font-semibold text-white">{value}</span>
-    </div>
-  );
+function formatDate(value?: string | null) {
+  if (!value) return "—";
+  try { return new Intl.DateTimeFormat("en", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value)); } catch { return value; }
 }
