@@ -1,4 +1,2 @@
-import ProtectedModulePage from "@/app/components/ProtectedModulePage";
-export default function AiMarketingPage() {
-  return <ProtectedModulePage feature="ai_marketing" permission="view_ai_marketing" title="AI Marketing" />;
-}
+import AiDepartmentWorkspace from "@/app/components/AiDepartmentWorkspace";
+export default function AiMarketingPage(){return <AiDepartmentWorkspace agent="marketing" title="AI Marketing Department"/>}
