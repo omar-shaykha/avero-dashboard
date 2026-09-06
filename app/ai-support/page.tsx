@@ -1,4 +1,5 @@
-import ProtectedModulePage from "@/app/components/ProtectedModulePage";
+import AiDepartmentWorkspace from "@/app/components/AiDepartmentWorkspace";
+
 export default function AiSupportPage() {
-  return <ProtectedModulePage feature="ai_support" permission="view_ai_support" title="AI Support" />;
+  return <AiDepartmentWorkspace agent="support" title="AI Support Agent" />;
 }
