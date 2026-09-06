@@ -46,8 +46,8 @@ export default function AddClientModal({ onClose, onSubmit }: AddClientModalProp
       setAdminEmail("");
       setTemporaryPassword("");
       setWhatsappPhoneNumberId("");
-    } catch {
-      setError(ar ? "فشل إنشاء العميل. تأكد من الإيميل والباسورد ومعرّف واتساب." : "Failed to create client. Check email, password and WhatsApp ID.");
+    } catch (caughtError) {
+      setError(caughtError instanceof Error ? caughtError.message : (ar ? "فشل إنشاء العميل. تأكد من الإيميل والباسورد ومعرّف واتساب." : "Failed to create client. Check email, password and WhatsApp ID."));
     } finally {
       setLoading(false);
     }
