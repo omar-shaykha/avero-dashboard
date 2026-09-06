@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { createClient } from "@supabase/supabase-js";
+import { createClient as createServerClient } from "@/lib/supabase/server";
 import { canAccess, getAuthorizationContext } from "@/lib/auth/authorization";
 import Sidebar from "@/app/components/Sidebar";
 import DashboardHeader from "@/app/components/DashboardHeader";
@@ -14,7 +14,7 @@ export default async function AnalyticsPage() {
   if (!canAccess(access, "analytics", "view_analytics")) return <main className="flex min-h-screen items-center justify-center bg-slate-950 px-6"><LocalizedState enTitle="Access Denied" arTitle="تم رفض الوصول" enDescription="You do not have access to Analytics." arDescription="ليس لديك صلاحية للوصول إلى التحليلات."/></main>;
   const companyId = access.profile.company_id; if (!companyId) redirect("/");
   const userName = access.user.email?.split("@")[0];
-  const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SECRET_KEY!);
+  const supabase = await createServerClient();
   const { data: leads, error } = await supabase.from("leads").select(`id,service_type,status,city,estimated_value,created_at,updated_at,customers(source)`).eq("company_id", companyId).order("updated_at", { ascending:false });
   if (error) console.error("Analytics leads error:", error);
   const normalized = (leads || []).map((lead:Record<string,unknown>)=>({...lead,customers:Array.isArray(lead.customers)?lead.customers[0]||null:lead.customers||null}));
