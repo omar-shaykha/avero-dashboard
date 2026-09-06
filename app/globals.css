@@ -69,6 +69,18 @@ html[dir="ltr"] .ml-64 {
   margin-right: 0;
 }
 
+html.sidebar-collapsed[dir="ltr"] .ml-64 {
+  margin-left: 5rem !important;
+}
+
+html.sidebar-collapsed[dir="rtl"] .ml-64 {
+  margin-right: 5rem !important;
+}
+
+.ml-64 {
+  transition: margin 260ms ease;
+}
+
 html[dir="rtl"] input,
 html[dir="rtl"] textarea,
 html[dir="rtl"] select {
