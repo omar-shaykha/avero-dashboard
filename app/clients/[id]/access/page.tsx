@@ -1,32 +1,30 @@
 "use client";
-
-import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import {useEffect,useMemo,useState} from "react";
+import {useParams} from "next/navigation";
 import Sidebar from "@/app/components/Sidebar";
 import DashboardHeader from "@/app/components/DashboardHeader";
-import { Check, LockKeyhole, ShieldCheck } from "lucide-react";
-import { useLanguage } from "@/app/components/LanguageProvider";
+import {Users,ShieldCheck,CreditCard,Bot,ReceiptText} from "lucide-react";
+import {useLanguage} from "@/app/components/LanguageProvider";
 
-type Feature = { id:string; key:string; name?:string|null; description?:string|null; enabled:boolean; expires_at?:string|null };
-
-const AR_FEATURES:Record<string,{name:string;description:string}> = {
-  ai_sales:{name:"وكيل المبيعات الذكي",description:"المبيعات الذكية، تأهيل العملاء، عروض الأسعار والمتابعة."},
-  crm:{name:"نظام إدارة العملاء",description:"الوصول إلى مساحات CRM وإدارة سجلات العملاء."},
-  analytics:{name:"التحليلات",description:"لوحات التحليل والمؤشرات المبنية على البيانات الحقيقية."},
-  ai_marketing:{name:"وكيل التسويق الذكي",description:"الحملات والجماهير وأتمتة أنشطة التسويق."},
-  ai_hr:{name:"وكيل الموارد البشرية",description:"أتمتة المرشحين والموظفين وتدفقات الموارد البشرية."},
-  ai_support:{name:"وكيل الدعم الذكي",description:"خدمة العملاء ومحادثات الدعم وإدارة الحالات."},
-};
-
-export default function ClientAccessPage() {
-  const params=useParams<{id:string}>(); const {language}=useLanguage(); const ar=language==="ar";
-  const [company,setCompany]=useState<{id:string;name:string}|null>(null); const [features,setFeatures]=useState<Feature[]>([]); const [loading,setLoading]=useState(true); const [saving,setSaving]=useState<string|null>(null);
-  const load=async()=>{const res=await fetch(`/api/clients/${params.id}/features`);const data=await res.json();if(res.ok){setCompany(data.company);setFeatures(data.features||[]);}setLoading(false);};
-  useEffect(()=>{load();},[params.id]);
-  const toggle=async(feature:Feature)=>{setSaving(feature.id);const next=!feature.enabled;const res=await fetch(`/api/clients/${params.id}/features`,{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify({feature_id:feature.id,enabled:next,expires_at:feature.expires_at||null})});if(res.ok)setFeatures(items=>items.map(item=>item.id===feature.id?{...item,enabled:next}:item));setSaving(null);};
-  const featureText=(feature:Feature)=>ar?(AR_FEATURES[feature.key]||{name:feature.key,description:"وحدة من وحدات AVERO"}):{name:feature.name||feature.key,description:feature.description||feature.key};
-  return <div className="min-h-screen bg-slate-950"><Sidebar/><div className="ml-64 flex min-h-screen flex-col"><DashboardHeader/><main className="flex-1 px-6 py-7 text-white"><div className="mx-auto max-w-5xl">
-    <div className="mb-6 flex items-start justify-between"><div><p className="text-xs font-semibold uppercase tracking-[0.2em] text-blue-400">{ar?"AVERO / التحكم بالصلاحيات":"AVERO Access Control"}</p><h1 className="mt-2 text-3xl font-bold">{company?.name||(ar?"صلاحيات العميل":"Client Access")}</h1><p className="mt-2 text-slate-400">{ar?"فعّل أو أوقف أي وحدة حسب اشتراك العميل.":"Enable or disable every AVERO module based on this client's subscription."}</p></div><div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-3 text-emerald-300"><ShieldCheck size={24}/></div></div>
-    {loading?<div className="text-slate-500">{ar?"جارٍ التحميل...":"Loading..."}</div>:<div className="grid gap-4 md:grid-cols-2">{features.map(feature=>{const text=featureText(feature);return <div key={feature.id} className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5"><div className="flex items-start justify-between gap-4"><div><div className="flex items-center gap-2"><LockKeyhole size={17} className="text-blue-400"/><h2 className="font-semibold">{text.name}</h2></div><p className="mt-2 text-sm leading-6 text-slate-500">{text.description}</p></div><button aria-label={ar?"تغيير الصلاحية":"Toggle access"} disabled={saving===feature.id} onClick={()=>toggle(feature)} className={`relative h-7 w-12 rounded-full transition ${feature.enabled?"bg-emerald-500":"bg-slate-700"}`}><span className={`absolute top-1 h-5 w-5 rounded-full bg-white transition ${feature.enabled?"left-6":"left-1"}`}/></button></div><div className="mt-4 flex items-center gap-2 text-xs text-slate-500">{feature.enabled?<><Check size={13} className="text-emerald-400"/>{ar?"مفعّل لهذا العميل":"Enabled for this client"}</>:<>{ar?"غير مشمول بالاشتراك":"Not included in subscription"}</>}</div></div>})}</div>}
-  </div></main></div></div>;
+type User={user_id:string;role:string;first_name?:string;last_name?:string;full_name?:string;email?:string;permission_overrides:{permission_id:string;allowed:boolean}[]};
+type Permission={id:string;key:string;name:string;description?:string};
+type Overview={company:{id:string;name:string};users:User[];permissions:Permission[];subscription:any;receipts:any[]};
+type Feature={id:string;key:string;enabled:boolean;expires_at?:string|null};
+const tabs=[['users',Users,'Users & Permissions'],['subscription',CreditCard,'Subscription'],['features',Bot,'AI Agents & Features'],['receipts',ReceiptText,'Receipts']] as const;
+export default function ClientAccessPage(){
+ const {id}=useParams<{id:string}>();const {language}=useLanguage();const ar=language==='ar';
+ const [tab,setTab]=useState('users');const [data,setData]=useState<Overview|null>(null);const [features,setFeatures]=useState<Feature[]>([]);const [loading,setLoading]=useState(true);const [saving,setSaving]=useState<string|null>(null);
+ const load=async()=>{setLoading(true);const [o,f]=await Promise.all([fetch(`/api/clients/${id}/overview`),fetch(`/api/clients/${id}/features`)]);if(o.ok)setData(await o.json());if(f.ok){const j=await f.json();setFeatures(j.features||[])}setLoading(false)};
+ useEffect(()=>{load()},[id]);
+ const progress=useMemo(()=>{const s=data?.subscription;if(!s?.current_period_start||!s?.current_period_end)return null;const a=new Date(s.current_period_start).getTime(),b=new Date(s.current_period_end).getTime(),n=Date.now();const pct=Math.max(0,Math.min(100,((n-a)/(b-a))*100));return {pct,days:Math.max(0,Math.ceil((b-n)/86400000))}},[data]);
+ const toggle=async(f:Feature)=>{setSaving(f.id);const enabled=!f.enabled;const r=await fetch(`/api/clients/${id}/features`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({feature_id:f.id,enabled,expires_at:f.expires_at||null})});if(r.ok)setFeatures(x=>x.map(v=>v.id===f.id?{...v,enabled}:v));setSaving(null)};
+ if(loading)return <div className="min-h-screen bg-slate-950 text-white"><Sidebar/><div className="ml-64"><DashboardHeader/><div className="p-8 text-slate-400">Loading client workspace...</div></div></div>;
+ return <div className="min-h-screen bg-slate-950 text-white"><Sidebar/><div className="ml-64 min-h-screen"><DashboardHeader/><main className="p-7"><div className="mx-auto max-w-6xl">
+  <div className="mb-6 flex items-center justify-between"><div><p className="text-xs font-semibold uppercase tracking-[.2em] text-blue-400">AVERO / Client Control Center</p><h1 className="mt-2 text-3xl font-bold">{data?.company.name||'Client'}</h1><p className="mt-1 text-slate-400">{ar?'إدارة المستخدمين والصلاحيات والاشتراك والوكلاء من مكان واحد.':'Manage users, permissions, subscription and AI access from one place.'}</p></div><ShieldCheck className="text-emerald-400" size={30}/></div>
+  <div className="mb-6 flex flex-wrap gap-2">{tabs.map(([k,I,label])=><button key={k} onClick={()=>setTab(k)} className={`flex items-center gap-2 rounded-xl px-4 py-2 text-sm ${tab===k?'bg-blue-600 text-white':'border border-slate-800 bg-slate-900 text-slate-400'}`}><I size={16}/>{label}</button>)}</div>
+  {tab==='users'&&<div className="space-y-4">{data?.users.map(u=><div key={u.user_id} className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5"><div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="font-semibold">{u.full_name||[u.first_name,u.last_name].filter(Boolean).join(' ')||u.email||'User'}</h2><p className="text-sm text-slate-500">{u.email||'—'}</p></div><span className="rounded-lg bg-blue-500/10 px-3 py-1 text-xs font-semibold uppercase text-blue-300">{u.role.replace('_',' ')}</span></div><div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">{data.permissions.map(p=>{const ov=u.permission_overrides.find(x=>x.permission_id===p.id);return <div key={p.id} className="rounded-xl border border-slate-800 bg-slate-950/50 px-3 py-2"><div className="text-xs font-medium text-slate-300">{p.key}</div><div className={`mt-1 text-[11px] ${ov?.allowed===true?'text-emerald-400':ov?.allowed===false?'text-red-400':'text-slate-600'}`}>{ov?.allowed===true?'Allowed':ov?.allowed===false?'Denied':'Not granted'}</div></div>})}</div></div>)}</div>}
+  {tab==='subscription'&&<div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">{data?.subscription?<><div className="flex items-center justify-between"><div><p className="text-sm text-slate-500">Current plan</p><h2 className="mt-1 text-2xl font-bold">{data.subscription.subscription_plans?.name||'Custom'}</h2></div><span className="rounded-full bg-emerald-500/10 px-3 py-1 text-sm text-emerald-400">{data.subscription.status}</span></div><div className="mt-6 h-3 overflow-hidden rounded-full bg-slate-800"><div className="h-full bg-blue-500" style={{width:`${progress?.pct||0}%`}}/></div><div className="mt-2 flex justify-between text-xs text-slate-500"><span>{data.subscription.current_period_start?new Date(data.subscription.current_period_start).toLocaleDateString():'Not started'}</span><span>{progress?`${progress.days} days remaining`:'Period pending'}</span><span>{data.subscription.current_period_end?new Date(data.subscription.current_period_end).toLocaleDateString():'—'}</span></div></>:<p className="text-slate-500">No subscription found.</p>}</div>}
+  {tab==='features'&&<div className="grid gap-4 md:grid-cols-2">{features.map(f=><div key={f.id} className="flex items-center justify-between rounded-2xl border border-slate-800 bg-slate-900/60 p-5"><div><h3 className="font-semibold">{f.key.replaceAll('_',' ').toUpperCase()}</h3><p className="mt-1 text-xs text-slate-500">Company entitlement</p></div><button disabled={saving===f.id} onClick={()=>toggle(f)} className={`rounded-full px-4 py-2 text-xs font-semibold ${f.enabled?'bg-emerald-500/15 text-emerald-400':'bg-slate-800 text-slate-500'}`}>{f.enabled?'Enabled':'Disabled'}</button></div>)}</div>}
+  {tab==='receipts'&&<div className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/60"><table className="w-full text-sm"><thead className="bg-slate-800/50 text-slate-400"><tr><th className="p-4 text-start">Receipt</th><th className="p-4 text-start">Issued</th><th className="p-4 text-start">Amount</th><th className="p-4 text-start">Status</th></tr></thead><tbody>{data?.receipts.length?data.receipts.map(r=><tr key={r.id} className="border-t border-slate-800"><td className="p-4 font-mono text-xs">{r.receipt_number}</td><td className="p-4">{new Date(r.issued_at).toLocaleDateString()}</td><td className="p-4">{r.total_amount} {r.currency}</td><td className="p-4">{r.payment_status}</td></tr>):<tr><td colSpan={4} className="p-8 text-center text-slate-500">No receipts yet.</td></tr>}</tbody></table></div>}
+ </div></main></div></div>
 }
