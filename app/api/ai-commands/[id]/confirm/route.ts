@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { getAuthorizationContext, isSuperAdmin } from "@/lib/auth/authorization";
+import { getAuthorizationContext, isKingAdmin } from "@/lib/auth/authorization";
 
 const FEATURE_KEYS = new Set(["ai_sales", "crm", "analytics", "ai_marketing", "ai_hr", "ai_support"]);
 
@@ -61,9 +61,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       return NextResponse.json({ error: "This command type is not executable yet" }, { status: 400 });
     }
 
-    // Feature subscription/access changes are platform-level operations.
-    // Never let a tenant grant itself paid features.
-    if (!isSuperAdmin(access)) {
+    if (!isKingAdmin(access)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -74,7 +72,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       return NextResponse.json({ error: "Command payload is not allowed" }, { status: 400 });
     }
 
-    // Claim this command exactly once before executing it.
     const now = new Date().toISOString();
     const { data: claimed, error: claimError } = await supabase
       .from("ai_commands")
