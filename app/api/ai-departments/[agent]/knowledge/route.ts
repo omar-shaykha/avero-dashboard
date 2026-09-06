@@ -1,6 +1,15 @@
 import {createClient} from "@supabase/supabase-js";
-import {canAccess,getAuthorizationContext,isKingAdmin} from "@/lib/auth/authorization";
-const agents={sales:{feature:"ai_sales",view:"sales.view",manage:"sales.manage",key:"ai_sales"},marketing:{feature:"ai_marketing",view:"marketing.view",manage:"marketing.manage",key:"ai_marketing"},hr:{feature:"ai_hr",view:"hr.view",manage:"hr.manage",key:"ai_hr"}} as const;
+import {canAccess,getAuthorizationContext,isKingAdmin,type FeatureKey} from "@/lib/auth/authorization";
+const agents={
+  sales:{feature:"ai_sales",view:"sales.view",manage:"sales.manage",key:"ai_sales"},
+  marketing:{feature:"ai_marketing",view:"marketing.view",manage:"marketing.manage",key:"ai_marketing"},
+  hr:{feature:"ai_hr",view:"hr.view",manage:"hr.manage",key:"ai_hr"},
+  support:{feature:"ai_support",view:"support.view",manage:"support.manage",key:"ai_support"},
+  inventory:{feature:"ai_inventory",view:"inventory.view",manage:"inventory.manage",key:"ai_inventory"},
+  "customer-care":{feature:"ai_customer_care",view:"customer_care.view",manage:"customer_care.manage",key:"ai_customer_care"},
+  analytics:{feature:"ai_analytics",view:"ai_analytics.view",manage:"ai_analytics.manage",key:"ai_analytics"},
+  warehouse:{feature:"ai_warehouse",view:"warehouse.view",manage:"warehouse.manage",key:"ai_warehouse"}
+} as const satisfies Record<string,{feature:FeatureKey;view:string;manage:string;key:string}>;
 type Agent=keyof typeof agents;
 function db(){const u=process.env.NEXT_PUBLIC_SUPABASE_URL,k=process.env.SUPABASE_SECRET_KEY;if(!u||!k)throw new Error("Missing Supabase configuration");return createClient(u,k)}
 async function auth(agent:string,manage=false){if(!(agent in agents))return null;const a=agents[agent as Agent],ctx=await getAuthorizationContext();if(!ctx)return null;if(!(isKingAdmin(ctx)||canAccess(ctx,a.feature,manage?a.manage:a.view)))return null;return {a,ctx}}
