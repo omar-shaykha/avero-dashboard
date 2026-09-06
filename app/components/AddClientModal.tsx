@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Bot, CheckCircle2, Phone, X } from "lucide-react";
+import { Bot, CheckCircle2, Eye, EyeOff, Phone, X } from "lucide-react";
 import { useLanguage } from "./LanguageProvider";
 
 interface AddClientModalProps {
@@ -16,6 +16,7 @@ export default function AddClientModal({ onClose, onSubmit }: AddClientModalProp
   const [adminEmail, setAdminEmail] = useState("");
   const [temporaryPassword, setTemporaryPassword] = useState("");
   const [whatsappPhoneNumberId, setWhatsappPhoneNumberId] = useState("");
+  const [showTemporaryPassword, setShowTemporaryPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -46,7 +47,7 @@ export default function AddClientModal({ onClose, onSubmit }: AddClientModalProp
       setTemporaryPassword("");
       setWhatsappPhoneNumberId("");
     } catch {
-      setError(ar ? "فشل إنشاء العميل" : "Failed to create client");
+      setError(ar ? "فشل إنشاء العميل. تأكد من الإيميل والباسورد ومعرّف واتساب." : "Failed to create client. Check email, password and WhatsApp ID.");
     } finally {
       setLoading(false);
     }
@@ -58,7 +59,7 @@ export default function AddClientModal({ onClose, onSubmit }: AddClientModalProp
         <div className="flex items-center justify-between border-b border-slate-800 p-6">
           <div>
             <h2 className="text-xl font-bold text-white">{ar ? "إضافة عميل جديد" : "Add New Client"}</h2>
-            <p className="mt-1 text-sm text-slate-500">{ar ? "كل عميل يحصل على عقل وذاكرة ووكيل مبيعات مستقل." : "Each client gets its own brain, memory, and sales agent."}</p>
+            <p className="mt-1 text-sm text-slate-500">{ar ? "كل عميل يحصل على عقل وذاكرة و8 وكلاء مستقلين." : "Each client gets its own brain, memory, and 8 independent agents."}</p>
           </div>
           <button onClick={onClose} className="rounded-lg p-2 text-slate-400 transition-colors hover:bg-slate-800 hover:text-slate-200">
             <X size={18} />
@@ -71,21 +72,29 @@ export default function AddClientModal({ onClose, onSubmit }: AddClientModalProp
           <div className="grid gap-4 md:grid-cols-2">
             <Field label={ar ? "اسم الشركة *" : "Company Name *"} value={companyName} set={setCompanyName} placeholder={ar ? "مثال: متجر ألفا" : "e.g., Acme Store"} disabled={loading} />
             <Field label={ar ? "بريد المدير *" : "Admin Email *"} value={adminEmail} set={setAdminEmail} placeholder="admin@company.com" disabled={loading} type="email" />
-            <Field label={ar ? "كلمة المرور المؤقتة *" : "Temporary Password *"} value={temporaryPassword} set={setTemporaryPassword} placeholder={ar ? "8 أحرف على الأقل" : "Minimum 8 characters"} disabled={loading} type="password" />
+            <Field
+              label={ar ? "كلمة المرور المؤقتة *" : "Temporary Password *"}
+              value={temporaryPassword}
+              set={setTemporaryPassword}
+              placeholder={ar ? "8 أحرف على الأقل" : "Minimum 8 characters"}
+              disabled={loading}
+              type={showTemporaryPassword ? "text" : "password"}
+              showPasswordToggle
+              passwordVisible={showTemporaryPassword}
+              onTogglePassword={() => setShowTemporaryPassword((value) => !value)}
+            />
             <Field label={ar ? "معرّف رقم واتساب" : "WhatsApp Phone Number ID"} value={whatsappPhoneNumberId} set={setWhatsappPhoneNumberId} placeholder="1234567890" disabled={loading} icon={Phone} />
           </div>
 
           <div className="rounded-2xl border border-blue-500/20 bg-blue-500/10 p-4">
             <div className="flex items-start gap-3">
-              <div className="rounded-xl bg-blue-500/15 p-2 text-blue-300">
-                <Bot size={20} />
-              </div>
+              <div className="rounded-xl bg-blue-500/15 p-2 text-blue-300"><Bot size={20} /></div>
               <div>
-                <p className="font-semibold text-blue-100">{ar ? "تفعيل AI Sales تلقائي" : "Automatic AI Sales activation"}</p>
+                <p className="font-semibold text-blue-100">{ar ? "تفعيل وكلاء AVERO OS تلقائي" : "Automatic AVERO OS agents activation"}</p>
                 <p className="mt-1 text-sm leading-6 text-slate-300">
                   {ar
-                    ? "عند حفظ WhatsApp Phone Number ID، أي رسالة تأتي على هذا الرقم سيتم توجيهها تلقائياً إلى Sales Agent الخاص بهذا العميل فقط، مع ذاكرة مستقلة حسب الشركة والرقم والعميل."
-                    : "When this WhatsApp Phone Number ID is saved, incoming messages for that number are routed automatically to this client’s Sales Agent only, with isolated memory by company, number, and customer."}
+                    ? "عند إنشاء العميل، يتم إنشاء حساب المدير وتفعيل CRM وAnalytics وكل وكلاء Leo/Foxy/Aero/Gor/Vexa/Rex/Nova/Bruno."
+                    : "When the client is created, the admin account is provisioned and CRM, Analytics and all Leo/Foxy/Aero/Gor/Vexa/Rex/Nova/Bruno agents are enabled."}
                 </p>
               </div>
             </div>
@@ -96,8 +105,8 @@ export default function AddClientModal({ onClose, onSubmit }: AddClientModalProp
               <CheckCircle2 className="mt-0.5 text-emerald-300" size={20} />
               <p className="text-sm leading-6 text-slate-300">
                 {ar
-                  ? "بعد إنشاء العميل، افتح AI Sales Agent واحفظ Company Brain الخاص فيه: المجال، الخدمات، طريقة الكلام، والقواعد."
-                  : "After creating the client, open the AI Sales Agent and save its Company Brain: industry, services, tone, and rules."}
+                  ? "بعد الإنشاء، أعطِ العميل نفس الإيميل وكلمة المرور المؤقتة. أول دخول رح يطلب منه يغيّر كلمة المرور."
+                  : "After creation, give the client the exact email and temporary password. The first login will ask them to change the password."}
               </p>
             </div>
           </div>
@@ -124,6 +133,9 @@ function Field({
   disabled,
   type = "text",
   icon: Icon,
+  showPasswordToggle = false,
+  passwordVisible = false,
+  onTogglePassword,
 }: {
   label: string;
   value: string;
@@ -132,6 +144,9 @@ function Field({
   disabled: boolean;
   type?: string;
   icon?: typeof Phone;
+  showPasswordToggle?: boolean;
+  passwordVisible?: boolean;
+  onTogglePassword?: () => void;
 }) {
   return (
     <div>
@@ -144,8 +159,19 @@ function Field({
           onChange={(event) => set(event.target.value)}
           placeholder={placeholder}
           disabled={disabled}
-          className={`w-full rounded-xl border border-slate-700 bg-slate-800 px-3 py-3 text-white placeholder-slate-500 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-60 ${Icon ? "pl-10" : ""}`}
+          className={`w-full rounded-xl border border-slate-700 bg-slate-800 px-3 py-3 text-white placeholder-slate-500 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-60 ${Icon ? "pl-10" : ""} ${showPasswordToggle ? "pe-12" : ""}`}
         />
+        {showPasswordToggle && (
+          <button
+            type="button"
+            onClick={onTogglePassword}
+            disabled={disabled}
+            className="absolute inset-y-0 end-0 flex w-12 items-center justify-center rounded-e-xl text-slate-400 transition hover:bg-slate-700 hover:text-white disabled:opacity-50"
+            aria-label={passwordVisible ? "Hide password" : "Show password"}
+          >
+            {passwordVisible ? <EyeOff size={18} /> : <Eye size={18} />}
+          </button>
+        )}
       </div>
     </div>
   );
