@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ComponentType } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import LogoutButton from "./LogoutButton";
@@ -11,7 +11,8 @@ import { BarChart3, Bot, Building2, ChevronDown, ChevronRight, Headphones, Home,
 
 interface SidebarProps { userEmail?: string; userName?: string; access?: AuthorizationContext | null; }
 
-type NavItem = { label: string; href: string; show: boolean; icon?: React.ComponentType<{ size?: number; className?: string }> };
+type NavIcon = ComponentType<{ size?: number; className?: string }>;
+type NavItem = { label: string; href: string; show: boolean; icon?: NavIcon };
 
 export default function Sidebar({ userEmail, userName, access }: SidebarProps) {
   const pathname = usePathname();
@@ -62,5 +63,5 @@ export default function Sidebar({ userEmail, userName, access }: SidebarProps) {
 }
 
 function CalendarIcon({ size, className }: { size?: number; className?: string }) { return <Sparkles size={size} className={className} />; }
-function Main({ href, label, icon: Icon, active }: { href: string; label: string; icon: React.ComponentType<{ size?: number; className?: string }>; active?: boolean }) { return <Link href={href} className={`flex items-center gap-3 rounded-xl px-4 py-3 ${active ? "bg-cyan-500/10 text-cyan-300" : "text-slate-300 hover:bg-slate-900"}`}><Icon size={18} /><span className={`text-sm font-medium ${label ? "block" : "hidden"}`}>{label}</span></Link>; }
-function Sub({ href, label, pathname, exact = false, icon: Icon = Sparkles }: { href: string; label: string; pathname: string | null; exact?: boolean; icon?: React.ComponentType<{ size?: number; className?: string }> }) { const active = exact ? pathname === href : pathname?.startsWith(href); return <Link href={href} className={`flex items-center gap-2 rounded-lg px-3 py-2 text-xs ${active ? "bg-cyan-500/10 text-cyan-300" : "text-slate-500 hover:text-slate-300"}`}><Icon size={12} />{label}</Link>; }
+function Main({ href, label, icon: Icon, active }: { href: string; label: string; icon: NavIcon; active?: boolean }) { return <Link href={href} className={`flex items-center gap-3 rounded-xl px-4 py-3 ${active ? "bg-cyan-500/10 text-cyan-300" : "text-slate-300 hover:bg-slate-900"}`}><Icon size={18} /><span className={`text-sm font-medium ${label ? "block" : "hidden"}`}>{label}</span></Link>; }
+function Sub({ href, label, pathname, exact = false, icon: Icon = Sparkles }: { href: string; label: string; pathname: string | null; exact?: boolean; icon?: NavIcon }) { const active = exact ? pathname === href : pathname?.startsWith(href); return <Link href={href} className={`flex items-center gap-2 rounded-lg px-3 py-2 text-xs ${active ? "bg-cyan-500/10 text-cyan-300" : "text-slate-500 hover:text-slate-300"}`}><Icon size={12} />{label}</Link>; }
