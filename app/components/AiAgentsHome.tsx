@@ -3,6 +3,7 @@
 import Link from "next/link";
 import Sidebar from "./Sidebar";
 import DashboardHeader from "./DashboardHeader";
+import type { AuthorizationContext } from "@/lib/auth/authorization";
 import { ArrowRight, BarChart3, Bot, CalendarClock, Headphones, PackageCheck, Sparkles, UsersRound, Warehouse } from "lucide-react";
 
 const agents = [
@@ -16,9 +17,11 @@ const agents = [
   { name: "Bruno", animal: "🐻", title: "Warehouse Agent", line: "The Organizer", href: "/ai-warehouse", color: "text-yellow-300", skills: ["Manages receiving", "Tracks movements", "Performs stock counts", "Keeps records updated"], quote: "A more organized warehouse.", icon: Warehouse },
 ];
 
-export default function AiAgentsHome() {
-  return <div className="min-h-screen bg-slate-950 text-white"><Sidebar /><div className="ml-64 min-h-screen"><DashboardHeader /><main className="p-4 md:p-7"><div className="mx-auto max-w-7xl space-y-6">
-    <section className="overflow-hidden rounded-3xl border border-cyan-400/20 bg-[radial-gradient(circle_at_top,rgba(34,211,238,.16),transparent_35%),#020617] p-5 md:p-8 shadow-2xl"><div className="max-w-4xl"><p className="text-xs font-bold uppercase tracking-[.32em] text-cyan-300">AVERO OS Smart Agents</p><h1 className="mt-4 text-3xl font-black tracking-tight md:text-5xl">A complete AI team for every part of your business</h1><p className="mt-4 text-sm leading-7 text-slate-300 md:text-base">Different skills. One platform. Real actions connected to Supabase, Make engines, CRM, workflows and company brain.</p></div><div className="mt-6 grid gap-3 md:grid-cols-4"><Mini label="Works 24/7"/><Mini label="Reduces Costs"/><Mini label="Increases Efficiency"/><Mini label="Happier Customers"/></div></section>
+type AiAgentsHomeProps = { userEmail?: string; userName?: string; access?: AuthorizationContext | null };
+
+export default function AiAgentsHome({ userEmail, userName, access }: AiAgentsHomeProps) {
+  return <div className="min-h-screen bg-slate-950 text-white"><Sidebar userEmail={userEmail} userName={userName} access={access} /><div className="ml-64 min-h-screen"><DashboardHeader userEmail={userEmail} userName={userName} /><main className="p-4 md:p-7"><div className="mx-auto max-w-7xl space-y-6">
+    <section className="overflow-hidden rounded-3xl border border-cyan-400/20 bg-[radial-gradient(circle_at_top,rgba(34,211,238,.16),transparent_35%),#020617] p-5 shadow-2xl md:p-8"><div className="max-w-4xl"><p className="text-xs font-bold uppercase tracking-[.32em] text-cyan-300">AVERO OS Smart Agents</p><h1 className="mt-4 text-3xl font-black tracking-tight md:text-5xl">A complete AI team for every part of your business</h1><p className="mt-4 text-sm leading-7 text-slate-300 md:text-base">Different skills. One platform. Real actions connected to Supabase, Make engines, CRM, workflows and company brain.</p></div><div className="mt-6 grid gap-3 md:grid-cols-4"><Mini label="Works 24/7"/><Mini label="Reduces Costs"/><Mini label="Increases Efficiency"/><Mini label="Happier Customers"/></div></section>
     <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">{agents.map((agent) => { const Icon = agent.icon; return <Link key={agent.name} href={agent.href} className="group rounded-3xl border border-slate-800 bg-slate-900/60 p-5 transition hover:-translate-y-1 hover:border-cyan-400/50 hover:bg-slate-900"><div className="flex items-start justify-between gap-3"><div className="flex h-16 w-16 items-center justify-center rounded-3xl border border-slate-700 bg-slate-950 text-4xl">{agent.animal}</div><Icon className={agent.color} size={23}/></div><h2 className="mt-4 text-2xl font-black">{agent.name}</h2><p className={`text-sm font-bold ${agent.color}`}>{agent.title}</p><p className="mt-1 text-xs uppercase tracking-[.16em] text-slate-500">{agent.line}</p><div className="mt-4 space-y-2">{agent.skills.map((skill) => <div key={skill} className="rounded-xl border border-slate-800 bg-slate-950/70 px-3 py-2 text-xs text-slate-300">{skill}</div>)}</div><p className="mt-4 text-sm font-semibold text-slate-200">“{agent.quote}”</p><div className="mt-5 flex items-center gap-2 text-xs font-bold text-cyan-300">Open Agent <ArrowRight size={14} className="transition group-hover:translate-x-1"/></div></Link>; })}</section>
   </div></main></div></div>;
 }
