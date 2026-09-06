@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ChevronDown, Globe2, UserRound, Settings, Headphones, Sparkles } from "lucide-react";
+import { ChevronDown, Globe2, UserRound, Settings, Headphones, Sparkles, ArrowLeft, RefreshCw } from "lucide-react";
 import { useLanguage } from "@/app/components/LanguageProvider";
 
 interface DashboardHeaderProps { userName?: string; userEmail?: string; }
@@ -11,6 +11,7 @@ type Meta = { full_name?:string; username?:string; nickname?:string; job_title?:
 export default function DashboardHeader({ userName, userEmail }: DashboardHeaderProps) {
   const [open, setOpen] = useState(false);
   const [meta, setMeta] = useState<Meta>({});
+  const [refreshing,setRefreshing]=useState(false);
   const { language, setLanguage, t } = useLanguage();
   const ar = language === "ar";
 
@@ -30,10 +31,14 @@ export default function DashboardHeader({ userName, userEmail }: DashboardHeader
   const email = meta.email || userEmail || "";
   const displayName = meta.full_name || meta.nickname || meta.username || userName || email || (ar ? "مستخدم" : "User");
   const initials = displayName.split(" ").map((n)=>n[0]).join("").slice(0,2).toUpperCase();
+  const refreshPage=()=>{setRefreshing(true);window.location.reload()};
 
   return (
     <div className="relative flex items-center justify-between border-b border-slate-800 bg-slate-900/50 px-6 py-3">
-      <div />
+      <div className="flex items-center gap-2">
+        <button onClick={()=>window.history.back()} className="inline-flex items-center gap-2 rounded-xl border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs font-medium text-slate-300 transition hover:border-slate-700 hover:bg-slate-900 hover:text-white"><ArrowLeft size={15}/><span className="hidden sm:inline">{ar?"رجوع":"Back"}</span></button>
+        <button onClick={refreshPage} disabled={refreshing} className="inline-flex items-center gap-2 rounded-xl border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs font-medium text-slate-300 transition hover:border-slate-700 hover:bg-slate-900 hover:text-white disabled:opacity-60"><RefreshCw size={15} className={refreshing?"animate-spin":""}/><span className="hidden sm:inline">{ar?"تحديث":"Refresh"}</span></button>
+      </div>
       <div className="flex items-center gap-3">
         <Link href="/help-center" className="inline-flex items-center gap-2 rounded-xl border border-violet-500/20 bg-violet-500/10 px-3 py-2 text-xs font-medium text-violet-200 transition hover:border-violet-400/40 hover:bg-violet-500/15"><Headphones size={15}/><span className="hidden lg:inline">{ar ? "مركز المساعدة" : "Help Center"}</span><span className="flex items-center gap-1 text-[10px] text-emerald-400"><span className="h-1.5 w-1.5 rounded-full bg-emerald-400"/>24/7</span></Link>
         <button onClick={() => setLanguage(language === "en" ? "ar" : "en")} className="inline-flex items-center gap-2 rounded-lg border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs font-medium text-slate-300 hover:border-slate-700 hover:text-white"><Globe2 size={15}/>{language === "en" ? "العربية" : "English"}</button>
