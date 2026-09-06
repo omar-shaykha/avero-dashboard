@@ -20,6 +20,24 @@ export interface AuthorizationContext {
   features: string[];
 }
 
+const LEGACY_PERMISSION_ALIASES: Record<string, string> = {
+  view_crm: "crm.view",
+  manage_crm: "crm.manage",
+  view_analytics: "analytics.view",
+  view_ai_sales: "sales.view",
+  manage_ai_sales: "sales.manage",
+  view_ai_marketing: "marketing.view",
+  manage_ai_marketing: "marketing.manage",
+  view_ai_hr: "hr.view",
+  manage_ai_hr: "hr.manage",
+  view_ai_support: "support.view",
+  manage_ai_support: "support.manage",
+};
+
+function normalizePermissionKey(permissionKey: string) {
+  return LEGACY_PERMISSION_ALIASES[permissionKey] || permissionKey;
+}
+
 function getAdminClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.SUPABASE_SECRET_KEY;
@@ -88,7 +106,8 @@ export function isSuperAdmin(context: AuthorizationContext | null) {
 }
 
 export function hasPermission(context: AuthorizationContext | null, permissionKey: string) {
-  return Boolean(isSuperAdmin(context) || context?.permissions.includes(permissionKey));
+  const normalizedKey = normalizePermissionKey(permissionKey);
+  return Boolean(isSuperAdmin(context) || context?.permissions.includes(normalizedKey));
 }
 
 export function hasFeature(context: AuthorizationContext | null, featureKey: FeatureKey) {
