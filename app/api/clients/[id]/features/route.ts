@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { getAuthorizationContext, isSuperAdmin } from "@/lib/auth/authorization";
+import { getAuthorizationContext, isKingAdmin } from "@/lib/auth/authorization";
 
 function admin() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -13,7 +13,7 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
   try {
     const access = await getAuthorizationContext();
     if (!access) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    if (!isSuperAdmin(access)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    if (!isKingAdmin(access)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
     const { id } = await params;
     const supabase = admin();
@@ -23,20 +23,11 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
       supabase.from("companies").select("id,name").eq("id", id).maybeSingle(),
     ]);
 
-    if (featuresResult.error || assignedResult.error || companyResult.error) {
-      return NextResponse.json({ error: "Could not load access configuration" }, { status: 500 });
-    }
+    if (featuresResult.error || assignedResult.error || companyResult.error) return NextResponse.json({ error: "Could not load access configuration" }, { status: 500 });
     if (!companyResult.data) return NextResponse.json({ error: "Company not found" }, { status: 404 });
 
     const assignedMap = new Map((assignedResult.data || []).map((row) => [row.feature_id, row]));
-    return NextResponse.json({
-      company: companyResult.data,
-      features: (featuresResult.data || []).map((feature) => ({
-        ...feature,
-        enabled: assignedMap.get(feature.id)?.enabled ?? false,
-        expires_at: assignedMap.get(feature.id)?.expires_at ?? null,
-      })),
-    });
+    return NextResponse.json({ company: companyResult.data, features: (featuresResult.data || []).map((feature) => ({ ...feature, enabled: assignedMap.get(feature.id)?.enabled ?? false, expires_at: assignedMap.get(feature.id)?.expires_at ?? null })) });
   } catch (error) {
     console.error("Client feature GET error:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
@@ -47,7 +38,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
   try {
     const access = await getAuthorizationContext();
     if (!access) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    if (!isSuperAdmin(access)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    if (!isKingAdmin(access)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
     const { id } = await params;
     const body = await request.json();
@@ -71,18 +62,9 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     if (!company) return NextResponse.json({ error: "Company not found" }, { status: 404 });
     if (!feature) return NextResponse.json({ error: "Feature not found" }, { status: 404 });
 
-    const { data: existing, error: existingError } = await supabase
-      .from("company_features")
-      .select("feature_id")
-      .eq("company_id", id)
-      .eq("feature_id", featureId)
-      .maybeSingle();
+    const { data: existing, error: existingError } = await supabase.from("company_features").select("feature_id").eq("company_id", id).eq("feature_id", featureId).maybeSingle();
     if (existingError) return NextResponse.json({ error: "Could not update access" }, { status: 500 });
-
-    const result = existing
-      ? await supabase.from("company_features").update({ enabled: body.enabled, expires_at: expiresAt }).eq("company_id", id).eq("feature_id", featureId)
-      : await supabase.from("company_features").insert({ company_id: id, feature_id: featureId, enabled: body.enabled, expires_at: expiresAt });
-
+    const result = existing ? await supabase.from("company_features").update({ enabled: body.enabled, expires_at: expiresAt }).eq("company_id", id).eq("feature_id", featureId) : await supabase.from("company_features").insert({ company_id: id, feature_id: featureId, enabled: body.enabled, expires_at: expiresAt });
     if (result.error) return NextResponse.json({ error: "Could not update access" }, { status: 500 });
     return NextResponse.json({ ok: true });
   } catch (error) {
