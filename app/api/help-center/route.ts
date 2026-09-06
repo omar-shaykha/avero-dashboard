@@ -1,66 +1,11 @@
 import { createClient as createAdminClient } from "@supabase/supabase-js";
 import { createClient as createServerClient } from "@/lib/supabase/server";
 
-async function context() {
-  const auth = await createServerClient();
-  const { data: { user } } = await auth.auth.getUser();
-  if (!user) return null;
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.SUPABASE_SECRET_KEY;
-  if (!url || !key) throw new Error("Missing Supabase configuration");
-  const admin = createAdminClient(url, key);
-  const { data: profile } = await admin.from("user_profiles").select("company_id").eq("user_id",user.id).maybeSingle();
-  if (!profile?.company_id) return null;
-  return { user, companyId: profile.company_id as string, admin };
-}
+async function context(){const auth=await createServerClient();const {data:{user}}=await auth.auth.getUser();if(!user)return null;const url=process.env.NEXT_PUBLIC_SUPABASE_URL,key=process.env.SUPABASE_SECRET_KEY;if(!url||!key)throw new Error("Missing Supabase configuration");const admin=createAdminClient(url,key);const {data:profile}=await admin.from("user_profiles").select("company_id").eq("user_id",user.id).maybeSingle();if(!profile?.company_id)return null;return {user,companyId:profile.company_id as string,admin};}
+async function openSession(ctx:any){const found=await ctx.admin.from("ai_help_sessions").select("id").eq("user_id",ctx.user.id).eq("company_id",ctx.companyId).eq("status","open").order("created_at",{ascending:false}).limit(1).maybeSingle();if(found.data)return found.data.id;const made=await ctx.admin.from("ai_help_sessions").insert({user_id:ctx.user.id,company_id:ctx.companyId,status:"open"}).select("id").single();if(made.error)throw made.error;return made.data.id;}
 
-export async function GET() {
-  try {
-    const ctx = await context();
-    if (!ctx) return Response.json({ error: "Unauthorized" }, { status: 401 });
-    const { data, error } = await ctx.admin.from("help_center_messages").select("id,role,message,metadata,created_at").eq("user_id",ctx.user.id).order("created_at",{ascending:true}).limit(100);
-    if (error) return Response.json({ error: "Failed to load messages" }, { status: 500 });
-    return Response.json(data || []);
-  } catch (error) {
-    console.error("Help center GET error:", error);
-    return Response.json({ error: "Internal server error" }, { status: 500 });
-  }
-}
+export async function GET(){try{const ctx=await context();if(!ctx)return Response.json({error:"Unauthorized"},{status:401});const sessionId=await openSession(ctx);const {data,error}=await ctx.admin.from("ai_help_messages").select("id,role,message,created_at").eq("session_id",sessionId).eq("user_id",ctx.user.id).order("created_at",{ascending:true}).limit(100);if(error)return Response.json({error:"Failed to load messages"},{status:500});return Response.json(data||[]);}catch(error){console.error("Help center GET error:",error);return Response.json({error:"Internal server error"},{status:500});}}
 
-export async function POST(request: Request) {
-  try {
-    const ctx = await context();
-    if (!ctx) return Response.json({ error: "Unauthorized" }, { status: 401 });
-    const body = await request.json();
-    const message = String(body.message || "").trim();
-    if (!message) return Response.json({ error: "Message is required" }, { status: 400 });
-
-    const { data: saved, error } = await ctx.admin.from("help_center_messages").insert({
-      company_id: ctx.companyId,
-      user_id: ctx.user.id,
-      role: "user",
-      message,
-      metadata: { source: "help_center" },
-    }).select("id,role,message,created_at").single();
-    if (error) return Response.json({ error: "Failed to save message" }, { status: 500 });
-
-    const looksLikeAction = /\b(change|update|enable|disable|turn on|turn off|edit|modify|activate|deactivate)\b/i.test(message) || /(غير|غيّر|عدل|عدّل|فعل|فعّل|طفي|أوقف|شغل|شغّل)/.test(message);
-    let actionRequest = null;
-    if (looksLikeAction) {
-      const { data: action } = await ctx.admin.from("ai_action_requests").insert({
-        company_id: ctx.companyId,
-        user_id: ctx.user.id,
-        command: message,
-        action_type: "user_requested_change",
-        status: "awaiting_confirmation",
-        requires_confirmation: true,
-      }).select("id,status,requires_confirmation,created_at").single();
-      actionRequest = action;
-    }
-
-    return Response.json({ message: saved, action_request: actionRequest });
-  } catch (error) {
-    console.error("Help center POST error:", error);
-    return Response.json({ error: "Internal server error" }, { status: 500 });
-  }
-}
+export async function POST(request:Request){try{const ctx=await context();if(!ctx)return Response.json({error:"Unauthorized"},{status:401});const body=await request.json();const message=String(body.message||"").trim();if(!message)return Response.json({error:"Message is required"},{status:400});const sessionId=await openSession(ctx);const saved=await ctx.admin.from("ai_help_messages").insert({session_id:sessionId,user_id:ctx.user.id,role:"user",message}).select("id,role,message,created_at").single();if(saved.error)return Response.json({error:"Failed to save message"},{status:500});await ctx.admin.from("ai_help_sessions").update({updated_at:new Date().toISOString()}).eq("id",sessionId);
+const looksLikeAction=/\b(change|update|enable|disable|turn on|turn off|edit|modify|activate|deactivate)\b/i.test(message)||/(غير|غيّر|عدل|عدّل|فعل|فعّل|طفي|أوقف|شغل|شغّل)/.test(message);let command=null;if(looksLikeAction){const made=await ctx.admin.from("ai_commands").insert({user_id:ctx.user.id,company_id:ctx.companyId,command_type:"user_requested_change",command_text:message,status:"awaiting_confirmation",requires_confirmation:true,payload:{source:"help_center",session_id:sessionId}}).select("id,status,requires_confirmation,created_at").single();command=made.data;}
+return Response.json({message:saved.data,action_request:command});}catch(error){console.error("Help center POST error:",error);return Response.json({error:"Internal server error"},{status:500});}}
