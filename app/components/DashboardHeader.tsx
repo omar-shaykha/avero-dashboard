@@ -47,7 +47,7 @@ export default function DashboardHeader({ userName, userEmail }: DashboardHeader
         <Link href="/profile" onClick={()=>setOpen(false)} className="mt-2 flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-slate-300 hover:bg-slate-900 hover:text-white"><UserRound size={16}/>{t("profile")}</Link>
         <Link href="/help-center" onClick={()=>setOpen(false)} className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-slate-300 hover:bg-slate-900 hover:text-white"><Sparkles size={16}/>{ar ? "مساعد AVERO الذكي" : "AVERO AI Assistant"}</Link>
         <button onClick={() => setLanguage(language === "en" ? "ar" : "en")} className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm text-slate-300 hover:bg-slate-900 hover:text-white"><Globe2 size={16}/>{language === "en" ? "العربية" : "English"}</button>
-        <div className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-slate-500"><Settings size={16}/>{t("settings")}</div>
+        <Link href="/settings" onClick={()=>setOpen(false)} className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-slate-300 hover:bg-slate-900 hover:text-white"><Settings size={16}/>{t("settings")}</Link>
       </div>}
     </div>
   );
