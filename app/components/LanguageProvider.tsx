@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
 
 type Language = "en" | "ar";
 type Dictionary = Record<string, { en: string; ar: string }>;
@@ -21,8 +21,23 @@ const LanguageContext = createContext<LanguageContextValue | null>(null);
 
 export function LanguageProvider({ children }: { children: React.ReactNode }) {
   const [language, setLanguageState] = useState<Language>("en");
-  useEffect(() => { const stored = window.localStorage.getItem("avero-language"); if (stored === "ar" || stored === "en") setLanguageState(stored); }, []);
-  useEffect(() => { document.documentElement.lang = language; document.documentElement.dir = language === "ar" ? "rtl" : "ltr"; window.localStorage.setItem("avero-language", language); }, [language]);
+  const hydrated = useRef(false);
+
+  useEffect(() => {
+    const stored = window.localStorage.getItem("avero-language");
+    if (stored === "ar" || stored === "en") setLanguageState(stored);
+    fetch("/api/settings", { cache: "no-store" }).then(r=>r.ok?r.json():null).then(data=>{
+      if (data?.language === "ar" || data?.language === "en") setLanguageState(data.language);
+    }).catch(()=>undefined).finally(()=>{ hydrated.current = true; });
+  }, []);
+
+  useEffect(() => {
+    document.documentElement.lang = language;
+    document.documentElement.dir = language === "ar" ? "rtl" : "ltr";
+    window.localStorage.setItem("avero-language", language);
+    if (hydrated.current) fetch("/api/settings", { method:"PATCH", headers:{"Content-Type":"application/json"}, body:JSON.stringify({language}) }).catch(()=>undefined);
+  }, [language]);
+
   const value = useMemo(() => ({ language, setLanguage: setLanguageState, t: (key: string) => dictionary[key]?.[language] ?? key }), [language]);
   return <LanguageContext.Provider value={value}>{children}</LanguageContext.Provider>;
 }
