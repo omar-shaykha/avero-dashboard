@@ -6,7 +6,7 @@ import { ChevronDown, Globe2, UserRound, Settings, Headphones, Sparkles, ArrowLe
 import { useLanguage } from "@/app/components/LanguageProvider";
 
 interface DashboardHeaderProps { userName?: string; userEmail?: string; }
-type Meta = { full_name?:string; username?:string; nickname?:string; job_title?:string; avatar_url?:string; age?:number|string; talents?:string; bio?:string; email?:string };
+type Meta = { full_name?:string; username?:string; nickname?:string; job_title?:string; avatar_url?:string; age?:number|string; talents?:string; bio?:string; email?:string; role?:string; must_change_password?:boolean };
 
 export default function DashboardHeader({ userName, userEmail }: DashboardHeaderProps) {
   const [open, setOpen] = useState(false);
@@ -17,7 +17,7 @@ export default function DashboardHeader({ userName, userEmail }: DashboardHeader
 
   useEffect(() => {
     let active = true;
-    const load = () => fetch("/api/profile",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(data=>{if(active&&data)setMeta(data)}).catch(()=>undefined);
+    const load = () => fetch("/api/profile",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(data=>{if(active&&data){if(data.must_change_password&&data.role!=="king_admin"&&window.location.pathname!=="/change-password"){window.location.replace("/change-password");return}setMeta(data)}}).catch(()=>undefined);
     const onProfileUpdated = (event: Event) => {
       const detail = (event as CustomEvent<Meta>).detail;
       if (detail) setMeta(prev=>({...prev,...detail}));
