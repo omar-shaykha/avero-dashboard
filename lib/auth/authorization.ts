@@ -1,17 +1,25 @@
 import { createClient } from "@supabase/supabase-js";
 import { createClient as createServerClient } from "@/lib/supabase/server";
 
-export type FeatureKey = "ai_sales" | "crm" | "analytics" | "ai_marketing" | "ai_hr" | "ai_support";
+export type FeatureKey = "ai_sales" | "crm" | "analytics" | "ai_marketing" | "ai_hr" | "ai_support" | "ai_inventory" | "ai_customer_care" | "ai_analytics" | "ai_warehouse";
 export interface AuthorizationContext { user:{id:string;email?:string}; profile:{company_id:string|null;role:string|null;role_id:string|null}; permissions:string[]; features:string[]; }
-const LEGACY_PERMISSION_ALIASES:Record<string,string>={view_crm:"crm.view",manage_crm:"crm.manage",view_analytics:"analytics.view",view_ai_sales:"sales.view",manage_ai_sales:"sales.manage",view_ai_marketing:"marketing.view",manage_ai_marketing:"marketing.manage",view_ai_hr:"hr.view",manage_ai_hr:"hr.manage",view_ai_support:"support.view",manage_ai_support:"support.manage"};
+const LEGACY_PERMISSION_ALIASES:Record<string,string>={
+  view_crm:"crm.view",manage_crm:"crm.manage",view_analytics:"analytics.view",
+  view_ai_sales:"sales.view",manage_ai_sales:"sales.manage",
+  view_ai_marketing:"marketing.view",manage_ai_marketing:"marketing.manage",
+  view_ai_hr:"hr.view",manage_ai_hr:"hr.manage",
+  view_ai_support:"support.view",manage_ai_support:"support.manage",
+  view_ai_inventory:"inventory.view",manage_ai_inventory:"inventory.manage",
+  view_ai_customer_care:"customer_care.view",manage_ai_customer_care:"customer_care.manage",
+  view_ai_analytics:"ai_analytics.view",manage_ai_analytics:"ai_analytics.manage",
+  view_ai_warehouse:"warehouse.view",manage_ai_warehouse:"warehouse.manage"
+};
 function normalizePermissionKey(key:string){return LEGACY_PERMISSION_ALIASES[key]||key}
 function getAdminClient(){const url=process.env.NEXT_PUBLIC_SUPABASE_URL,key=process.env.SUPABASE_SECRET_KEY;if(!url||!key)throw new Error("Missing Supabase configuration");return createClient(url,key)}
 export async function getAuthorizationContext():Promise<AuthorizationContext|null>{
  const authClient=await createServerClient();const{data:{user}}=await authClient.auth.getUser();if(!user)return null;
  const supabase=getAdminClient();
  const{data:profile,error:profileError}=await supabase.from("user_profiles").select("company_id,role,role_id").eq("user_id",user.id).maybeSingle();if(profileError)throw profileError;
- // Tenant roles are hierarchy labels only. Runtime permissions come only from explicit per-user overrides.
- // King Admin bypasses permission/feature checks through isKingAdmin/hasPermission/hasFeature below.
  const effective=new Map<string,boolean>();
  const{data:overrides,error:overridesError}=await supabase.from("user_permission_overrides").select("allowed,permissions(key)").eq("user_id",user.id);if(overridesError)throw overridesError;
  for(const row of overrides||[]){const permission=Array.isArray(row.permissions)?row.permissions[0]:row.permissions;if(permission?.key)effective.set(permission.key,Boolean(row.allowed))}
