@@ -17,21 +17,9 @@ export async function GET() {
   try {
     const ctx = await context();
     if (!ctx) return Response.json({ error: "Unauthorized" }, { status: 401 });
-    const { data, error } = await ctx.admin.from("user_profiles").select("user_id,company_id,role,full_name,username,nickname,age,talents,job_title,bio,avatar_url").eq("user_id", ctx.user.id).maybeSingle();
+    const { data, error } = await ctx.admin.from("user_profiles").select("user_id,company_id,role,full_name,username,nickname,age,bio,avatar_url").eq("user_id", ctx.user.id).maybeSingle();
     if (error) return Response.json({ error: "Failed to load profile" }, { status: 500 });
-    const m = ctx.user.user_metadata || {};
-    return Response.json({
-      email: ctx.user.email || "",
-      ...(data || {}),
-      full_name: data?.full_name ?? m.full_name ?? "",
-      username: data?.username ?? m.username ?? "",
-      nickname: data?.nickname ?? m.nickname ?? "",
-      age: data?.age ?? m.age ?? null,
-      talents: data?.talents ?? m.talents ?? "",
-      job_title: data?.job_title ?? m.job_title ?? "",
-      bio: data?.bio ?? m.bio ?? "",
-      avatar_url: data?.avatar_url ?? m.avatar_url ?? "",
-    });
+    return Response.json({ email: ctx.user.email || "", ...(data || {}) });
   } catch (error) {
     console.error("Profile GET error:", error);
     return Response.json({ error: "Internal server error" }, { status: 500 });
@@ -43,24 +31,42 @@ export async function PUT(request: Request) {
     const ctx = await context();
     if (!ctx) return Response.json({ error: "Unauthorized" }, { status: 401 });
     const body = await request.json();
+    const age = body.age === "" || body.age == null ? null : Number(body.age);
+    if (age !== null && (!Number.isInteger(age) || age < 0 || age > 130)) return Response.json({ error: "Invalid age" }, { status: 400 });
 
-    const { data: existing, error: lookupError } = await ctx.admin.from("user_profiles").select("user_id,company_id,role,full_name,username,nickname,age,talents,job_title,bio,avatar_url").eq("user_id", ctx.user.id).maybeSingle();
+    const username = clean(body.username) || null;
+    const email = clean(body.email).toLowerCase();
+    if (!email || !/^\S+@\S+\.\S+$/.test(email)) return Response.json({ error: "Invalid email" }, { status: 400 });
+
+    const profileUpdate = {
+      full_name: clean(body.full_name) || null,
+      username,
+      nickname: clean(body.nickname) || null,
+      age,
+      bio: clean(body.bio) || null,
+      updated_at: new Date().toISOString(),
+    };
+
+    const { data: existing, error: lookupError } = await ctx.admin.from("user_profiles").select("user_id").eq("user_id", ctx.user.id).maybeSingle();
     if (lookupError) return Response.json({ error: "Failed to locate profile" }, { status: 500 });
     if (!existing) return Response.json({ error: "Profile record not configured" }, { status: 409 });
 
-    // Client-controlled identity: nickname only. Company-managed identity and permissions stay fixed.
-    const nickname = clean(body.nickname) || null;
-    const { data, error } = await ctx.admin.from("user_profiles").update({ nickname, updated_at: new Date().toISOString() }).eq("user_id", ctx.user.id).select("user_id,company_id,role,full_name,username,nickname,age,talents,job_title,bio,avatar_url,updated_at").single();
-    if (error) {
-      console.error("Profile database error:", error);
-      return Response.json({ error: "Failed to save nickname" }, { status: 500 });
+    const { data: profile, error: profileError } = await ctx.admin.from("user_profiles").update(profileUpdate).eq("user_id", ctx.user.id).select("user_id,company_id,role,full_name,username,nickname,age,bio,avatar_url,updated_at").single();
+    if (profileError) {
+      console.error("Profile database error:", profileError);
+      return Response.json({ error: profileError.code === "23505" ? "Username already in use" : "Failed to save profile" }, { status: profileError.code === "23505" ? 409 : 500 });
     }
 
-    const currentMetadata = ctx.user.user_metadata || {};
-    const { error: authError } = await ctx.admin.auth.admin.updateUserById(ctx.user.id, { user_metadata: { ...currentMetadata, nickname: data.nickname } });
-    if (authError) console.error("Profile nickname metadata sync error:", authError);
+    const metadata = { ...(ctx.user.user_metadata || {}), full_name: profile.full_name, username: profile.username, nickname: profile.nickname, age: profile.age, bio: profile.bio, avatar_url: profile.avatar_url };
+    const authChanges: { email?: string; user_metadata: Record<string, unknown>; email_confirm?: boolean } = { user_metadata: metadata };
+    if (email !== (ctx.user.email || "").toLowerCase()) { authChanges.email = email; authChanges.email_confirm = true; }
+    const { data: authData, error: authError } = await ctx.admin.auth.admin.updateUserById(ctx.user.id, authChanges);
+    if (authError) {
+      console.error("Profile auth update error:", authError);
+      return Response.json({ error: "Profile saved but email update failed" }, { status: 500 });
+    }
 
-    return Response.json({ ok: true, profile: data });
+    return Response.json({ ok: true, email: authData.user.email || email, profile });
   } catch (error) {
     console.error("Profile PUT error:", error);
     return Response.json({ error: "Internal server error" }, { status: 500 });
