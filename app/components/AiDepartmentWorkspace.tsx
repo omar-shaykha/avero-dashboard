@@ -5,17 +5,17 @@ import Sidebar from "./Sidebar";
 import DashboardHeader from "./DashboardHeader";
 import {
   Activity,
-  BarChart3,
   Bot,
   Brain,
   Building2,
   CalendarClock,
   CheckCircle2,
-  Clock3,
+  ClipboardList,
   Database,
   FileText,
   MessageSquare,
-  Radio,
+  PenTool,
+  PhoneCall,
   Save,
   Send,
   Settings,
@@ -23,102 +23,126 @@ import {
   Sparkles,
   Upload,
   Users,
-  Zap,
   type LucideIcon,
 } from "lucide-react";
 
 type Agent = "sales" | "marketing" | "hr" | "support";
 type Tab = "command" | "live";
 
+type Station = { label: string; icon: LucideIcon };
 type AgentMeta = {
   title: string;
-  department: string;
+  officeName: string;
   mission: string;
   accentText: string;
   accentBorder: string;
   accentBg: string;
-  glow: string;
+  botClass: string;
   icon: LucideIcon;
-  steps: string[];
-  liveStats: { label: string; value: string; icon: LucideIcon }[];
-  nodes: string[];
+  stations: Station[];
+  tasks: string[];
+  stats: { label: string; value: string; icon: LucideIcon }[];
 };
 
 const AGENTS: Record<Agent, AgentMeta> = {
   sales: {
     title: "AI Sales Agent",
-    department: "Sales Operating Room",
-    mission: "Qualify leads, answer customers, update CRM, and move opportunities forward.",
+    officeName: "Sales Mini Office",
+    mission: "A tiny AI sales employee receives messages, checks the client brain, prepares quotations, updates CRM, and sends replies.",
     accentText: "text-blue-300",
     accentBorder: "border-blue-500/30",
     accentBg: "bg-blue-500/10",
-    glow: "shadow-blue-500/20",
+    botClass: "sales-bot",
     icon: Bot,
-    steps: ["Receiving WhatsApp", "Loading client brain", "Reading customer memory", "Qualifying request", "Updating CRM", "Generating reply", "Sending message", "Saving timeline"],
-    liveStats: [
-      { label: "Conversations", value: "Live", icon: MessageSquare },
-      { label: "CRM Sync", value: "Active", icon: Database },
-      { label: "Follow-ups", value: "Ready", icon: CalendarClock },
+    stations: [
+      { label: "WhatsApp Inbox", icon: MessageSquare },
+      { label: "Company Brain", icon: Brain },
+      { label: "CRM Desk", icon: Database },
+      { label: "Quotation", icon: ClipboardList },
+      { label: "Reply Sent", icon: Send },
     ],
-    nodes: ["WhatsApp", "CRM", "Leads", "Customers", "Follow-up"],
+    tasks: ["New message received", "Reading company brain", "Checking customer memory", "Preparing quotation", "Updating CRM", "Sending WhatsApp reply"],
+    stats: [
+      { label: "Conversations", value: "Live", icon: MessageSquare },
+      { label: "CRM", value: "Synced", icon: Database },
+      { label: "Quotations", value: "Ready", icon: ClipboardList },
+    ],
   },
   marketing: {
     title: "AI Marketing Department",
-    department: "Marketing Content Room",
-    mission: "Plan campaigns, generate content, prepare approvals, and coordinate channels.",
+    officeName: "Marketing Studio",
+    mission: "A small creative AI employee moves between brand voice, content desk, approvals, and publishing channels.",
     accentText: "text-violet-300",
     accentBorder: "border-violet-500/30",
     accentBg: "bg-violet-500/10",
-    glow: "shadow-violet-500/20",
+    botClass: "marketing-bot",
     icon: Sparkles,
-    steps: ["Reading brand voice", "Scanning offers", "Planning campaign", "Writing content", "Preparing creatives", "Waiting approval", "Scheduling posts", "Tracking results"],
-    liveStats: [
-      { label: "Content Queue", value: "Ready", icon: FileText },
-      { label: "Approvals", value: "Draft", icon: CheckCircle2 },
-      { label: "Channels", value: "Multi", icon: Radio },
+    stations: [
+      { label: "Brand Voice", icon: Brain },
+      { label: "Content Desk", icon: PenTool },
+      { label: "Campaign", icon: Sparkles },
+      { label: "Approval", icon: CheckCircle2 },
+      { label: "Publish", icon: Send },
     ],
-    nodes: ["Instagram", "Facebook", "TikTok", "LinkedIn", "WhatsApp"],
+    tasks: ["Reading brand voice", "Writing campaign idea", "Preparing caption", "Waiting approval", "Scheduling post", "Tracking engagement"],
+    stats: [
+      { label: "Content", value: "Drafting", icon: PenTool },
+      { label: "Approvals", value: "Queue", icon: CheckCircle2 },
+      { label: "Channels", value: "Ready", icon: Send },
+    ],
   },
   hr: {
     title: "AI HR Department",
-    department: "HR Screening Room",
-    mission: "Screen candidates, summarize CVs, organize interviews, and support HR workflows.",
+    officeName: "HR Screening Office",
+    mission: "A tiny HR AI employee reads CVs, compares jobs, prepares interview steps, and organizes candidate follow-up.",
     accentText: "text-emerald-300",
     accentBorder: "border-emerald-500/30",
     accentBg: "bg-emerald-500/10",
-    glow: "shadow-emerald-500/20",
+    botClass: "hr-bot",
     icon: Users,
-    steps: ["Receiving candidate", "Reading CV", "Matching position", "Scoring profile", "Preparing questions", "Scheduling interview", "Updating HR CRM", "Sending response"],
-    liveStats: [
-      { label: "Candidates", value: "Screening", icon: Users },
-      { label: "Interview Queue", value: "Ready", icon: CalendarClock },
-      { label: "HR Records", value: "Synced", icon: Database },
+    stations: [
+      { label: "CV Inbox", icon: FileText },
+      { label: "Screening", icon: Users },
+      { label: "Job Match", icon: ClipboardList },
+      { label: "Interview", icon: CalendarClock },
+      { label: "HR Reply", icon: Send },
     ],
-    nodes: ["CVs", "Jobs", "Candidates", "Interviews", "Payroll"],
+    tasks: ["Receiving CV", "Reading experience", "Matching position", "Preparing interview", "Updating candidate file", "Sending HR reply"],
+    stats: [
+      { label: "Candidates", value: "Screening", icon: Users },
+      { label: "Interviews", value: "Ready", icon: CalendarClock },
+      { label: "Records", value: "Synced", icon: Database },
+    ],
   },
   support: {
     title: "AI Support Agent",
-    department: "Support Control Desk",
-    mission: "Handle questions, detect issues, escalate cases, and keep support history organized.",
+    officeName: "Support Help Desk",
+    mission: "A small support AI employee checks customer history, reads knowledge, solves tickets, and escalates when needed.",
     accentText: "text-orange-300",
     accentBorder: "border-orange-500/30",
     accentBg: "bg-orange-500/10",
-    glow: "shadow-orange-500/20",
+    botClass: "support-bot",
     icon: ShieldCheck,
-    steps: ["Receiving ticket", "Checking customer history", "Reading knowledge", "Detecting urgency", "Drafting solution", "Escalating if needed", "Updating ticket", "Closing loop"],
-    liveStats: [
-      { label: "Tickets", value: "Watching", icon: Activity },
-      { label: "SLA", value: "Tracked", icon: Clock3 },
-      { label: "Knowledge", value: "Loaded", icon: Brain },
+    stations: [
+      { label: "Ticket Inbox", icon: MessageSquare },
+      { label: "Customer History", icon: Database },
+      { label: "Knowledge", icon: Brain },
+      { label: "Solution", icon: ShieldCheck },
+      { label: "Close Loop", icon: CheckCircle2 },
     ],
-    nodes: ["Tickets", "SLA", "Knowledge", "Escalation", "Customers"],
+    tasks: ["Receiving ticket", "Checking customer history", "Reading knowledge", "Drafting solution", "Escalating if needed", "Closing ticket"],
+    stats: [
+      { label: "Tickets", value: "Watching", icon: Activity },
+      { label: "Knowledge", value: "Loaded", icon: Brain },
+      { label: "Replies", value: "Ready", icon: Send },
+    ],
   },
 };
 
 export default function AiDepartmentWorkspace({ agent, title }: { agent: Agent; title: string }) {
   const meta = AGENTS[agent];
   const [activeTab, setActiveTab] = useState<Tab>("command");
-  const [activeStep, setActiveStep] = useState(0);
+  const [activeTask, setActiveTask] = useState(0);
   const [data, setData] = useState<any>(null);
   const [form, setForm] = useState<any>({});
   const [saving, setSaving] = useState(false);
@@ -152,12 +176,9 @@ export default function AiDepartmentWorkspace({ agent, title }: { agent: Agent; 
   }, [agent]);
 
   useEffect(() => {
-    const timer = window.setInterval(() => {
-      setActiveStep((current) => (current + 1) % meta.steps.length);
-    }, 1400);
-
+    const timer = window.setInterval(() => setActiveTask((current) => (current + 1) % meta.tasks.length), 1300);
     return () => window.clearInterval(timer);
-  }, [meta.steps.length]);
+  }, [meta.tasks.length]);
 
   const set = (key: string, value: string) => setForm((current: any) => ({ ...current, [key]: value }));
 
@@ -213,35 +234,29 @@ export default function AiDepartmentWorkspace({ agent, title }: { agent: Agent; 
         <DashboardHeader />
         <main className="p-7">
           <div className="mx-auto max-w-7xl space-y-6">
-            <section className={`relative overflow-hidden rounded-3xl border ${meta.accentBorder} bg-slate-900/70 p-6 shadow-2xl ${meta.glow}`}>
-              <div className="absolute -right-24 -top-24 h-72 w-72 rounded-full bg-white/5 blur-3xl" />
-              <div className="absolute -bottom-24 left-20 h-72 w-72 rounded-full bg-white/5 blur-3xl" />
-
-              <div className="relative grid gap-6 lg:grid-cols-[1.1fr_.9fr]">
+            <section className={`overflow-hidden rounded-3xl border ${meta.accentBorder} bg-slate-900/70 p-6 shadow-2xl`}>
+              <div className="grid gap-6 xl:grid-cols-[.9fr_1.1fr]">
                 <div>
-                  <p className={`text-xs font-semibold uppercase tracking-[.28em] ${meta.accentText}`}>AVERO AI Operating Center</p>
+                  <p className={`text-xs font-bold uppercase tracking-[.28em] ${meta.accentText}`}>AVERO AI Department</p>
                   <h1 className="mt-3 text-4xl font-black tracking-tight">{displayTitle}</h1>
-                  <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-400">{meta.mission}</p>
-
-                  <div className="mt-6 flex flex-wrap gap-2">
-                    <StatusPill icon={Activity} text="Online" />
-                    <StatusPill icon={Database} text="Tenant isolated" />
-                    <StatusPill icon={Brain} text="Company brain controlled" />
+                  <p className="mt-3 text-sm leading-6 text-slate-400">{meta.mission}</p>
+                  <div className="mt-6 grid gap-3 sm:grid-cols-3">
+                    {meta.stats.map((stat) => (
+                      <SmallStat key={stat.label} stat={stat} />
+                    ))}
                   </div>
-
                   <div className="mt-6 flex rounded-2xl border border-slate-800 bg-slate-950/60 p-1">
-                    <TabButton active={activeTab === "command"} onClick={() => setActiveTab("command")} icon={Settings} text="Command & Brain" />
-                    <TabButton active={activeTab === "live"} onClick={() => setActiveTab("live")} icon={Radio} text="Live Operating View" />
+                    <TabButton active={activeTab === "command"} onClick={() => setActiveTab("command")} icon={Settings} text="Command" />
+                    <TabButton active={activeTab === "live"} onClick={() => setActiveTab("live")} icon={Bot} text="AI Office" />
                   </div>
                 </div>
 
-                <LiveCore meta={meta} activeStep={activeStep} />
+                <OfficeScene meta={meta} activeTask={activeTask} compact />
               </div>
             </section>
 
             {activeTab === "command" ? (
               <CommandPanel
-                agent={agent}
                 meta={meta}
                 form={form}
                 data={data}
@@ -256,7 +271,7 @@ export default function AiDepartmentWorkspace({ agent, title }: { agent: Agent; 
                 onUpload={upload}
               />
             ) : (
-              <LivePanel meta={meta} activeStep={activeStep} filesCount={files.length} />
+              <LivePanel meta={meta} activeTask={activeTask} filesCount={files.length} />
             )}
           </div>
         </main>
@@ -265,28 +280,7 @@ export default function AiDepartmentWorkspace({ agent, title }: { agent: Agent; 
   );
 }
 
-function LiveCore({ meta, activeStep }: { meta: AgentMeta; activeStep: number }) {
-  const Icon = meta.icon;
-  return (
-    <div className="relative min-h-[280px] rounded-3xl border border-slate-800 bg-slate-950/60 p-6">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(59,130,246,.12),transparent_55%)]" />
-      <div className="relative flex h-full flex-col items-center justify-center">
-        <div className="relative flex h-40 w-40 items-center justify-center rounded-full border border-white/10 bg-slate-900 shadow-2xl">
-          <span className="absolute h-full w-full animate-ping rounded-full border border-white/10" />
-          <span className="absolute h-28 w-28 animate-pulse rounded-full bg-white/5" />
-          <Icon size={54} className={meta.accentText} />
-        </div>
-        <div className="mt-5 text-center">
-          <p className="text-sm font-semibold text-white">{meta.department}</p>
-          <p className={`mt-1 text-xs font-semibold ${meta.accentText}`}>{meta.steps[activeStep]}</p>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 function CommandPanel({
-  agent,
   meta,
   form,
   data,
@@ -300,7 +294,6 @@ function CommandPanel({
   onSave,
   onUpload,
 }: {
-  agent: Agent;
   meta: AgentMeta;
   form: any;
   data: any;
@@ -315,7 +308,7 @@ function CommandPanel({
   onUpload: (file?: File) => void;
 }) {
   return (
-    <div className="grid gap-6 xl:grid-cols-[1fr_.8fr]">
+    <div className="grid gap-6 xl:grid-cols-[1fr_.75fr]">
       <div className="space-y-6">
         <section className="rounded-3xl border border-slate-800 bg-slate-900/60 p-6">
           <div className="flex items-start gap-4">
@@ -324,7 +317,7 @@ function CommandPanel({
             </div>
             <div>
               <h2 className="text-xl font-bold">Company Brain</h2>
-              <p className="mt-1 text-sm leading-6 text-slate-400">This is the client-specific business brain. The agent must use this company only and never behave as a generic AVERO bot.</p>
+              <p className="mt-1 text-sm leading-6 text-slate-400">This is the client-specific brain. The agent uses this company only and never behaves like a generic AVERO bot.</p>
             </div>
           </div>
 
@@ -342,7 +335,7 @@ function CommandPanel({
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div>
               <h2 className="text-xl font-bold">Agent Command</h2>
-              <p className="mt-1 text-sm text-slate-500">Saved per company and per department. This controls how the agent works.</p>
+              <p className="mt-1 text-sm text-slate-500">Saved per client and per department. This controls the AI employee behavior.</p>
             </div>
             <select value={form.autonomy_mode || "draft"} onChange={(event) => onSet("autonomy_mode", event.target.value)} className="rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm">
               <option value="draft">Draft only</option>
@@ -357,26 +350,38 @@ function CommandPanel({
             {done && <span className="text-sm font-semibold text-emerald-400">Saved ✓</span>}
             <button onClick={onSave} disabled={saving || !data} className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold hover:bg-blue-500 disabled:opacity-50">
               <Save size={16} />
-              {saving ? "Saving..." : "Save Brain & Command"}
+              {saving ? "Saving..." : "Save Brain"}
             </button>
           </div>
         </section>
       </div>
 
-      <div className="space-y-6">
+      <aside className="space-y-6">
         <section className="rounded-3xl border border-slate-800 bg-slate-900/60 p-6">
-          <h2 className="text-xl font-bold">Knowledge Files</h2>
-          <p className="mt-1 text-sm text-slate-500">Upload approved PDF menus, profiles, price lists, service catalogs, policies, SOPs and FAQs.</p>
-          <label className="mt-5 inline-flex cursor-pointer items-center gap-2 rounded-xl border border-slate-700 bg-slate-950 px-4 py-2.5 text-sm font-semibold hover:border-blue-500">
-            <Upload size={16} />
-            {uploading ? "Uploading..." : "Upload PDF"}
-            <input type="file" accept="application/pdf,.pdf" className="hidden" disabled={uploading} onChange={(event) => { onUpload(event.target.files?.[0]); event.currentTarget.value = ""; }} />
-          </label>
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <h2 className="text-lg font-bold">PDF Knowledge</h2>
+              <p className="mt-1 text-sm text-slate-500">Menus, price lists, company profiles, policies, services and FAQs.</p>
+            </div>
+            <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-slate-700 bg-slate-950 px-4 py-2.5 text-sm font-semibold hover:border-blue-500">
+              <Upload size={16} />
+              {uploading ? "Uploading..." : "Upload"}
+              <input
+                type="file"
+                accept="application/pdf,.pdf"
+                className="hidden"
+                disabled={uploading}
+                onChange={(event) => {
+                  onUpload(event.target.files?.[0]);
+                  event.currentTarget.value = "";
+                }}
+              />
+            </label>
+          </div>
           {uploadError && <p className="mt-3 text-sm text-red-400">{uploadError}</p>}
-
-          <div className="mt-5 space-y-2">
+          <div className="mt-4 space-y-2">
             {files.length === 0 ? (
-              <p className="rounded-2xl border border-dashed border-slate-800 bg-slate-950/50 p-4 text-sm text-slate-600">No PDF knowledge uploaded yet.</p>
+              <p className="rounded-2xl border border-dashed border-slate-800 p-5 text-center text-sm text-slate-600">No PDF knowledge uploaded yet.</p>
             ) : (
               files.map((file) => (
                 <div key={file.id} className="flex items-center justify-between rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-3">
@@ -395,95 +400,134 @@ function CommandPanel({
         </section>
 
         <section className={`rounded-3xl border ${meta.accentBorder} ${meta.accentBg} p-6`}>
-          <h2 className={`font-semibold ${meta.accentText}`}>{agent.toUpperCase()} Department Rule</h2>
-          <p className="mt-2 text-sm leading-6 text-slate-300">The customer-facing agent speaks only as the client company. AVERO stays hidden as the operating platform, while every answer is powered by the saved brain, approved knowledge and tenant-scoped records.</p>
+          <h2 className="text-lg font-bold">Identity Lock</h2>
+          <p className="mt-2 text-sm leading-6 text-slate-300">The customer should feel they are speaking with this client company, not with AVERO. AVERO stays hidden as the platform.</p>
+        </section>
+      </aside>
+    </div>
+  );
+}
+
+function LivePanel({ meta, activeTask, filesCount }: { meta: AgentMeta; activeTask: number; filesCount: number }) {
+  return (
+    <div className="grid gap-6 xl:grid-cols-[1fr_.38fr]">
+      <OfficeScene meta={meta} activeTask={activeTask} />
+      <div className="space-y-6">
+        <section className="rounded-3xl border border-slate-800 bg-slate-900/60 p-6">
+          <h2 className="text-lg font-bold">Now working</h2>
+          <div className="mt-4 space-y-2">
+            {meta.tasks.map((task, index) => (
+              <div key={task} className={`flex items-center gap-3 rounded-2xl border px-4 py-3 text-sm transition ${index === activeTask ? `${meta.accentBorder} ${meta.accentBg} text-white` : "border-slate-800 bg-slate-950/60 text-slate-500"}`}>
+                <span className={`h-2.5 w-2.5 rounded-full ${index === activeTask ? "animate-pulse bg-emerald-400" : "bg-slate-700"}`} />
+                {task}
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="rounded-3xl border border-slate-800 bg-slate-900/60 p-6">
+          <h2 className="text-lg font-bold">Office data</h2>
+          <div className="mt-4 grid gap-3">
+            <DataLine label="Knowledge files" value={String(filesCount)} />
+            <DataLine label="Isolation" value="Company + number + customer" />
+            <DataLine label="Status" value="Ready" />
+          </div>
         </section>
       </div>
     </div>
   );
 }
 
-function LivePanel({ meta, activeStep, filesCount }: { meta: AgentMeta; activeStep: number; filesCount: number }) {
+function OfficeScene({ meta, activeTask, compact = false }: { meta: AgentMeta; activeTask: number; compact?: boolean }) {
   return (
-    <div className="grid gap-6 xl:grid-cols-[.9fr_1.1fr]">
-      <section className="rounded-3xl border border-slate-800 bg-slate-900/60 p-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-xl font-bold">Live Agent Workflow</h2>
-            <p className="mt-1 text-sm text-slate-500">Visual operating sequence for what this department is doing.</p>
-          </div>
-          <span className={`inline-flex items-center gap-2 rounded-full border ${meta.accentBorder} ${meta.accentBg} px-3 py-1 text-xs font-semibold ${meta.accentText}`}>
-            <Radio size={14} className="animate-pulse" /> Live
-          </span>
+    <section className={`relative overflow-hidden rounded-3xl border ${meta.accentBorder} bg-slate-950 p-5 ${compact ? "min-h-[300px]" : "min-h-[560px]"}`}>
+      <style>{`
+        @keyframes salesRun { 0%,100% { transform: translate(18px, 178px) } 20% { transform: translate(185px, 48px) } 40% { transform: translate(372px, 172px) } 60% { transform: translate(540px, 54px) } 80% { transform: translate(650px, 180px) } }
+        @keyframes marketingRun { 0%,100% { transform: translate(32px, 62px) } 24% { transform: translate(230px, 180px) } 46% { transform: translate(390px, 62px) } 68% { transform: translate(550px, 184px) } 86% { transform: translate(665px, 70px) } }
+        @keyframes hrRun { 0%,100% { transform: translate(22px, 190px) } 22% { transform: translate(210px, 60px) } 45% { transform: translate(390px, 190px) } 65% { transform: translate(548px, 62px) } 85% { transform: translate(660px, 188px) } }
+        @keyframes supportRun { 0%,100% { transform: translate(28px, 70px) } 20% { transform: translate(208px, 188px) } 42% { transform: translate(384px, 70px) } 63% { transform: translate(548px, 190px) } 84% { transform: translate(662px, 76px) } }
+        @keyframes bob { 0%,100% { margin-top: 0 } 50% { margin-top: -7px } }
+        .office-grid { background-image: linear-gradient(rgba(148,163,184,.08) 1px, transparent 1px), linear-gradient(90deg, rgba(148,163,184,.08) 1px, transparent 1px); background-size: 42px 42px; }
+        .office-bot { animation-duration: 8s; animation-timing-function: ease-in-out; animation-iteration-count: infinite; }
+        .office-bot-inner { animation: bob .8s ease-in-out infinite; }
+        .sales-bot { animation-name: salesRun; }
+        .marketing-bot { animation-name: marketingRun; }
+        .hr-bot { animation-name: hrRun; }
+        .support-bot { animation-name: supportRun; }
+        @media (prefers-reduced-motion: reduce) { .office-bot, .office-bot-inner { animation: none !important; } }
+      `}</style>
+      <div className="office-grid absolute inset-0 opacity-80" />
+      <div className={`absolute -right-20 -top-20 h-64 w-64 rounded-full ${meta.accentBg} blur-3xl`} />
+      <div className="relative z-10 flex items-center justify-between gap-4">
+        <div>
+          <p className={`text-xs font-bold uppercase tracking-[.24em] ${meta.accentText}`}>{meta.officeName}</p>
+          <h2 className="mt-2 text-2xl font-black">Tiny AI employee at work</h2>
         </div>
-
-        <div className="mt-6 space-y-3">
-          {meta.steps.map((step, index) => {
-            const active = index === activeStep;
-            const done = index < activeStep;
-            return (
-              <div key={step} className={`flex items-center gap-3 rounded-2xl border px-4 py-3 transition ${active ? `${meta.accentBorder} ${meta.accentBg}` : "border-slate-800 bg-slate-950/60"}`}>
-                <div className={`flex h-9 w-9 items-center justify-center rounded-full ${active ? `${meta.accentBg} ${meta.accentText}` : done ? "bg-emerald-500/10 text-emerald-300" : "bg-slate-800 text-slate-500"}`}>
-                  {active ? <Zap size={17} className="animate-pulse" /> : done ? <CheckCircle2 size={17} /> : <Clock3 size={17} />}
-                </div>
-                <div className="flex-1">
-                  <p className="text-sm font-semibold text-white">{step}</p>
-                  <p className="text-xs text-slate-500">{active ? "Working now..." : done ? "Completed in this cycle" : "Waiting in queue"}</p>
-                </div>
-              </div>
-            );
-          })}
+        <div className={`rounded-2xl border ${meta.accentBorder} ${meta.accentBg} px-4 py-3 text-sm font-semibold`}>
+          {meta.tasks[activeTask]}
         </div>
-      </section>
-
-      <div className="space-y-6">
-        <section className="rounded-3xl border border-slate-800 bg-slate-900/60 p-6">
-          <h2 className="text-xl font-bold">Department Network</h2>
-          <p className="mt-1 text-sm text-slate-500">Animated operating map for the systems connected to this agent.</p>
-          <div className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-3">
-            {meta.nodes.map((node, index) => (
-              <div key={node} className="relative overflow-hidden rounded-2xl border border-slate-800 bg-slate-950 p-4">
-                <div className={`absolute right-3 top-3 h-2.5 w-2.5 rounded-full ${index === activeStep % meta.nodes.length ? "animate-ping bg-emerald-400" : "bg-slate-700"}`} />
-                <p className="text-sm font-semibold text-white">{node}</p>
-                <p className="mt-1 text-xs text-slate-500">Connected node</p>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        <section className="grid gap-3 md:grid-cols-3">
-          {meta.liveStats.map((stat) => (
-            <div key={stat.label} className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
-              <stat.icon size={18} className={meta.accentText} />
-              <p className="mt-3 text-xs text-slate-500">{stat.label}</p>
-              <p className="mt-1 font-bold text-white">{stat.value}</p>
-            </div>
-          ))}
-          <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
-            <FileText size={18} className={meta.accentText} />
-            <p className="mt-3 text-xs text-slate-500">Knowledge Files</p>
-            <p className="mt-1 font-bold text-white">{filesCount}</p>
-          </div>
-          <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
-            <BarChart3 size={18} className={meta.accentText} />
-            <p className="mt-3 text-xs text-slate-500">Performance</p>
-            <p className="mt-1 font-bold text-white">Tracking</p>
-          </div>
-          <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
-            <Send size={18} className={meta.accentText} />
-            <p className="mt-3 text-xs text-slate-500">Outbound</p>
-            <p className="mt-1 font-bold text-white">Ready</p>
-          </div>
-        </section>
       </div>
+
+      <div className={`relative z-10 mt-8 ${compact ? "h-[220px]" : "h-[430px]"}`}>
+        <div className="absolute inset-x-0 bottom-8 h-24 rounded-[2rem] border border-slate-800 bg-slate-900/70 shadow-2xl" />
+        <div className="absolute left-[46%] top-[38%] h-32 w-44 rounded-3xl border border-slate-700 bg-slate-900 p-4 shadow-2xl">
+          <div className="h-4 w-24 rounded-full bg-slate-700" />
+          <div className={`mt-4 h-12 rounded-2xl ${meta.accentBg} border ${meta.accentBorder}`} />
+          <p className="mt-3 text-center text-xs font-semibold text-slate-400">Main desk</p>
+        </div>
+
+        {meta.stations.map((station, index) => (
+          <StationCard key={station.label} station={station} index={index} meta={meta} active={index === activeTask % meta.stations.length} />
+        ))}
+
+        <div className={`office-bot ${meta.botClass} absolute left-0 top-0 z-20 h-16 w-16`}>
+          <div className="office-bot-inner flex h-16 w-16 flex-col items-center justify-center rounded-3xl border border-white/20 bg-slate-100 text-slate-950 shadow-2xl">
+            <Bot size={28} />
+            <div className="mt-1 flex gap-1">
+              <span className="h-1.5 w-1.5 rounded-full bg-slate-950" />
+              <span className="h-1.5 w-1.5 rounded-full bg-slate-950" />
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function StationCard({ station, index, meta, active }: { station: Station; index: number; meta: AgentMeta; active: boolean }) {
+  const Icon = station.icon;
+  const positions = [
+    "left-2 top-24",
+    "left-[24%] top-2",
+    "left-[50%] bottom-10",
+    "right-[18%] top-4",
+    "right-3 bottom-20",
+  ];
+
+  return (
+    <div className={`absolute ${positions[index]} w-36 rounded-2xl border p-3 shadow-xl transition ${active ? `${meta.accentBorder} ${meta.accentBg}` : "border-slate-800 bg-slate-900/80"}`}>
+      <Icon size={20} className={active ? meta.accentText : "text-slate-500"} />
+      <p className="mt-2 text-xs font-semibold text-white">{station.label}</p>
+      <span className={`mt-2 inline-flex rounded-full px-2 py-0.5 text-[10px] font-bold ${active ? "bg-emerald-400/15 text-emerald-300" : "bg-slate-800 text-slate-500"}`}>{active ? "Working" : "Ready"}</span>
+    </div>
+  );
+}
+
+function SmallStat({ stat }: { stat: { label: string; value: string; icon: LucideIcon } }) {
+  const Icon = stat.icon;
+  return (
+    <div className="rounded-2xl border border-slate-800 bg-slate-950/70 p-4">
+      <Icon size={18} className="text-slate-400" />
+      <p className="mt-3 text-xs text-slate-500">{stat.label}</p>
+      <p className="text-sm font-bold text-white">{stat.value}</p>
     </div>
   );
 }
 
 function StatusPill({ icon: Icon, text }: { icon: LucideIcon; text: string }) {
   return (
-    <span className="inline-flex items-center gap-2 rounded-full border border-slate-700 bg-slate-950/70 px-3 py-1.5 text-xs font-semibold text-slate-300">
-      <Icon size={14} />
+    <span className="inline-flex items-center gap-2 rounded-full border border-slate-700 bg-slate-900 px-3 py-1.5 text-xs font-semibold text-slate-300">
+      <Icon size={13} />
       {text}
     </span>
   );
@@ -491,7 +535,7 @@ function StatusPill({ icon: Icon, text }: { icon: LucideIcon; text: string }) {
 
 function TabButton({ active, onClick, icon: Icon, text }: { active: boolean; onClick: () => void; icon: LucideIcon; text: string }) {
   return (
-    <button onClick={onClick} className={`flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition ${active ? "bg-blue-600 text-white shadow-lg shadow-blue-500/20" : "text-slate-400 hover:bg-slate-900 hover:text-white"}`}>
+    <button onClick={onClick} className={`flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-bold transition ${active ? "bg-blue-600 text-white" : "text-slate-400 hover:bg-slate-900 hover:text-white"}`}>
       <Icon size={16} />
       {text}
     </button>
@@ -500,7 +544,7 @@ function TabButton({ active, onClick, icon: Icon, text }: { active: boolean; onC
 
 function Field({ label, value, onChange }: { label: string; value?: string; onChange: (value: string) => void }) {
   return (
-    <label className="text-sm text-slate-400">
+    <label className="text-sm font-medium text-slate-400">
       {label}
       <input value={value || ""} onChange={(event) => onChange(event.target.value)} className="mt-2 w-full rounded-xl border border-slate-800 bg-slate-950 px-4 py-3 text-white outline-none focus:border-blue-500" />
     </label>
@@ -509,9 +553,18 @@ function Field({ label, value, onChange }: { label: string; value?: string; onCh
 
 function Area({ label, value, onChange }: { label: string; value?: string; onChange: (value: string) => void }) {
   return (
-    <label className="text-sm text-slate-400">
+    <label className="text-sm font-medium text-slate-400">
       {label}
       <textarea rows={4} value={value || ""} onChange={(event) => onChange(event.target.value)} className="mt-2 w-full rounded-xl border border-slate-800 bg-slate-950 p-4 text-white outline-none focus:border-blue-500" />
     </label>
+  );
+}
+
+function DataLine({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-center justify-between rounded-2xl border border-slate-800 bg-slate-950/60 px-4 py-3 text-sm">
+      <span className="text-slate-500">{label}</span>
+      <span className="font-semibold text-white">{value}</span>
+    </div>
   );
 }
