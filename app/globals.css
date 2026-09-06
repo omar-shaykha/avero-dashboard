@@ -1,8 +1,8 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #020617;
+  --foreground: #f8fafc;
 }
 
 @theme inline {
@@ -12,11 +12,16 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html[data-theme="light"] {
+  --background: #f8fafc;
+  --foreground: #0f172a;
+  color-scheme: light;
+}
+
+html[data-theme="dark"] {
+  --background: #020617;
+  --foreground: #f8fafc;
+  color-scheme: dark;
 }
 
 body {
@@ -24,6 +29,33 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Light-mode compatibility for the existing premium slate UI. */
+html[data-theme="light"] .bg-slate-950 { background-color: #f8fafc !important; }
+html[data-theme="light"] .bg-slate-950\/50,
+html[data-theme="light"] .bg-slate-950\/60,
+html[data-theme="light"] .bg-slate-950\/70,
+html[data-theme="light"] .bg-slate-950\/40 { background-color: rgba(248,250,252,.92) !important; }
+html[data-theme="light"] .bg-slate-900,
+html[data-theme="light"] .bg-slate-900\/80,
+html[data-theme="light"] .bg-slate-900\/70,
+html[data-theme="light"] .bg-slate-900\/60,
+html[data-theme="light"] .bg-slate-900\/55,
+html[data-theme="light"] .bg-slate-900\/50 { background-color: rgba(255,255,255,.96) !important; }
+html[data-theme="light"] .bg-slate-800 { background-color: #e2e8f0 !important; }
+html[data-theme="light"] .text-white { color: #0f172a !important; }
+html[data-theme="light"] .text-slate-300 { color: #334155 !important; }
+html[data-theme="light"] .text-slate-400 { color: #475569 !important; }
+html[data-theme="light"] .text-slate-500 { color: #64748b !important; }
+html[data-theme="light"] .text-slate-600 { color: #64748b !important; }
+html[data-theme="light"] .border-slate-800 { border-color: #e2e8f0 !important; }
+html[data-theme="light"] .border-slate-800\/80 { border-color: rgba(226,232,240,.9) !important; }
+html[data-theme="light"] .border-slate-700 { border-color: #cbd5e1 !important; }
+html[data-theme="light"] input,
+html[data-theme="light"] textarea,
+html[data-theme="light"] select { background-color: #ffffff !important; color: #0f172a !important; }
+html[data-theme="light"] aside,
+html[data-theme="light"] [class*="radial-gradient"] { background-color: #ffffff !important; }
 
 /* Existing application pages use ml-64 for the fixed sidebar offset.
    Mirror that offset automatically when Arabic switches the document to RTL. */
