@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/marketing/daily-content",
+      "schedule": "0 6 * * *"
+    }
+  ]
+}
