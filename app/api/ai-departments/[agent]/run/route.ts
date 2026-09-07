@@ -13,204 +13,30 @@ const agents = {
 } as const satisfies Record<string, { feature: FeatureKey; manage: string; key: string; persona: string }>;
 
 type Agent = keyof typeof agents;
+type Worker = { id:string; worker_key:string; worker_name:string; role_title:string; responsibility:string; instructions:string; make_scenario_id?:number|null; make_module_label?:string|null };
+function db(){const url=process.env.NEXT_PUBLIC_SUPABASE_URL;const key=process.env.SUPABASE_SECRET_KEY;if(!url||!key)throw new Error("Missing Supabase configuration");return createClient(url,key)}
+async function generate(prompt:string){const key=process.env.GEMINI_API_KEY;if(!key)throw new Error("Missing Gemini configuration");const response=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(key)}`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({contents:[{parts:[{text:prompt}]}],generationConfig:{temperature:.4}})});if(!response.ok)throw new Error("AI provider request failed");const json=await response.json();const text=json?.candidates?.[0]?.content?.parts?.map((part:{text?:string})=>part.text||"").join("").trim();if(!text)throw new Error("AI provider returned no content");return text}
+async function callMake(url:string,payload:Record<string,unknown>){const response=await fetch(url,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});const text=await response.text();let parsed:unknown=text;try{parsed=text?JSON.parse(text):{}}catch{parsed={text}}if(!response.ok)throw new Error(`Make engine failed: ${response.status}`);return parsed}
 
-type Worker = {
-  id: string;
-  worker_key: string;
-  worker_name: string;
-  role_title: string;
-  responsibility: string;
-  instructions: string;
-  make_scenario_id?: number | null;
-  make_module_label?: string | null;
-};
-
-function db() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.SUPABASE_SECRET_KEY;
-  if (!url || !key) throw new Error("Missing Supabase configuration");
-  return createClient(url, key);
-}
-
-async function generate(prompt: string) {
-  const key = process.env.GEMINI_API_KEY;
-  if (!key) throw new Error("Missing Gemini configuration");
-  const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(key)}`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { temperature: 0.4 },
-      }),
-    }
-  );
-  if (!response.ok) throw new Error("AI provider request failed");
-  const json = await response.json();
-  const text = json?.candidates?.[0]?.content?.parts
-    ?.map((part: { text?: string }) => part.text || "")
-    .join("")
-    .trim();
-  if (!text) throw new Error("AI provider returned no content");
-  return text;
-}
-
-async function callMake(url: string, payload: Record<string, unknown>) {
-  const response = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-  const text = await response.text();
-  let parsed: unknown = text;
-  try {
-    parsed = text ? JSON.parse(text) : {};
-  } catch {
-    parsed = { text };
-  }
-  if (!response.ok) throw new Error(`Make engine failed: ${response.status}`);
-  return parsed;
-}
-
-export async function POST(request: Request, { params }: { params: Promise<{ agent: string }> }) {
-  try {
-    const { agent } = await params;
-    if (!(agent in agents)) return Response.json({ error: "Unknown agent" }, { status: 404 });
-
-    const current = agents[agent as Agent];
-    const ctx = await getAuthorizationContext();
-    if (!ctx) return Response.json({ error: "Unauthorized" }, { status: 401 });
-    if (!(isKingAdmin(ctx) || canAccess(ctx, current.feature, current.manage))) {
-      return Response.json({ error: "Forbidden" }, { status: 403 });
-    }
-
-    const companyId = ctx.profile.company_id;
-    if (!companyId) return Response.json({ error: "Company not configured" }, { status: 409 });
-
-    const body = await request.json();
-    const task = String(body.task || body.brief || body.issue || "").trim().slice(0, 12000);
-    if (!task) return Response.json({ error: "Task is required" }, { status: 400 });
-
-    const workerKey = String(body.worker_key || "").trim();
-    const s = db();
-
-    const [{ data: profile, error: profileError }, { data: config, error: configError }, { data: engine }, { data: worker }] = await Promise.all([
-      s
-        .from("company_ai_profiles")
-        .select("industry,business_description,products_services,target_audience,brand_voice,languages,locations,social_notes")
-        .eq("company_id", companyId)
-        .maybeSingle(),
-      s
-        .from("ai_agent_configs")
-        .select("enabled,instructions,knowledge_scope,autonomy_mode")
-        .eq("company_id", companyId)
-        .eq("agent_key", current.key)
-        .maybeSingle(),
-      s
-        .from("ai_agent_engine_connections")
-        .select("make_webhook_url,enabled,status,make_scenario_id")
-        .eq("agent_key", current.key)
-        .maybeSingle(),
-      workerKey
-        ? s
-            .from("ai_agent_workers")
-            .select("id,worker_key,worker_name,role_title,responsibility,instructions,make_scenario_id,make_module_label")
-            .eq("company_id", companyId)
-            .eq("boss_agent_key", current.key)
-            .eq("worker_key", workerKey)
-            .eq("status", "active")
-            .maybeSingle()
-        : Promise.resolve({ data: null, error: null }),
-    ]);
-
-    if (profileError || configError) return Response.json({ error: "Failed to load AI configuration" }, { status: 500 });
-    if (!config?.enabled) return Response.json({ error: "AI department is disabled" }, { status: 409 });
-
-    const selectedWorker = (worker || null) as Worker | null;
-    const runInput = {
-      task,
-      channel: body.channel || "dashboard",
-      content_type: body.content_type || "manual_command",
-      action: body.action || "manual_command",
-      worker_key: selectedWorker?.worker_key || null,
-      worker_name: selectedWorker?.worker_name || null,
-      worker_role: selectedWorker?.role_title || null,
-      item: body.item || null,
-      stock_data: body.stock_data || null,
-      customer: body.customer || null,
-      feedback: body.feedback || null,
-      dataset: body.dataset || null,
-      receiving_data: body.receiving_data || null,
-      movement_data: body.movement_data || null,
-      platforms: body.platforms || null,
-    };
-
-    const makePayload = {
-      company_id: companyId,
-      agent_key: current.key,
-      agent_slug: agent,
-      persona: current.persona,
-      worker: selectedWorker
-        ? {
-            key: selectedWorker.worker_key,
-            name: selectedWorker.worker_name,
-            role: selectedWorker.role_title,
-            responsibility: selectedWorker.responsibility,
-            instructions: selectedWorker.instructions,
-            module_label: selectedWorker.make_module_label,
-          }
-        : null,
-      ...runInput,
-    };
-
-    if (agent !== "sales" && engine?.enabled && engine.make_webhook_url) {
-      try {
-        const output = await callMake(String(engine.make_webhook_url), makePayload);
-        if (selectedWorker?.id) {
-          await s.from("ai_agent_workers").update({ last_run_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq("id", selectedWorker.id);
-        }
-        return Response.json({ ok: true, source: "make", agent: current.key, persona: current.persona, worker: selectedWorker, status: "approval_required", output });
-      } catch (error) {
-        console.error("Make engine fallback:", error);
-      }
-    }
-
-    const { data: run, error: runError } = await s
-      .from("ai_agent_runs")
-      .insert({ company_id: companyId, agent_key: current.key, action: selectedWorker?.worker_key || "manual_command", status: "running", input: runInput })
-      .select("id")
-      .single();
-
-    if (runError) return Response.json({ error: "Failed to start AI run" }, { status: 500 });
-
-    const prompt = `You are ${current.persona}, the boss agent for exactly one company.\n\nSELECTED WORKER:\n${JSON.stringify(selectedWorker || { worker_name: current.persona, role_title: "Head Agent", instructions: "Handle the task directly." })}\n\nCOMPANY PROFILE:\n${JSON.stringify(profile || {})}\n\nAGENT INSTRUCTIONS:\n${config.instructions || ""}\n\nWORKER INSTRUCTIONS:\n${selectedWorker?.instructions || "No specific worker selected. Use the boss agent rules."}\n\nKNOWLEDGE SCOPE:\n${config.knowledge_scope || "Use only this tenant's approved knowledge."}\n\nUSER TASK:\n${task}\n\nStrict rules: never use or infer another tenant's data; never invent prices, offers, stock, customers, candidates, integrations or capabilities. Follow the configured autonomy mode. Return useful operational output with a clear next action.`;
-
-    try {
-      const output = await generate(prompt);
-      const status = config.autonomy_mode === "approval" ? "approval_required" : "completed";
-      const now = new Date().toISOString();
-      await s.from("ai_agent_runs").update({ status, output: { text: output, source: "internal", worker: selectedWorker }, completed_at: now }).eq("id", run.id);
-      if (selectedWorker?.id) await s.from("ai_agent_workers").update({ last_run_at: now, updated_at: now }).eq("id", selectedWorker.id);
-      if (current.key === "ai_marketing") {
-        await s.from("marketing_content_queue").insert({
-          company_id: companyId,
-          channel: String(body.channel || "dashboard").slice(0, 80),
-          platforms: Array.isArray(body.platforms) ? body.platforms : null,
-          content_type: String(body.content_type || "post").slice(0, 80),
-          caption: output,
-          status: "draft",
-          metrics: { source: "agent_operating_room", worker: selectedWorker },
-        });
-      }
-      return Response.json({ ok: true, source: "internal", agent: current.key, persona: current.persona, worker: selectedWorker, status, output, run_id: run.id });
-    } catch (error) {
-      console.error(error);
-      await s.from("ai_agent_runs").update({ status: "failed", error_message: "AI generation failed", completed_at: new Date().toISOString() }).eq("id", run.id);
-      return Response.json({ error: "AI generation failed" }, { status: 502 });
-    }
-  } catch (error) {
-    console.error(error);
-    return Response.json({ error: "Internal server error" }, { status: 500 });
-  }
+export async function POST(request:Request,{params}:{params:Promise<{agent:string}>}){
+ try{
+  const{agent}=await params;if(!(agent in agents))return Response.json({error:"Unknown agent"},{status:404});
+  const current=agents[agent as Agent];const ctx=await getAuthorizationContext();if(!ctx)return Response.json({error:"Unauthorized"},{status:401});if(!(isKingAdmin(ctx)||canAccess(ctx,current.feature,current.manage)))return Response.json({error:"Forbidden"},{status:403});
+  const companyId=ctx.profile.company_id;if(!companyId)return Response.json({error:"Company not configured"},{status:409});
+  const body=await request.json();const task=String(body.task||body.brief||body.issue||"").trim().slice(0,12000);if(!task)return Response.json({error:"Task is required"},{status:400});
+  const workerKey=String(body.worker_key||"").trim();const s=db();
+  const[{data:profile,error:profileError},{data:config,error:configError},{data:engine},{data:worker}]=await Promise.all([
+   s.from("company_ai_profiles").select("industry,business_description,products_services,target_audience,brand_voice,languages,locations,social_notes").eq("company_id",companyId).maybeSingle(),
+   s.from("ai_agent_configs").select("enabled,instructions,knowledge_scope,autonomy_mode").eq("company_id",companyId).eq("agent_key",current.key).maybeSingle(),
+   s.from("ai_agent_engine_connections").select("make_webhook_url,enabled,status,make_scenario_id,runtime_provider,runtime_endpoint").eq("agent_key",current.key).maybeSingle(),
+   workerKey?s.from("ai_agent_workers").select("id,worker_key,worker_name,role_title,responsibility,instructions,make_scenario_id,make_module_label").eq("company_id",companyId).eq("boss_agent_key",current.key).eq("worker_key",workerKey).eq("status","active").maybeSingle():Promise.resolve({data:null,error:null}),
+  ]);
+  if(profileError||configError)return Response.json({error:"Failed to load AI configuration"},{status:500});if(!config?.enabled)return Response.json({error:"AI department is disabled"},{status:409});
+  const selectedWorker=(worker||null) as Worker|null;const runInput={task,channel:body.channel||"dashboard",content_type:body.content_type||"manual_command",action:body.action||"manual_command",worker_key:selectedWorker?.worker_key||null,worker_name:selectedWorker?.worker_name||null,worker_role:selectedWorker?.role_title||null,item:body.item||null,stock_data:body.stock_data||null,customer:body.customer||null,feedback:body.feedback||null,dataset:body.dataset||null,receiving_data:body.receiving_data||null,movement_data:body.movement_data||null,platforms:body.platforms||null};
+  const makePayload={company_id:companyId,agent_key:current.key,agent_slug:agent,persona:current.persona,worker:selectedWorker?{key:selectedWorker.worker_key,name:selectedWorker.worker_name,role:selectedWorker.role_title,responsibility:selectedWorker.responsibility,instructions:selectedWorker.instructions,module_label:selectedWorker.make_module_label}:null,...runInput};
+  if(agent!=="sales"&&engine?.enabled&&engine.make_webhook_url){try{const output=await callMake(String(engine.make_webhook_url),makePayload);if(selectedWorker?.id)await s.from("ai_agent_workers").update({last_run_at:new Date().toISOString(),updated_at:new Date().toISOString()}).eq("id",selectedWorker.id);return Response.json({ok:true,source:"make",agent:current.key,persona:current.persona,worker:selectedWorker,status:"approval_required",output})}catch(error){console.error("Make engine fallback:",error)}}
+  const{data:run,error:runError}=await s.from("ai_agent_runs").insert({company_id:companyId,agent_key:current.key,action:selectedWorker?.worker_key||"manual_command",status:"running",input:runInput}).select("id").single();if(runError)return Response.json({error:"Failed to start AI run"},{status:500});
+  const prompt=`You are ${current.persona}, the boss agent for exactly one company.\n\nSELECTED WORKER:\n${JSON.stringify(selectedWorker||{worker_name:current.persona,role_title:"Head Agent",instructions:"Handle the task directly."})}\n\nCOMPANY PROFILE:\n${JSON.stringify(profile||{})}\n\nAGENT INSTRUCTIONS:\n${config.instructions||""}\n\nWORKER INSTRUCTIONS:\n${selectedWorker?.instructions||"No specific worker selected. Use the boss agent rules."}\n\nKNOWLEDGE SCOPE:\n${config.knowledge_scope||"Use only this tenant's approved knowledge."}\n\nUSER TASK:\n${task}\n\nStrict rules: never use or infer another tenant's data; never invent prices, offers, stock, customers, candidates, integrations or capabilities. Follow the configured autonomy mode. Return useful operational output with a clear next action.`;
+  try{const output=await generate(prompt);const status=config.autonomy_mode==="approval"?"approval_required":"completed";const now=new Date().toISOString();const source=agent==="sales"?"vercel_native":"internal";await s.from("ai_agent_runs").update({status,output:{text:output,source,worker:selectedWorker},completed_at:now}).eq("id",run.id);if(selectedWorker?.id)await s.from("ai_agent_workers").update({last_run_at:now,updated_at:now}).eq("id",selectedWorker.id);if(current.key==="ai_marketing")await s.from("marketing_content_queue").insert({company_id:companyId,channel:String(body.channel||"dashboard").slice(0,80),platforms:Array.isArray(body.platforms)?body.platforms:null,content_type:String(body.content_type||"post").slice(0,80),caption:output,status:"draft",metrics:{source:"agent_operating_room",worker:selectedWorker}});return Response.json({ok:true,source,agent:current.key,persona:current.persona,worker:selectedWorker,status,output,run_id:run.id})}catch(error){console.error(error);await s.from("ai_agent_runs").update({status:"failed",error_message:"AI generation failed",completed_at:new Date().toISOString()}).eq("id",run.id);return Response.json({error:"AI generation failed"},{status:502})}
+ }catch(error){console.error(error);return Response.json({error:"Internal server error"},{status:500})}
 }
