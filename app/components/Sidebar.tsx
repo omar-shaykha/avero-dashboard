@@ -5,9 +5,10 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import LogoutButton from "./LogoutButton";
 import AveroBrand from "./AveroBrand";
+import SupportInboxBubble from "./SupportInboxBubble";
 import { useLanguage } from "./LanguageProvider";
 import type { AuthorizationContext } from "@/lib/auth/authorization";
-import { BarChart3, Bot, Building2, ChevronDown, ChevronRight, CreditCard, Headphones, Home, Menu, PackageCheck, PanelLeftClose, PanelLeftOpen, Sparkles, Store, UsersRound, Warehouse, X } from "lucide-react";
+import { BarChart3, Bot, Building2, ChevronDown, ChevronRight, CreditCard, Headphones, Home, Menu, PackageCheck, PanelLeftClose, PanelLeftOpen, Sparkles, Store, UserRound, UsersRound, Warehouse, X } from "lucide-react";
 
 interface SidebarProps { userEmail?: string; userName?: string; access?: AuthorizationContext | null; }
 type NavIcon = ComponentType<{ size?: number; className?: string }>;
@@ -58,16 +59,17 @@ export default function Sidebar({ userEmail, userName, access }: SidebarProps) {
       <div className="border-b border-slate-800/80 px-4 py-4"><div className="flex items-center justify-between gap-2">{collapsed ? <div className="scale-90"><AveroBrand compact /></div> : <AveroBrand />}<button onClick={() => setCollapsed((value) => !value)} className="hidden rounded-xl border border-slate-800 p-2 text-slate-400 hover:bg-slate-900 hover:text-white md:block">{collapsed ? <PanelLeftOpen size={17} /> : <PanelLeftClose size={17} />}</button></div></div>
       <nav className="flex-1 space-y-2 overflow-y-auto p-3">
         <Main href="/" label={collapsed ? "" : "Home"} icon={Home} active={pathname === "/"} />
+        <Main href="/profile" label={collapsed ? "" : rtl ? "الملف الشخصي" : "Profile"} icon={UserRound} active={pathname?.startsWith("/profile")} />
         <Main href="/pos" label={collapsed ? "" : "POS"} icon={Store} active={pathname?.startsWith("/pos")} />
         <Main href="/subscriptions" label={collapsed ? "" : rtl ? "الاشتراكات" : "Subscriptions"} icon={CreditCard} active={pathname?.startsWith("/subscriptions")} />
         {agents.length > 0 && <div><button onClick={() => setAgentsOpen((value) => !value)} className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-slate-300 hover:bg-slate-900"><Bot size={18} /><span className={`flex-1 text-start text-sm font-medium ${collapsed ? "hidden md:hidden" : "block"}`}>AI Agents</span>{!collapsed && (agentsOpen ? <ChevronDown size={15} /> : arrow)}</button>{agentsOpen && !collapsed && <div className={`mt-2 space-y-1 border-slate-800 ${rtl ? "mr-5 border-r pr-3" : "ml-5 border-l pl-3"}`}>{agents.map((item) => <Sub key={item.href} href={item.href} label={item.label} pathname={pathname} icon={item.icon} />)}</div>}</div>}
         {crmVisible && <div><button onClick={() => setCrmOpen((value) => !value)} className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-slate-300 hover:bg-slate-900"><UsersRound size={18} /><span className={`flex-1 text-start text-sm font-medium ${collapsed ? "hidden" : "block"}`}>{t("crm")}</span>{!collapsed && (crmOpen ? <ChevronDown size={15} /> : arrow)}</button>{crmOpen && !collapsed && <div className={`mt-2 space-y-1 border-slate-800 ${rtl ? "mr-5 border-r pr-3" : "ml-5 border-l pl-3"}`}><Sub href="/crm" label={t("crmHub")} pathname={pathname} exact /><Sub href="/crm/sales" label={t("salesCrm")} pathname={pathname} /><Sub href="/crm/marketing" label={t("marketingCrm")} pathname={pathname} /><Sub href="/crm/hr" label={t("hrCrm")} pathname={pathname} /><Sub href="/crm/support" label={t("supportCrm")} pathname={pathname} /></div>}</div>}
         {analyticsVisible && <Main href="/analytics" label={collapsed ? "" : t("analytics")} icon={BarChart3} active={pathname?.startsWith("/analytics")} />}
         {clientsVisible && <Main href="/clients" label={collapsed ? "" : t("clients")} icon={Building2} active={pathname?.startsWith("/clients")} />}
-        {isKingAdmin && <Main href="/admin/help-center" label={collapsed ? "" : rtl ? "صندوق الدعم" : "Support Inbox"} icon={Headphones} active={pathname?.startsWith("/admin/help-center")} />}
       </nav>
       <div className="border-t border-slate-800 p-3"><div className="flex items-center gap-3 rounded-2xl border border-slate-800 bg-slate-900/55 p-3"><div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-cyan-500 text-sm font-semibold">{initials}</div>{!collapsed && <div className="min-w-0 flex-1"><p className="truncate text-sm font-semibold">{userName || userEmail || "User"}</p><p className="text-[11px] uppercase tracking-[.13em] text-slate-500">{isKingAdmin ? "King Admin" : currentAccess?.profile.role?.replaceAll("_", " ") || "User"}</p></div>}<LogoutButton /></div></div>
     </div>
+    <SupportInboxBubble enabled={isKingAdmin} rtl={rtl} />
   </>;
 }
 function Main({ href, label, icon: Icon, active }: { href: string; label: string; icon: NavIcon; active?: boolean }) { return <Link href={href} className={`flex items-center gap-3 rounded-xl px-4 py-3 ${active ? "bg-cyan-500/10 text-cyan-300" : "text-slate-300 hover:bg-slate-900"}`}><Icon size={18} /><span className={`text-sm font-medium ${label ? "block" : "hidden"}`}>{label}</span></Link>; }
