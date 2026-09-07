@@ -1,5 +1,5 @@
-import MarketingDepartmentWorkspace from "@/app/components/MarketingDepartmentWorkspace";
+import MarketingDepartmentWorkspaceV2 from "@/app/components/MarketingDepartmentWorkspaceV2";
 
 export default function AiMarketingPage() {
-  return <MarketingDepartmentWorkspace />;
+  return <MarketingDepartmentWorkspaceV2 />;
 }
