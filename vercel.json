@@ -3,6 +3,10 @@
     {
       "path": "/api/marketing/daily-content",
       "schedule": "0 6 * * *"
+    },
+    {
+      "path": "/api/marketing/auto-publish",
+      "schedule": "*/5 * * * *"
     }
   ]
 }
