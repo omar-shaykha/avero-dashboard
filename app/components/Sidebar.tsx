@@ -28,16 +28,15 @@ export default function Sidebar({ userEmail, userName, access }: SidebarProps) {
 
   const currentAccess = access ?? loadedAccess;
   const isKingAdmin = currentAccess?.profile.role === "king_admin";
-  const aliases: Record<string, string> = { view_crm: "crm.view", view_analytics: "analytics.view", view_ai_sales: "sales.view", view_ai_marketing: "marketing.view" };
+  const aliases: Record<string, string> = { view_crm: "crm.view", view_analytics: "analytics.view", view_ai_sales: "sales.view" };
   const permitted = (permission: string) => isKingAdmin || !!currentAccess?.permissions.includes(aliases[permission] || permission);
   const has = (feature: string, permission: string) => isKingAdmin || !!(currentAccess?.features.includes(feature) && permitted(permission));
   const crmVisible = has("crm", "view_crm");
   const analyticsVisible = has("analytics", "view_analytics");
   const clientsVisible = isKingAdmin;
   const agents: NavItem[] = [
-    { label: "AI Team Home", href: "/ai-agents", show: true, icon: Sparkles },
+    { label: "AI Add-ons", href: "/ai-agents", show: true, icon: Sparkles },
     { label: "Leo — Sales", href: "/ai-sales", show: has("ai_sales", "view_ai_sales"), icon: Bot },
-    { label: "Foxy — Marketing", href: "/ai-marketing", show: has("ai_marketing", "view_ai_marketing"), icon: Sparkles },
   ].filter((item) => item.show);
   const initials = userName ? userName.split(" ").map((name) => name[0]).join("").toUpperCase() : userEmail?.[0]?.toUpperCase() || "U";
   const arrow = rtl ? <ChevronRight size={15} className="rotate-180" /> : <ChevronRight size={15} />;
@@ -54,7 +53,7 @@ export default function Sidebar({ userEmail, userName, access }: SidebarProps) {
         <Main href="/profile" label={collapsed ? "" : rtl ? "الملف الشخصي" : "Profile"} icon={UserRound} active={pathname?.startsWith("/profile")} />
         <Main href="/pos" label={collapsed ? "" : "POS"} icon={Store} active={pathname?.startsWith("/pos")} />
         <Main href="/subscriptions" label={collapsed ? "" : rtl ? "الاشتراكات" : "Subscriptions"} icon={CreditCard} active={pathname?.startsWith("/subscriptions")} />
-        {agents.length > 0 && <div><button onClick={() => setAgentsOpen((value) => !value)} className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-slate-300 hover:bg-slate-900"><Bot size={18} /><span className={`flex-1 text-start text-sm font-medium ${collapsed ? "hidden md:hidden" : "block"}`}>AI Agents</span>{!collapsed && (agentsOpen ? <ChevronDown size={15} /> : arrow)}</button>{agentsOpen && !collapsed && <div className={`mt-2 space-y-1 border-slate-800 ${rtl ? "mr-5 border-r pr-3" : "ml-5 border-l pl-3"}`}>{agents.map((item) => <Sub key={item.href} href={item.href} label={item.label} pathname={pathname} icon={item.icon} />)}</div>}</div>}
+        {agents.length > 0 && <div><button onClick={() => setAgentsOpen((value) => !value)} className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-slate-300 hover:bg-slate-900"><Bot size={18} /><span className={`flex-1 text-start text-sm font-medium ${collapsed ? "hidden md:hidden" : "block"}`}>AI Add-ons</span>{!collapsed && (agentsOpen ? <ChevronDown size={15} /> : arrow)}</button>{agentsOpen && !collapsed && <div className={`mt-2 space-y-1 border-slate-800 ${rtl ? "mr-5 border-r pr-3" : "ml-5 border-l pl-3"}`}>{agents.map((item) => <Sub key={item.href} href={item.href} label={item.label} pathname={pathname} icon={item.icon} />)}</div>}</div>}
         {crmVisible && <Main href="/crm" label={collapsed ? "" : "CRM"} icon={UsersRound} active={pathname?.startsWith("/crm")} />}
         {analyticsVisible && <Main href="/analytics" label={collapsed ? "" : t("analytics")} icon={BarChart3} active={pathname?.startsWith("/analytics")} />}
         {clientsVisible && <Main href="/clients" label={collapsed ? "" : t("clients")} icon={Building2} active={pathname?.startsWith("/clients")} />}
