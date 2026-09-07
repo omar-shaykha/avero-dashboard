@@ -1,104 +1,30 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
-import { Bot, LoaderCircle, Send, Sparkles, X } from "lucide-react";
-
-type Msg = { id?: string; role: string; message: string; created_at?: string };
-const marketingRegex = /بوست|post|ماركت|marketing|فيس|facebook|فايس|انستا|instagram|سناب|snap|تيك|tiktok|ستوري|story|اعلان|إعلان|صورة|نزل|نزّل/i;
-
-export default function HelpChatBubble() {
-  const [open, setOpen] = useState(false);
-  const [messages, setMessages] = useState<Msg[]>([]);
-  const [text, setText] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [ready, setReady] = useState(false);
-  const end = useRef<HTMLDivElement>(null);
-
-  async function load() {
-    const response = await fetch("/api/help-center/chat", { cache: "no-store" });
-    if (response.status === 401) return;
-    setReady(true);
-    if (response.ok) {
-      const data = await response.json();
-      setMessages(data.messages || []);
-    }
-  }
-
-  useEffect(() => {
-    load();
-    const timer = window.setInterval(load, 15000);
-    return () => window.clearInterval(timer);
-  }, []);
-
-  useEffect(() => {
-    end.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, open]);
-
-  async function send() {
-    const message = text.trim();
-    if (!message || busy) return;
-    const isMarketing = marketingRegex.test(message);
-    const pending = isMarketing ? "استلمت الأمر. عم شغّل Foxy → Pulse → Script → Canvas..." : "استلمت رسالتك. Rex عم يراجعها...";
-    setText("");
-    setBusy(true);
-    setMessages((current) => [...current, { role: "user", message }, { role: "assistant", message: pending }]);
-    const endpoint = isMarketing ? "/api/marketing/chat-command" : "/api/help-center/chat";
-    const response = await fetch(endpoint, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ message }) });
-    const data = await response.json().catch(() => ({}));
-    setBusy(false);
-    if (response.ok) {
-      const answer = data.message || data.reply?.message || "تم التنفيذ.";
-      setMessages((current) => [...current.filter((item) => item.message !== pending), { role: "assistant", message: answer }]);
-      if (isMarketing) window.dispatchEvent(new CustomEvent("avero-marketing-updated"));
-    } else {
-      setMessages((current) => [...current.filter((item) => item.message !== pending), { role: "assistant", message: data.error || "ما قدرت نفّذ الأمر. جرّب تكتبه أبسط." }]);
-    }
-  }
-
-  if (!ready) return null;
-  return (
-    <div className="fixed bottom-5 right-5 z-[80]">
-      <button onClick={() => setOpen(!open)} className="relative flex h-14 w-14 items-center justify-center rounded-2xl bg-cyan-400 text-slate-950 shadow-2xl shadow-cyan-500/25">
-        <Sparkles size={24} />
-        <span className="absolute -right-1 -top-1 h-4 w-4 animate-ping rounded-full bg-emerald-400" />
-      </button>
-      {open && (
-        <div className="absolute bottom-16 right-0 flex h-[560px] w-[390px] max-w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-3xl border border-slate-800 bg-slate-950 text-white shadow-2xl">
-          <div className="flex items-center justify-between border-b border-slate-800 bg-slate-900 p-4">
-            <div className="flex items-center gap-3">
-              <div className="rounded-xl bg-cyan-400/10 p-2 text-cyan-300"><Bot size={18} /></div>
-              <div>
-                <b>AVERO Command Chat</b>
-                <p className="text-xs text-slate-500">اكتب أمر طبيعي: بوست، ستوري، إعلان، أو دعم</p>
-              </div>
-            </div>
-            <button onClick={() => setOpen(false)} className="rounded-lg p-1 text-slate-400 hover:bg-slate-800"><X size={18} /></button>
-          </div>
-          <div className="flex-1 space-y-3 overflow-y-auto p-4">
-            {!messages.length && (
-              <div className="space-y-2">
-                <div className="rounded-2xl border border-cyan-400/20 bg-cyan-400/10 p-4 text-sm text-cyan-100">
-                  أنا Command Chat تبع AVERO. أعطيني أمر طبيعي وأنا بحوّله للـdepartment الصح.
-                </div>
-                <button onClick={() => setText("اعملي بوست اليوم على فيسبوك وانستغرام عن AVERO OS على ذوقك")} className="w-full rounded-xl border border-slate-800 px-3 py-2 text-start text-xs text-slate-300 hover:border-cyan-400">اعملي بوست اليوم على فيسبوك وانستغرام</button>
-                <button onClick={() => setText("جهزلي ستوري سناب وانستغرام عن الذكاء الاصطناعي للأعمال")} className="w-full rounded-xl border border-slate-800 px-3 py-2 text-start text-xs text-slate-300 hover:border-cyan-400">جهزلي ستوري سناب وانستغرام</button>
-              </div>
-            )}
-            {messages.map((item, index) => (
-              <div key={item.id || index} className={`flex ${item.role === "user" ? "justify-end" : "justify-start"}`}>
-                <div className={`max-w-[84%] rounded-2xl px-3 py-2 text-sm leading-6 ${item.role === "user" ? "bg-cyan-500 text-slate-950" : "border border-slate-800 bg-slate-900 text-slate-200"}`}>{item.message}</div>
-              </div>
-            ))}
-            {busy && <div className="flex items-center gap-2 text-xs text-cyan-300"><LoaderCircle className="animate-spin" size={14} /> عم نفذ الأمر...</div>}
-            <div ref={end} />
-          </div>
-          <div className="border-t border-slate-800 p-3">
-            <div className="flex gap-2">
-              <input value={text} onChange={(event) => setText(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") send(); }} placeholder="اكتب أمر للداشبورد..." className="flex-1 rounded-xl border border-slate-700 bg-slate-900 px-3 py-3 text-sm outline-none focus:border-cyan-400" />
-              <button onClick={send} disabled={busy || !text.trim()} className="rounded-xl bg-cyan-400 px-3 text-slate-950 disabled:opacity-50"><Send size={18} /></button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
+import{useEffect,useRef,useState}from"react";
+import{Bot,LoaderCircle,Send,X}from"lucide-react";
+type Msg={id?:string;role:string;message:string;created_at?:string};
+type Point={x:number;y:number};
+const marketingRegex=/بوست|post|ماركت|marketing|فيس|facebook|فايس|انستا|instagram|سناب|snap|تيك|tiktok|ستوري|story|اعلان|إعلان|صورة|نزل|نزّل/i;
+const SIZE=58,PAD=10;
+export default function HelpChatBubble(){
+ const[open,setOpen]=useState(false),[messages,setMessages]=useState<Msg[]>([]),[text,setText]=useState(""),[busy,setBusy]=useState(false),[ready,setReady]=useState(false),[pos,setPos]=useState<Point>({x:-200,y:-200});
+ const end=useRef<HTMLDivElement>(null),drag=useRef<{startX:number;startY:number;originX:number;originY:number;moved:boolean;pointerId:number}|null>(null),didDrag=useRef(false);
+ function clamp(p:Point):Point{if(typeof window==="undefined")return p;return{x:Math.max(PAD,Math.min(p.x,window.innerWidth-SIZE-PAD)),y:Math.max(PAD,Math.min(p.y,window.innerHeight-SIZE-PAD))}}
+ useEffect(()=>{let initial:Point|undefined;try{const saved=localStorage.getItem("avero-assistant-position");if(saved)initial=JSON.parse(saved)}catch{}setPos(clamp(initial||{x:window.innerWidth-SIZE-24,y:window.innerHeight-SIZE-24}));const resize=()=>setPos(p=>clamp(p));window.addEventListener("resize",resize);return()=>window.removeEventListener("resize",resize)},[]);
+ async function load(){const response=await fetch("/api/help-center/chat",{cache:"no-store"});if(response.status===401)return;setReady(true);if(response.ok){const data=await response.json();setMessages(data.messages||[])}}
+ useEffect(()=>{load();const timer=window.setInterval(load,15000);return()=>window.clearInterval(timer)},[]);
+ useEffect(()=>{end.current?.scrollIntoView({behavior:"smooth"})},[messages,open]);
+ async function send(){const message=text.trim();if(!message||busy)return;const isMarketing=marketingRegex.test(message),pending=isMarketing?"استلمت الأمر. عم شغّل Foxy → Pulse → Script → Canvas...":"استلمت رسالتك. Rex عم يراجعها...";setText("");setBusy(true);setMessages(c=>[...c,{role:"user",message},{role:"assistant",message:pending}]);const endpoint=isMarketing?"/api/marketing/chat-command":"/api/help-center/chat",response=await fetch(endpoint,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({message})}),data=await response.json().catch(()=>({}));setBusy(false);if(response.ok){const answer=data.message||data.reply?.message||"تم التنفيذ.";setMessages(c=>[...c.filter(i=>i.message!==pending),{role:"assistant",message:answer}]);if(isMarketing)window.dispatchEvent(new CustomEvent("avero-marketing-updated"))}else setMessages(c=>[...c.filter(i=>i.message!==pending),{role:"assistant",message:data.error||"ما قدرت نفّذ الأمر. جرّب تكتبه أبسط."}])}
+ function down(e:React.PointerEvent<HTMLButtonElement>){e.currentTarget.setPointerCapture(e.pointerId);drag.current={startX:e.clientX,startY:e.clientY,originX:pos.x,originY:pos.y,moved:false,pointerId:e.pointerId};didDrag.current=false}
+ function move(e:React.PointerEvent<HTMLButtonElement>){if(!drag.current||drag.current.pointerId!==e.pointerId)return;const dx=e.clientX-drag.current.startX,dy=e.clientY-drag.current.startY;if(Math.abs(dx)+Math.abs(dy)>5){drag.current.moved=true;didDrag.current=true;setOpen(false)}setPos(clamp({x:drag.current.originX+dx,y:drag.current.originY+dy}))}
+ function up(e:React.PointerEvent<HTMLButtonElement>){if(!drag.current)return;const wasMoved=drag.current.moved;drag.current=null;try{localStorage.setItem("avero-assistant-position",JSON.stringify(pos))}catch{}if(!wasMoved)setOpen(v=>!v);window.setTimeout(()=>{didDrag.current=false},0)}
+ if(!ready)return null;
+ const panelW=390,panelH=Math.min(560,typeof window!=="undefined"?window.innerHeight-24:560),vw=typeof window!=="undefined"?window.innerWidth:1200,vh=typeof window!=="undefined"?window.innerHeight:800,actualW=Math.min(panelW,vw-24),panelLeft=Math.max(12,Math.min(pos.x+SIZE+12+actualW<=vw?pos.x+SIZE+12:pos.x-actualW-12,vw-actualW-12)),panelTop=Math.max(12,Math.min(pos.y+SIZE+12+panelH<=vh?pos.y+SIZE+12:pos.y-panelH-12,vh-panelH-12));
+ return <><style jsx global>{`@keyframes avero-eye-blink{0%,43%,47%,76%,80%,100%{transform:scaleY(1)}45%,78%{transform:scaleY(.08)}}@keyframes avero-pupil-drift{0%,100%{transform:translateX(-2px)}50%{transform:translateX(3px)}}`}</style>
+  <div className="fixed z-[90]" style={{left:pos.x,top:pos.y,touchAction:"none"}}><button aria-label="AVERO Assistant" title="Drag me anywhere · click to open" onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={()=>{drag.current=null}} className="group relative flex h-[58px] w-[58px] cursor-grab select-none items-center justify-center rounded-2xl border border-slate-600 bg-slate-900 text-white shadow-2xl shadow-black/40 active:cursor-grabbing">
+   <span className="relative block h-[25px] w-[37px] overflow-hidden rounded-[55%_45%_55%_45%/65%_65%_35%_35%] border-2 border-slate-200" style={{animation:"avero-eye-blink 5.2s ease-in-out infinite",transformOrigin:"center"}}><span className="absolute left-1/2 top-1/2 h-[13px] w-[13px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-slate-100"><span className="absolute left-1/2 top-1/2 h-[5px] w-[5px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-slate-950" style={{animation:"avero-pupil-drift 4s ease-in-out infinite"}}/></span></span>
+   <span className="pointer-events-none absolute -bottom-1 -right-1 h-3 w-3 rounded-full border-2 border-slate-900 bg-emerald-400"/>
+  </button></div>
+  {open&&<div className="fixed z-[89] flex flex-col overflow-hidden rounded-3xl border border-slate-800 bg-slate-950 text-white shadow-2xl" style={{left:panelLeft,top:panelTop,width:actualW,height:panelH}}><div className="flex items-center justify-between border-b border-slate-800 bg-slate-900 p-4"><div className="flex items-center gap-3"><div className="rounded-xl border border-slate-700 bg-slate-950 p-2 text-slate-200"><Bot size={18}/></div><div><b>AVERO Command Chat</b><p className="text-xs text-slate-500">Your business command assistant</p></div></div><button onClick={()=>setOpen(false)} className="rounded-lg p-1 text-slate-400 hover:bg-slate-800"><X size={18}/></button></div>
+   <div className="flex-1 space-y-3 overflow-y-auto p-4">{!messages.length&&<div className="rounded-2xl border border-slate-800 bg-slate-900 p-4 text-sm text-slate-300">أنا مساعد AVERO. أعطيني أمرك الطبيعي وأنا بوجّهه للقسم الصح.</div>}{messages.map((item,index)=><div key={item.id||index} className={`flex ${item.role==="user"?"justify-end":"justify-start"}`}><div className={`max-w-[84%] rounded-2xl px-3 py-2 text-sm leading-6 ${item.role==="user"?"bg-slate-200 text-slate-950":"border border-slate-800 bg-slate-900 text-slate-200"}`}>{item.message}</div></div>)}{busy&&<div className="flex items-center gap-2 text-xs text-slate-300"><LoaderCircle className="animate-spin" size={14}/> عم نفذ الأمر...</div>}<div ref={end}/></div>
+   <div className="border-t border-slate-800 p-3"><div className="flex gap-2"><input value={text} onChange={e=>setText(e.target.value)} onKeyDown={e=>{if(e.key==="Enter")send()}} placeholder="اكتب أمر للداشبورد..." className="min-w-0 flex-1 rounded-xl border border-slate-700 bg-slate-900 px-3 py-3 text-sm outline-none focus:border-slate-400"/><button onClick={send} disabled={busy||!text.trim()} className="rounded-xl bg-slate-200 px-3 text-slate-950 disabled:opacity-50"><Send size={18}/></button></div></div>
+  </div>}</>}
