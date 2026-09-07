@@ -1,4 +1,4 @@
-import { createClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { canAccess, getAuthorizationContext, isKingAdmin } from "@/lib/auth/authorization";
 
 function db() {
@@ -6,6 +6,19 @@ function db() {
   const key = process.env.SUPABASE_SECRET_KEY;
   if (!url || !key) throw new Error("Missing Supabase configuration");
   return createClient(url, key);
+}
+
+async function getPublisherWebhook(s: SupabaseClient) {
+  if (process.env.MAKE_MARKETING_PUBLISH_WEBHOOK_URL) return process.env.MAKE_MARKETING_PUBLISH_WEBHOOK_URL;
+  if (process.env.MAKE_MARKETING_WEBHOOK_URL) return process.env.MAKE_MARKETING_WEBHOOK_URL;
+  const { data } = await s
+    .from("ai_agent_engine_connections")
+    .select("make_webhook_url,enabled,status")
+    .eq("agent_key", "ai_marketing_publisher")
+    .eq("enabled", true)
+    .eq("status", "active")
+    .maybeSingle();
+  return data?.make_webhook_url || null;
 }
 
 const allowedActions = new Set(["approve", "schedule", "publish", "approve_publish", "reject", "draft", "duplicate"]);
@@ -53,6 +66,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     const update: Record<string, unknown> = { updated_at: now };
     const hasApprovalNotes = Object.prototype.hasOwnProperty.call(body, "approval_notes");
     let message = "تم حفظ التعديل.";
+    let publishWebhook: string | null = null;
 
     if (action === "approve") {
       update.status = "approved";
@@ -82,19 +96,19 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       message = "رجع المحتوى كمسودة.";
     }
 
-    const publishWebhook = process.env.MAKE_MARKETING_PUBLISH_WEBHOOK_URL || process.env.MAKE_MARKETING_WEBHOOK_URL;
     if (action === "publish" || action === "approve_publish") {
+      publishWebhook = await getPublisherWebhook(s);
       update.approved_by = ctx.user.id;
       update.approved_at = now;
       if (hasApprovalNotes) update.approval_notes = String(body.approval_notes || "").slice(0, 2000) || null;
       if (!publishWebhook) {
         update.status = "failed";
-        update.error_message = "Publisher مش مربوط بعد. المحتوى انحفظ وانوافق عليه، بس النشر الحقيقي على Facebook/Instagram/Snapchat/TikTok يحتاج Make Publisher webhook.";
+        update.error_message = "Publisher مش مربوط بعد. المحتوى انحفظ وانوافق عليه، بس النشر الحقيقي يحتاج Make Publisher webhook.";
         message = "Publisher مش مربوط بعد. لازم نركّب سيناريو النشر الحقيقي.";
       } else {
         update.status = "publishing";
         update.error_message = null;
-        message = "تم إرسال المحتوى إلى Publisher. إذا نجح النشر ستتحدث الحالة إلى Published.";
+        message = "تم إرسال المحتوى إلى Boost Publisher. راقب الحالة بالكرت.";
       }
     }
 
