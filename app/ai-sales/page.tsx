@@ -1,5 +1,5 @@
-import AgentOperatingRoom from "@/app/components/AgentOperatingRoom";
+import LeoSalesLive from "@/app/components/LeoSalesLive";
 
 export default function AiSalesPage() {
-  return <AgentOperatingRoom agent="sales" />;
+  return <LeoSalesLive />;
 }
