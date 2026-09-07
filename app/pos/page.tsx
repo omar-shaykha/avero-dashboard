@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import Sidebar from "@/app/components/Sidebar";
 import DashboardHeader from "@/app/components/DashboardHeader";
 import PosWorkspace from "@/app/components/PosWorkspace";
+import PosFormEnhancer from "@/app/components/PosFormEnhancer";
 import { getAuthorizationContext } from "@/lib/auth/authorization";
 
 export const dynamic = "force-dynamic";
@@ -17,7 +18,7 @@ export default async function PosPage() {
       <div className="ml-64 min-h-screen">
         <DashboardHeader userEmail={user.email} userName={userName} />
         <main className="p-4 md:p-7">
-          <div className="mx-auto max-w-[1600px]"><PosWorkspace /></div>
+          <div className="mx-auto max-w-[1600px]"><PosFormEnhancer /><PosWorkspace /></div>
         </main>
       </div>
     </div>
