@@ -1,5 +1,5 @@
-import AiDepartmentWorkspace from "@/app/components/AiDepartmentWorkspace";
+import AgentOperatingRoom from "@/app/components/AgentOperatingRoom";
 
 export default function AiSupportPage() {
-  return <AiDepartmentWorkspace agent="support" title="Gor Support Agent" />;
+  return <AgentOperatingRoom agent="support" />;
 }
