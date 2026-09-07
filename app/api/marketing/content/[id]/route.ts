@@ -8,7 +8,7 @@ function db() {
   return createClient(url, key);
 }
 
-const allowedActions = new Set(["approve", "schedule", "publish", "reject", "draft"]);
+const allowedActions = new Set(["approve", "schedule", "publish", "reject", "draft", "duplicate"]);
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -24,6 +24,54 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     if (!allowedActions.has(action)) return Response.json({ error: "Unknown action" }, { status: 400 });
 
     const now = new Date().toISOString();
+    const s = db();
+
+    if (action === "duplicate") {
+      const { data: original, error: originalError } = await s
+        .from("marketing_content_queue")
+        .select("*")
+        .eq("id", id)
+        .eq("company_id", companyId)
+        .maybeSingle();
+
+      if (originalError) return Response.json({ error: "Failed to load original content" }, { status: 500 });
+      if (!original) return Response.json({ error: "Not found" }, { status: 404 });
+
+      const { id: _oldId, created_at: _createdAt, updated_at: _updatedAt, approved_by: _approvedBy, approved_at: _approvedAt, published_at: _publishedAt, external_post_id: _externalPostId, error_message: _errorMessage, ...copy } = original;
+      const { data: item, error } = await s
+        .from("marketing_content_queue")
+        .insert({
+          ...copy,
+          created_by: ctx.user.id,
+          campaign_name: `${String(original.campaign_name || "Content").slice(0, 150)} - Repost`,
+          status: "approval_required",
+          scheduled_for: null,
+          approved_by: null,
+          approved_at: null,
+          published_at: null,
+          external_post_id: null,
+          error_message: null,
+          metrics: { ...(original.metrics || {}), source: "repost_duplicate", repost_of: id },
+          updated_at: now,
+        })
+        .select("*")
+        .single();
+
+      if (error) return Response.json({ error: "Could not create repost draft" }, { status: 500 });
+
+      await s.from("ai_agent_runs").insert({
+        company_id: companyId,
+        agent_key: "ai_marketing",
+        action: "content_duplicate",
+        status: "completed",
+        input: { original_content_id: id },
+        output: { content_id: item.id, status: item.status, platforms: item.platforms || [item.channel] },
+        completed_at: now,
+      });
+
+      return Response.json({ item });
+    }
+
     const update: Record<string, unknown> = { updated_at: now };
     const hasApprovalNotes = Object.prototype.hasOwnProperty.call(body, "approval_notes");
 
@@ -54,7 +102,6 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       update.status = "draft";
     }
 
-    const s = db();
     const { data, error } = await s
       .from("marketing_content_queue")
       .update(update)
