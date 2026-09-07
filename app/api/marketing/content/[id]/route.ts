@@ -23,6 +23,20 @@ async function getPublisherWebhook(s: SupabaseClient) {
 
 const allowedActions = new Set(["approve", "schedule", "publish", "approve_publish", "reject", "draft", "duplicate"]);
 
+function asPlatforms(value: unknown, fallback: string[]) {
+  const raw = Array.isArray(value) ? value : String(value || "").split(",");
+  const items = raw.map((item) => String(item).trim().toLowerCase()).filter(Boolean);
+  return items.length ? items : fallback;
+}
+
+function platformReport(platforms: string[], hasMedia: boolean) {
+  return platforms.map((platform) => {
+    if (platform === "facebook") return { platform, status: "sent", note: "Facebook text post sent through AVERO Boost Publisher." };
+    if (platform === "instagram") return { platform, status: hasMedia ? "sent" : "needs_media", note: hasMedia ? "Instagram media post sent." : "Instagram needs a public image/video URL before real posting." };
+    return { platform, status: "needs_connector", note: `${platform} publishing connector/API is not completed yet.` };
+  });
+}
+
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
@@ -121,30 +135,36 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     let finalMessage = message;
 
     if ((action === "publish" || action === "approve_publish") && publishWebhook) {
+      const requestedPlatforms = asPlatforms(body.platforms, data.platforms || [data.channel]);
+      const report = platformReport(requestedPlatforms, Boolean(data.media_url));
+      const fullyPublished = report.every((entry) => entry.status === "sent");
       try {
         const publisherResponse = await fetch(publishWebhook, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ company_id: companyId, content_id: id, action: "publish", platforms: body.platforms || data.platforms || [data.channel], caption: data.caption, media_url: data.media_url || null }),
+          body: JSON.stringify({ company_id: companyId, content_id: id, action: "publish", platforms: requestedPlatforms, caption: data.caption, media_url: data.media_url || null }),
         });
         if (publisherResponse.ok) {
+          const needs = report.filter((entry) => entry.status !== "sent");
+          const nextStatus = fullyPublished ? "published" : "failed";
+          const nextError = fullyPublished ? null : `تم النشر على المتاح فقط. الناقص: ${needs.map((entry) => `${entry.platform}: ${entry.note}`).join(" | ")}`;
           const { data: published } = await s
             .from("marketing_content_queue")
             .update({
-              status: "published",
-              published_at: new Date().toISOString(),
-              external_post_id: `boost-publisher-${id}`,
-              error_message: null,
+              status: nextStatus,
+              published_at: fullyPublished ? new Date().toISOString() : null,
+              external_post_id: fullyPublished ? `boost-publisher-${id}` : null,
+              error_message: nextError,
               updated_at: new Date().toISOString(),
-              metrics: { ...(data.metrics || {}), publisher_gateway: "accepted", publisher_note: "Boost Publisher accepted the request. Full platform posting modules are the next step." },
+              metrics: { ...(data.metrics || {}), publisher_gateway: "accepted", publishing_result: report },
             })
             .eq("id", id)
             .eq("company_id", companyId)
             .select("*")
             .maybeSingle();
           if (published) finalItem = published;
-          finalStatus = "published";
-          finalMessage = "Boost استلم طلب النشر وتم تحديث الكرت إلى Published.";
+          finalStatus = nextStatus;
+          finalMessage = fullyPublished ? "تم النشر من داخل AVERO على المنصات المطلوبة." : "Boost نشر على المتاح، وفي منصات بعدها تحتاج صورة أو connector.";
         } else {
           const details = await publisherResponse.text().catch(() => "");
           const { data: failed } = await s.from("marketing_content_queue").update({ status: "failed", error_message: `Boost Publisher رفض الطلب: ${publisherResponse.status} ${details.slice(0, 180)}`, updated_at: new Date().toISOString() }).eq("id", id).eq("company_id", companyId).select("*").maybeSingle();
