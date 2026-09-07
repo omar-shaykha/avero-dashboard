@@ -8,7 +8,7 @@ import AveroBrand from "./AveroBrand";
 import SupportInboxBubble from "./SupportInboxBubble";
 import { useLanguage } from "./LanguageProvider";
 import type { AuthorizationContext } from "@/lib/auth/authorization";
-import { BarChart3, Bot, Building2, ChevronDown, ChevronRight, CreditCard, Headphones, Home, Menu, PackageCheck, PanelLeftClose, PanelLeftOpen, Sparkles, Store, UserRound, UsersRound, Warehouse, X } from "lucide-react";
+import { BarChart3, Bot, Building2, ChevronDown, ChevronRight, CreditCard, Home, Menu, PanelLeftClose, PanelLeftOpen, Sparkles, Store, UserRound, UsersRound, X } from "lucide-react";
 
 interface SidebarProps { userEmail?: string; userName?: string; access?: AuthorizationContext | null; }
 type NavIcon = ComponentType<{ size?: number; className?: string }>;
@@ -30,7 +30,7 @@ export default function Sidebar({ userEmail, userName, access }: SidebarProps) {
 
   const currentAccess = access ?? loadedAccess;
   const isKingAdmin = currentAccess?.profile.role === "king_admin";
-  const aliases: Record<string, string> = { view_crm: "crm.view", view_analytics: "analytics.view", view_ai_sales: "sales.view", view_ai_marketing: "marketing.view", view_ai_hr: "hr.view", view_ai_support: "support.view", view_ai_inventory: "inventory.view", view_ai_customer_care: "customer_care.view", view_ai_analytics: "ai_analytics.view", view_ai_warehouse: "warehouse.view" };
+  const aliases: Record<string, string> = { view_crm: "crm.view", view_analytics: "analytics.view", view_ai_sales: "sales.view", view_ai_marketing: "marketing.view" };
   const permitted = (permission: string) => isKingAdmin || !!currentAccess?.permissions.includes(aliases[permission] || permission);
   const has = (feature: string, permission: string) => isKingAdmin || !!(currentAccess?.features.includes(feature) && permitted(permission));
   const crmVisible = has("crm", "view_crm");
@@ -40,12 +40,6 @@ export default function Sidebar({ userEmail, userName, access }: SidebarProps) {
     { label: "AI Team Home", href: "/ai-agents", show: true, icon: Sparkles },
     { label: "Leo — Sales", href: "/ai-sales", show: has("ai_sales", "view_ai_sales"), icon: Bot },
     { label: "Foxy — Marketing", href: "/ai-marketing", show: has("ai_marketing", "view_ai_marketing"), icon: Sparkles },
-    { label: "Aero — HR & Booking", href: "/ai-hr", show: has("ai_hr", "view_ai_hr"), icon: UsersRound },
-    { label: "Gor — Support", href: "/ai-support", show: has("ai_support", "view_ai_support"), icon: Headphones },
-    { label: "Vexa — Inventory", href: "/ai-inventory", show: has("ai_inventory", "view_ai_inventory"), icon: PackageCheck },
-    { label: "Rex — Customer Care", href: "/ai-customer-care", show: has("ai_customer_care", "view_ai_customer_care"), icon: UsersRound },
-    { label: "Nova — Analytics", href: "/ai-analytics", show: has("ai_analytics", "view_ai_analytics"), icon: BarChart3 },
-    { label: "Bruno — Warehouse", href: "/ai-warehouse", show: has("ai_warehouse", "view_ai_warehouse"), icon: Warehouse },
   ].filter((item) => item.show);
   const initials = userName ? userName.split(" ").map((name) => name[0]).join("").toUpperCase() : userEmail?.[0]?.toUpperCase() || "U";
   const arrow = rtl ? <ChevronRight size={15} className="rotate-180" /> : <ChevronRight size={15} />;
@@ -63,7 +57,7 @@ export default function Sidebar({ userEmail, userName, access }: SidebarProps) {
         <Main href="/pos" label={collapsed ? "" : "POS"} icon={Store} active={pathname?.startsWith("/pos")} />
         <Main href="/subscriptions" label={collapsed ? "" : rtl ? "الاشتراكات" : "Subscriptions"} icon={CreditCard} active={pathname?.startsWith("/subscriptions")} />
         {agents.length > 0 && <div><button onClick={() => setAgentsOpen((value) => !value)} className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-slate-300 hover:bg-slate-900"><Bot size={18} /><span className={`flex-1 text-start text-sm font-medium ${collapsed ? "hidden md:hidden" : "block"}`}>AI Agents</span>{!collapsed && (agentsOpen ? <ChevronDown size={15} /> : arrow)}</button>{agentsOpen && !collapsed && <div className={`mt-2 space-y-1 border-slate-800 ${rtl ? "mr-5 border-r pr-3" : "ml-5 border-l pl-3"}`}>{agents.map((item) => <Sub key={item.href} href={item.href} label={item.label} pathname={pathname} icon={item.icon} />)}</div>}</div>}
-        {crmVisible && <div><button onClick={() => setCrmOpen((value) => !value)} className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-slate-300 hover:bg-slate-900"><UsersRound size={18} /><span className={`flex-1 text-start text-sm font-medium ${collapsed ? "hidden" : "block"}`}>{t("crm")}</span>{!collapsed && (crmOpen ? <ChevronDown size={15} /> : arrow)}</button>{crmOpen && !collapsed && <div className={`mt-2 space-y-1 border-slate-800 ${rtl ? "mr-5 border-r pr-3" : "ml-5 border-l pl-3"}`}><Sub href="/crm" label={t("crmHub")} pathname={pathname} exact /><Sub href="/crm/sales" label={t("salesCrm")} pathname={pathname} /><Sub href="/crm/marketing" label={t("marketingCrm")} pathname={pathname} /><Sub href="/crm/hr" label={t("hrCrm")} pathname={pathname} /><Sub href="/crm/support" label={t("supportCrm")} pathname={pathname} /></div>}</div>}
+        {crmVisible && <div><button onClick={() => setCrmOpen((value) => !value)} className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-slate-300 hover:bg-slate-900"><UsersRound size={18} /><span className={`flex-1 text-start text-sm font-medium ${collapsed ? "hidden" : "block"}`}>{t("crm")}</span>{!collapsed && (crmOpen ? <ChevronDown size={15} /> : arrow)}</button>{crmOpen && !collapsed && <div className={`mt-2 space-y-1 border-slate-800 ${rtl ? "mr-5 border-r pr-3" : "ml-5 border-l pl-3"}`}><Sub href="/crm" label={t("crmHub")} pathname={pathname} exact /><Sub href="/crm/sales" label={rtl ? "CRM المبيعات" : "Sales CRM"} pathname={pathname} /></div>}</div>}
         {analyticsVisible && <Main href="/analytics" label={collapsed ? "" : t("analytics")} icon={BarChart3} active={pathname?.startsWith("/analytics")} />}
         {clientsVisible && <Main href="/clients" label={collapsed ? "" : t("clients")} icon={Building2} active={pathname?.startsWith("/clients")} />}
       </nav>
