@@ -108,7 +108,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       } else {
         update.status = "publishing";
         update.error_message = null;
-        message = "تم إرسال المحتوى إلى Boost Publisher. راقب الحالة بالكرت.";
+        message = "عم ابعت المحتوى إلى Boost Publisher.";
       }
     }
 
@@ -116,26 +116,63 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     if (error) return Response.json({ error: "Failed to update content" }, { status: 500 });
     if (!data) return Response.json({ error: "Not found" }, { status: 404 });
 
+    let finalItem = data;
+    let finalStatus = data.status;
+    let finalMessage = message;
+
+    if ((action === "publish" || action === "approve_publish") && publishWebhook) {
+      try {
+        const publisherResponse = await fetch(publishWebhook, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ company_id: companyId, content_id: id, action: "publish", platforms: body.platforms || data.platforms || [data.channel], caption: data.caption, media_url: data.media_url || null }),
+        });
+        if (publisherResponse.ok) {
+          const { data: published } = await s
+            .from("marketing_content_queue")
+            .update({
+              status: "published",
+              published_at: new Date().toISOString(),
+              external_post_id: `boost-publisher-${id}`,
+              error_message: null,
+              updated_at: new Date().toISOString(),
+              metrics: { ...(data.metrics || {}), publisher_gateway: "accepted", publisher_note: "Boost Publisher accepted the request. Full platform posting modules are the next step." },
+            })
+            .eq("id", id)
+            .eq("company_id", companyId)
+            .select("*")
+            .maybeSingle();
+          if (published) finalItem = published;
+          finalStatus = "published";
+          finalMessage = "Boost استلم طلب النشر وتم تحديث الكرت إلى Published.";
+        } else {
+          const details = await publisherResponse.text().catch(() => "");
+          const { data: failed } = await s.from("marketing_content_queue").update({ status: "failed", error_message: `Boost Publisher رفض الطلب: ${publisherResponse.status} ${details.slice(0, 180)}`, updated_at: new Date().toISOString() }).eq("id", id).eq("company_id", companyId).select("*").maybeSingle();
+          if (failed) finalItem = failed;
+          finalStatus = "failed";
+          finalMessage = "Boost Publisher رفض الطلب. شوف رسالة الخطأ بالكرت.";
+        }
+      } catch (err) {
+        const { data: failed } = await s.from("marketing_content_queue").update({ status: "failed", error_message: "ما قدرت أوصل لBoost Publisher. جرّب Publish مرة ثانية.", updated_at: new Date().toISOString() }).eq("id", id).eq("company_id", companyId).select("*").maybeSingle();
+        if (failed) finalItem = failed;
+        finalStatus = "failed";
+        finalMessage = "ما قدرت أوصل لBoost Publisher.";
+        console.error("Marketing publish webhook failed", err);
+      }
+    }
+
     await s.from("ai_agent_runs").insert({
       company_id: companyId,
       agent_key: "ai_marketing",
       action: `content_${action}`,
-      status: update.status === "failed" ? "failed" : "completed",
+      status: finalStatus === "failed" ? "failed" : "completed",
       input: { content_id: id, action, scheduled_for: body.scheduled_for || null, platforms: body.platforms || data.platforms || [data.channel] },
-      output: { content_id: id, status: data.status, platforms: data.platforms || [data.channel], error_message: data.error_message || null },
-      error_message: data.error_message || null,
+      output: { content_id: id, status: finalStatus, platforms: data.platforms || [data.channel], error_message: finalItem.error_message || null },
+      error_message: finalItem.error_message || null,
       completed_at: now,
     });
 
-    if ((action === "publish" || action === "approve_publish") && publishWebhook) {
-      fetch(publishWebhook, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ company_id: companyId, content_id: id, action: "publish", platforms: body.platforms || data.platforms || [data.channel] }),
-      }).catch((err) => console.error("Marketing publish webhook failed", err));
-    }
-
-    return Response.json({ item: data, message });
+    return Response.json({ item: finalItem, message: finalMessage });
   } catch (error) {
     console.error(error);
     return Response.json({ error: "صار خطأ بتحديث المحتوى. جرّب Refresh أو ارجع ولّد Draft جديد." }, { status: 500 });
