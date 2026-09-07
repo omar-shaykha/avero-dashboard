@@ -1,5 +1,5 @@
-import AgentOperatingRoom from "@/app/components/AgentOperatingRoom";
+import MarketingCommandCenter from "@/app/components/MarketingCommandCenter";
 
 export default function AiMarketingPage() {
-  return <AgentOperatingRoom agent="marketing" />;
+  return <MarketingCommandCenter />;
 }
