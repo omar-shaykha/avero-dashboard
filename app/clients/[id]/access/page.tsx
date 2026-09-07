@@ -1,25 +1,329 @@
 "use client";
-import {useEffect,useMemo,useState} from "react";
-import {useParams} from "next/navigation";
-import Sidebar from "@/app/components/Sidebar";import DashboardHeader from "@/app/components/DashboardHeader";
-import {Users,ShieldCheck,CreditCard,Bot,ReceiptText,Save,CheckCircle2} from "lucide-react";import {useLanguage} from "@/app/components/LanguageProvider";
-type User={user_id:string;role:string;first_name?:string;last_name?:string;full_name?:string;email?:string;permission_overrides:{permission_id:string;allowed:boolean}[]};type Permission={id:string;key:string;name:string;description?:string};type Overview={company:{id:string;name:string};users:User[];permissions:Permission[];subscription:any;receipts:any[]};type Feature={id:string;key:string;enabled:boolean;expires_at?:string|null};type Mode='allow'|'deny'|'reset';type Draft={role:string;permissions:Record<string,Mode>};
-const tabs=[['users',Users,'Users & Permissions'],['subscription',CreditCard,'Subscription'],['features',Bot,'AI Agents & Features'],['receipts',ReceiptText,'Receipts']] as const;
-export default function ClientAccessPage(){const {id}=useParams<{id:string}>(),{language}=useLanguage(),ar=language==='ar';const [tab,setTab]=useState('users'),[data,setData]=useState<Overview|null>(null),[features,setFeatures]=useState<Feature[]>([]),[loading,setLoading]=useState(true),[saving,setSaving]=useState<string|null>(null),[drafts,setDrafts]=useState<Record<string,Draft>>({}),[savedUser,setSavedUser]=useState<string|null>(null),[error,setError]=useState<string|null>(null);
-const buildDrafts=(o:Overview)=>Object.fromEntries(o.users.map(u=>[u.user_id,{role:u.role,permissions:Object.fromEntries(o.permissions.map(p=>{const ov=u.permission_overrides.find(x=>x.permission_id===p.id);const mode:Mode=ov?.allowed===true?'allow':ov?.allowed===false?'deny':'reset';return[p.id,mode]}))}]));
-const load=async()=>{setLoading(true);setError(null);const [o,f]=await Promise.all([fetch(`/api/clients/${id}/overview`,{cache:'no-store'}),fetch(`/api/clients/${id}/features`,{cache:'no-store'})]);if(o.ok){const j=await o.json();setData(j);setDrafts(buildDrafts(j))}else setError(ar?'تعذر تحميل بيانات العميل':'Failed to load client data');if(f.ok){const j=await f.json();setFeatures(j.features||[])}setLoading(false)};useEffect(()=>{load()},[id]);
-const initialMode=(u:User,pid:string):Mode=>{const ov=u.permission_overrides.find(x=>x.permission_id===pid);return ov?.allowed===true?'allow':ov?.allowed===false?'deny':'reset'};
-const isDirty=(u:User)=>{const d=drafts[u.user_id];if(!d)return false;if(d.role!==u.role)return true;return data?.permissions.some(p=>d.permissions[p.id]!==initialMode(u,p.id))||false};
-const saveUser=async(u:User)=>{const d=drafts[u.user_id];if(!d||!data)return;setSaving(u.user_id);setSavedUser(null);setError(null);try{const requests:Promise<Response>[]=[];if(d.role!==u.role)requests.push(fetch(`/api/clients/${id}/users/${u.user_id}/access`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({type:'role',role:d.role})}));for(const p of data.permissions){const mode=d.permissions[p.id];if(mode!==initialMode(u,p.id))requests.push(fetch(`/api/clients/${id}/users/${u.user_id}/access`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({type:'permission',permission_id:p.id,mode})}))}const results=await Promise.all(requests);if(results.some(r=>!r.ok))throw new Error('save failed');await load();setSavedUser(u.user_id);setTimeout(()=>setSavedUser(x=>x===u.user_id?null:x),3500)}catch{setError(ar?'صار خطأ أثناء حفظ الصلاحيات. ما تم اعتماد التغييرات بالكامل.':'Could not save all access changes.')}finally{setSaving(null)}};
-const progress=useMemo(()=>{const s=data?.subscription;if(!s?.current_period_start||!s?.current_period_end)return null;const a=new Date(s.current_period_start).getTime(),b=new Date(s.current_period_end).getTime(),n=Date.now();return {pct:Math.max(0,Math.min(100,((n-a)/(b-a))*100)),days:Math.max(0,Math.ceil((b-n)/86400000))}},[data]);
-const toggle=async(f:Feature)=>{setSaving(f.id);const enabled=!f.enabled;const r=await fetch(`/api/clients/${id}/features`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({feature_id:f.id,enabled,expires_at:f.expires_at||null})});if(r.ok)setFeatures(x=>x.map(v=>v.id===f.id?{...v,enabled}:v));setSaving(null)};
-return <div className="min-h-screen bg-slate-950 text-white"><Sidebar/><div className="ml-64 min-h-screen"><DashboardHeader/><main className="p-7"><div className="mx-auto max-w-6xl">
-<div className="mb-6 flex items-center justify-between"><div><p className="text-xs font-semibold uppercase tracking-[.2em] text-blue-400">AVERO / Client Control Center</p><h1 className="mt-2 text-3xl font-bold">{data?.company.name||'Client'}</h1><p className="mt-1 text-slate-400">{ar?'إدارة المستخدمين والصلاحيات والاشتراك والوكلاء من مكان واحد.':'Manage users, permissions, subscription and AI access from one place.'}</p></div><ShieldCheck className="text-emerald-400" size={30}/></div>
-{error&&<div className="mb-4 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-300">{error}</div>}
-<div className="mb-6 flex flex-wrap gap-2">{tabs.map(([k,I,label])=><button key={k} onClick={()=>setTab(k)} className={`flex items-center gap-2 rounded-xl px-4 py-2 text-sm ${tab===k?'bg-blue-600':'border border-slate-800 bg-slate-900 text-slate-400'}`}><I size={16}/>{label}</button>)}</div>
-{loading?<div className="py-12 text-center text-slate-500">Loading...</div>:<>
-{tab==='users'&&<div className="space-y-4">{data?.users.map(u=>{const d=drafts[u.user_id];const dirty=isDirty(u);return <div key={u.user_id} className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5"><div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="font-semibold">{u.full_name||[u.first_name,u.last_name].filter(Boolean).join(' ')||u.email||'User'}</h2><p className="text-sm text-slate-500">{u.email||'—'}</p></div><select value={d?.role||u.role} disabled={saving!==null} onChange={e=>setDrafts(x=>({...x,[u.user_id]:{...(x[u.user_id]||{role:u.role,permissions:{}}),role:e.target.value}}))} className="rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-blue-300"><option value="super_admin">Super Admin</option><option value="admin">Admin</option><option value="user">User</option></select></div><div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">{data.permissions.map(p=>{const mode=d?.permissions[p.id]||initialMode(u,p.id);return <div key={p.id} className="rounded-xl border border-slate-800 bg-slate-950/50 p-3"><div className="mb-2 text-xs font-medium text-slate-300">{p.key}</div><div className="grid grid-cols-3 gap-1">{(['allow','deny','reset'] as const).map(m=><button key={m} disabled={saving!==null} onClick={()=>setDrafts(x=>({...x,[u.user_id]:{...(x[u.user_id]||{role:u.role,permissions:{}}),permissions:{...(x[u.user_id]?.permissions||{}),[p.id]:m}}}))} className={`rounded-md px-2 py-1 text-[10px] font-semibold ${mode===m?(m==='allow'?'bg-emerald-500/20 text-emerald-400':m==='deny'?'bg-red-500/20 text-red-400':'bg-blue-500/20 text-blue-300'):'bg-slate-800 text-slate-500'}`}>{m==='allow'?'Allow':m==='deny'?'Deny':'Reset'}</button>)}</div></div>})}</div><div className="mt-5 flex items-center justify-end gap-3">{savedUser===u.user_id&&<span className="inline-flex items-center gap-1.5 text-sm font-medium text-emerald-400"><CheckCircle2 size={17}/>{ar?'تم الحفظ والموافقة':'Done — saved'}</span>}<button onClick={()=>saveUser(u)} disabled={!dirty||saving!==null} className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-40"><Save size={16}/>{saving===u.user_id?(ar?'جارٍ الحفظ...':'Saving...'):(ar?'حفظ واعتماد':'Save')}</button></div></div>})}</div>}
-{tab==='subscription'&&<div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">{data?.subscription?<><div className="flex justify-between"><div><p className="text-sm text-slate-500">Current plan</p><h2 className="text-2xl font-bold">{data.subscription.subscription_plans?.name||'Custom'}</h2></div><span className="text-emerald-400">{data.subscription.status}</span></div><div className="mt-6 h-3 rounded-full bg-slate-800"><div className="h-full rounded-full bg-blue-500" style={{width:`${progress?.pct||0}%`}}/></div><div className="mt-2 flex justify-between text-xs text-slate-500"><span>{data.subscription.current_period_start?new Date(data.subscription.current_period_start).toLocaleDateString():'Not started'}</span><span>{progress?`${progress.days} days remaining`:'Period pending'}</span><span>{data.subscription.current_period_end?new Date(data.subscription.current_period_end).toLocaleDateString():'—'}</span></div></>:<p className="text-slate-500">No subscription found.</p>}</div>}
-{tab==='features'&&<div className="grid gap-4 md:grid-cols-2">{features.map(f=><div key={f.id} className="flex items-center justify-between rounded-2xl border border-slate-800 bg-slate-900/60 p-5"><div><h3 className="font-semibold">{f.key.replaceAll('_',' ').toUpperCase()}</h3><p className="text-xs text-slate-500">Company entitlement</p></div><button disabled={saving===f.id} onClick={()=>toggle(f)} className={`rounded-full px-4 py-2 text-xs ${f.enabled?'bg-emerald-500/15 text-emerald-400':'bg-slate-800 text-slate-500'}`}>{f.enabled?'Enabled':'Disabled'}</button></div>)}</div>}
-{tab==='receipts'&&<div className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/60"><table className="w-full text-sm"><thead className="bg-slate-800/50 text-slate-400"><tr><th className="p-4 text-start">Receipt</th><th className="p-4 text-start">Issued</th><th className="p-4 text-start">Amount</th><th className="p-4 text-start">Status</th></tr></thead><tbody>{data?.receipts.length?data.receipts.map(r=><tr key={r.id} className="border-t border-slate-800"><td className="p-4">{r.receipt_number}</td><td className="p-4">{new Date(r.issued_at).toLocaleDateString()}</td><td className="p-4">{r.total_amount} {r.currency}</td><td className="p-4">{r.payment_status}</td></tr>):<tr><td colSpan={4} className="p-8 text-center text-slate-500">No receipts yet.</td></tr>}</tbody></table></div>}</>}
-</div></main></div></div>}
+
+import { useEffect, useMemo, useState } from "react";
+import { useParams } from "next/navigation";
+import Sidebar from "@/app/components/Sidebar";
+import DashboardHeader from "@/app/components/DashboardHeader";
+import { Bot, CheckCircle2, CreditCard, Power, ReceiptText, Save, ShieldCheck, SlidersHorizontal, Users } from "lucide-react";
+import { useLanguage } from "@/app/components/LanguageProvider";
+
+type User = {
+  user_id: string;
+  role: string;
+  first_name?: string;
+  last_name?: string;
+  full_name?: string;
+  email?: string;
+  permission_overrides: { permission_id: string; allowed: boolean }[];
+};
+
+type Permission = { id: string; key: string; name: string; description?: string };
+type Overview = { company: { id: string; name: string }; users: User[]; permissions: Permission[]; subscription: any; receipts: any[] };
+type Feature = { id: string; key: string; enabled: boolean; expires_at?: string | null };
+type Draft = { role: string; permissions: Record<string, boolean> };
+
+const tabs = [
+  ["users", Users, "Users & Access"],
+  ["features", Bot, "Features"],
+  ["subscription", CreditCard, "Subscription"],
+  ["receipts", ReceiptText, "Receipts"],
+] as const;
+
+function userLabel(user: User) {
+  return user.full_name || [user.first_name, user.last_name].filter(Boolean).join(" ") || user.email || "User";
+}
+
+function cleanPermissionName(key: string) {
+  return key.replace(/_/g, " ").replace(/\./g, " / ");
+}
+
+function permissionGroup(key: string) {
+  return key.split(".")[0]?.replace(/_/g, " ") || "general";
+}
+
+function isInitiallyAllowed(user: User, permissionId: string) {
+  return user.permission_overrides.find((item) => item.permission_id === permissionId)?.allowed === true;
+}
+
+function buildDrafts(overview: Overview) {
+  return Object.fromEntries(
+    overview.users.map((user) => [
+      user.user_id,
+      {
+        role: user.role,
+        permissions: Object.fromEntries(overview.permissions.map((permission) => [permission.id, isInitiallyAllowed(user, permission.id)])),
+      },
+    ]),
+  ) as Record<string, Draft>;
+}
+
+export default function ClientAccessPage() {
+  const { id } = useParams<{ id: string }>();
+  const { language } = useLanguage();
+  const ar = language === "ar";
+
+  const [tab, setTab] = useState<(typeof tabs)[number][0]>("users");
+  const [data, setData] = useState<Overview | null>(null);
+  const [features, setFeatures] = useState<Feature[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState<string | null>(null);
+  const [drafts, setDrafts] = useState<Record<string, Draft>>({});
+  const [savedUser, setSavedUser] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  async function load() {
+    setLoading(true);
+    setError(null);
+    const [overviewResponse, featuresResponse] = await Promise.all([
+      fetch(`/api/clients/${id}/overview`, { cache: "no-store" }),
+      fetch(`/api/clients/${id}/features`, { cache: "no-store" }),
+    ]);
+
+    if (overviewResponse.ok) {
+      const overview = (await overviewResponse.json()) as Overview;
+      setData(overview);
+      setDrafts(buildDrafts(overview));
+    } else {
+      setError(ar ? "تعذر تحميل بيانات العميل" : "Failed to load client data");
+    }
+
+    if (featuresResponse.ok) {
+      const payload = await featuresResponse.json();
+      setFeatures(payload.features || []);
+    }
+    setLoading(false);
+  }
+
+  useEffect(() => {
+    load();
+  }, [id]);
+
+  const groupedPermissions = useMemo(() => {
+    const groups = new Map<string, Permission[]>();
+    for (const permission of data?.permissions || []) {
+      const group = permissionGroup(permission.key);
+      groups.set(group, [...(groups.get(group) || []), permission]);
+    }
+    return [...groups.entries()];
+  }, [data?.permissions]);
+
+  const progress = useMemo(() => {
+    const subscription = data?.subscription;
+    if (!subscription?.current_period_start || !subscription?.current_period_end) return null;
+    const start = new Date(subscription.current_period_start).getTime();
+    const end = new Date(subscription.current_period_end).getTime();
+    const now = Date.now();
+    return {
+      pct: Math.max(0, Math.min(100, ((now - start) / (end - start)) * 100)),
+      days: Math.max(0, Math.ceil((end - now) / 86400000)),
+    };
+  }, [data]);
+
+  function isDirty(user: User) {
+    const draft = drafts[user.user_id];
+    if (!draft || !data) return false;
+    if (draft.role !== user.role) return true;
+    return data.permissions.some((permission) => draft.permissions[permission.id] !== isInitiallyAllowed(user, permission.id));
+  }
+
+  function setPermission(user: User, permissionId: string, allowed: boolean) {
+    setDrafts((current) => ({
+      ...current,
+      [user.user_id]: {
+        ...(current[user.user_id] || { role: user.role, permissions: {} }),
+        permissions: { ...(current[user.user_id]?.permissions || {}), [permissionId]: allowed },
+      },
+    }));
+  }
+
+  function setAllPermissions(user: User, allowed: boolean) {
+    if (!data) return;
+    setDrafts((current) => ({
+      ...current,
+      [user.user_id]: {
+        ...(current[user.user_id] || { role: user.role, permissions: {} }),
+        permissions: Object.fromEntries(data.permissions.map((permission) => [permission.id, allowed])),
+      },
+    }));
+  }
+
+  async function saveUser(user: User) {
+    const draft = drafts[user.user_id];
+    if (!draft || !data) return;
+    setSaving(user.user_id);
+    setSavedUser(null);
+    setError(null);
+
+    try {
+      const response = await fetch(`/api/clients/${id}/users/${user.user_id}/access`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: "bulk",
+          role: draft.role,
+          permissions: data.permissions.map((permission) => ({ permission_id: permission.id, allowed: draft.permissions[permission.id] === true })),
+        }),
+      });
+
+      if (!response.ok) throw new Error("save failed");
+      await load();
+      setSavedUser(user.user_id);
+      setTimeout(() => setSavedUser((current) => (current === user.user_id ? null : current)), 3500);
+    } catch {
+      setError(ar ? "صار خطأ أثناء حفظ الصلاحيات." : "Could not save access changes.");
+    } finally {
+      setSaving(null);
+    }
+  }
+
+  async function toggleFeature(feature: Feature) {
+    setSaving(feature.id);
+    const enabled = !feature.enabled;
+    const response = await fetch(`/api/clients/${id}/features`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ feature_id: feature.id, enabled, expires_at: feature.expires_at || null }),
+    });
+    if (response.ok) setFeatures((current) => current.map((item) => (item.id === feature.id ? { ...item, enabled } : item)));
+    setSaving(null);
+  }
+
+  return (
+    <div className="min-h-screen bg-slate-950 text-white">
+      <Sidebar />
+      <div className="min-h-screen lg:ml-64">
+        <DashboardHeader />
+        <main className="p-4 md:p-7">
+          <div className="mx-auto max-w-7xl">
+            <div className="mb-6 flex flex-col gap-4 rounded-3xl border border-slate-800 bg-slate-900/60 p-5 md:flex-row md:items-center md:justify-between md:p-6">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-[.22em] text-blue-400">AVERO / Client Control Center</p>
+                <h1 className="mt-2 text-2xl font-black md:text-3xl">{data?.company.name || "Client"}</h1>
+                <p className="mt-1 max-w-2xl text-sm text-slate-400">{ar ? "إدارة سريعة وسهلة: المستخدم، الدور، والصلاحيات On / Off من نفس المكان." : "Fast control: user role and permissions as simple On / Off switches."}</p>
+              </div>
+              <ShieldCheck className="text-emerald-400" size={34} />
+            </div>
+
+            {error && <div className="mb-4 rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-300">{error}</div>}
+
+            <div className="mb-6 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+              {tabs.map(([key, Icon, label]) => (
+                <button key={key} onClick={() => setTab(key)} className={`flex items-center justify-center gap-2 rounded-2xl px-4 py-3 text-sm font-bold transition ${tab === key ? "bg-blue-600 text-white shadow-lg shadow-blue-950/30" : "border border-slate-800 bg-slate-900/70 text-slate-400 hover:bg-slate-800 hover:text-white"}`}>
+                  <Icon size={17} /> {label}
+                </button>
+              ))}
+            </div>
+
+            {loading ? (
+              <div className="rounded-3xl border border-slate-800 bg-slate-900/60 py-16 text-center text-slate-500">Loading...</div>
+            ) : (
+              <>
+                {tab === "users" && (
+                  <div className="space-y-5">
+                    {data?.users.map((user) => {
+                      const draft = drafts[user.user_id];
+                      const dirty = isDirty(user);
+                      const activeCount = data.permissions.filter((permission) => draft?.permissions[permission.id]).length;
+
+                      return (
+                        <section key={user.user_id} className="overflow-hidden rounded-3xl border border-slate-800 bg-slate-900/70">
+                          <div className="flex flex-col gap-4 border-b border-slate-800 bg-slate-950/45 p-5 md:flex-row md:items-center md:justify-between">
+                            <div>
+                              <h2 className="text-lg font-black">{userLabel(user)}</h2>
+                              <p className="text-sm text-slate-500">{user.email || "—"}</p>
+                              <p className="mt-2 text-xs text-slate-500">{activeCount}/{data.permissions.length} permissions ON</p>
+                            </div>
+                            <div className="flex flex-wrap items-center gap-2">
+                              <select value={draft?.role || user.role} disabled={saving !== null} onChange={(event) => setDrafts((current) => ({ ...current, [user.user_id]: { ...(current[user.user_id] || { role: user.role, permissions: {} }), role: event.target.value } }))} className="rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm font-bold text-blue-300 outline-none focus:border-blue-500">
+                                <option value="super_admin">Super Admin</option>
+                                <option value="admin">Admin</option>
+                                <option value="user">User</option>
+                              </select>
+                              <button onClick={() => setAllPermissions(user, true)} disabled={saving !== null} className="rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-3 py-2 text-xs font-black text-emerald-300 hover:bg-emerald-500/15">All ON</button>
+                              <button onClick={() => setAllPermissions(user, false)} disabled={saving !== null} className="rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-xs font-black text-slate-300 hover:bg-slate-800">All OFF</button>
+                            </div>
+                          </div>
+
+                          <div className="space-y-4 p-5">
+                            {groupedPermissions.map(([group, permissions]) => (
+                              <div key={`${user.user_id}-${group}`} className="rounded-2xl border border-slate-800 bg-slate-950/55 p-4">
+                                <div className="mb-3 flex items-center gap-2 text-sm font-black capitalize text-white"><SlidersHorizontal size={16} className="text-blue-300" />{group}</div>
+                                <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+                                  {permissions.map((permission) => {
+                                    const allowed = draft?.permissions[permission.id] === true;
+                                    return (
+                                      <button key={permission.id} onClick={() => setPermission(user, permission.id, !allowed)} disabled={saving !== null} className="flex min-h-[58px] items-center justify-between gap-3 rounded-2xl border border-slate-800 bg-slate-900/70 px-4 py-3 text-start transition hover:border-slate-700 hover:bg-slate-900">
+                                        <span>
+                                          <span className="block text-sm font-bold text-slate-100">{cleanPermissionName(permission.key)}</span>
+                                          {permission.description && <span className="mt-0.5 block line-clamp-1 text-xs text-slate-500">{permission.description}</span>}
+                                        </span>
+                                        <span className={`relative h-7 w-12 shrink-0 rounded-full transition ${allowed ? "bg-emerald-500" : "bg-slate-700"}`}>
+                                          <span className={`absolute top-1 h-5 w-5 rounded-full bg-white transition ${allowed ? "left-6" : "left-1"}`} />
+                                        </span>
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+
+                          <div className="flex items-center justify-end gap-3 border-t border-slate-800 bg-slate-950/35 p-4">
+                            {savedUser === user.user_id && <span className="inline-flex items-center gap-1.5 text-sm font-bold text-emerald-400"><CheckCircle2 size={17} />{ar ? "تم الحفظ" : "Saved"}</span>}
+                            <button onClick={() => saveUser(user)} disabled={!dirty || saving !== null} className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-black text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-40">
+                              <Save size={16} /> {saving === user.user_id ? (ar ? "جارٍ الحفظ..." : "Saving...") : (ar ? "حفظ" : "Save")}
+                            </button>
+                          </div>
+                        </section>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {tab === "features" && (
+                  <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                    {features.map((feature) => (
+                      <div key={feature.id} className="flex items-center justify-between rounded-3xl border border-slate-800 bg-slate-900/70 p-5">
+                        <div>
+                          <h3 className="font-black">{feature.key.replace(/_/g, " ").toUpperCase()}</h3>
+                          <p className="text-xs text-slate-500">Company entitlement</p>
+                        </div>
+                        <button disabled={saving === feature.id} onClick={() => toggleFeature(feature)} className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-xs font-black transition ${feature.enabled ? "bg-emerald-500/15 text-emerald-300" : "bg-slate-800 text-slate-500"}`}>
+                          <Power size={14} /> {feature.enabled ? "ON" : "OFF"}
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {tab === "subscription" && (
+                  <div className="rounded-3xl border border-slate-800 bg-slate-900/70 p-6">
+                    {data?.subscription ? (
+                      <>
+                        <div className="flex justify-between gap-4">
+                          <div><p className="text-sm text-slate-500">Current plan</p><h2 className="text-2xl font-black">{data.subscription.subscription_plans?.name || "Custom"}</h2></div>
+                          <span className="font-bold text-emerald-400">{data.subscription.status}</span>
+                        </div>
+                        <div className="mt-6 h-3 rounded-full bg-slate-800"><div className="h-full rounded-full bg-blue-500" style={{ width: `${progress?.pct || 0}%` }} /></div>
+                        <div className="mt-2 flex justify-between text-xs text-slate-500"><span>{data.subscription.current_period_start ? new Date(data.subscription.current_period_start).toLocaleDateString() : "Not started"}</span><span>{progress ? `${progress.days} days remaining` : "Period pending"}</span><span>{data.subscription.current_period_end ? new Date(data.subscription.current_period_end).toLocaleDateString() : "—"}</span></div>
+                      </>
+                    ) : <p className="text-slate-500">No subscription found.</p>}
+                  </div>
+                )}
+
+                {tab === "receipts" && (
+                  <div className="overflow-hidden rounded-3xl border border-slate-800 bg-slate-900/70">
+                    <table className="w-full text-sm">
+                      <thead className="bg-slate-800/50 text-slate-400"><tr><th className="p-4 text-start">Receipt</th><th className="p-4 text-start">Issued</th><th className="p-4 text-start">Amount</th><th className="p-4 text-start">Status</th></tr></thead>
+                      <tbody>{data?.receipts.length ? data.receipts.map((receipt) => <tr key={receipt.id} className="border-t border-slate-800"><td className="p-4">{receipt.receipt_number}</td><td className="p-4">{new Date(receipt.issued_at).toLocaleDateString()}</td><td className="p-4">{receipt.total_amount} {receipt.currency}</td><td className="p-4">{receipt.payment_status}</td></tr>) : <tr><td colSpan={4} className="p-8 text-center text-slate-500">No receipts yet.</td></tr>}</tbody>
+                    </table>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        </main>
+      </div>
+    </div>
+  );
+}
