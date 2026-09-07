@@ -10,10 +10,9 @@ import ClientsTable from "@/app/components/ClientsTable";
 import AddClientModal from "@/app/components/AddClientModal";
 import { useLanguage } from "@/app/components/LanguageProvider";
 
-interface Company { id: string; name: string; whatsapp_phone_number_id?: string; created_at: string; }
+interface Company { id: string; name: string; whatsapp_phone_number_id?: string; activity_key?: string; activity_label?: string; created_at: string; }
 interface User { id: string; email?: string; }
-
-type AddClientForm = { companyName: string; adminEmail: string; temporaryPassword: string; whatsappPhoneNumberId: string; };
+type AddClientForm = { companyName: string; adminEmail: string; temporaryPassword: string; whatsappPhoneNumberId: string; activityKey: string; };
 
 export default function ClientsPage() {
   const { language } = useLanguage();
@@ -61,6 +60,7 @@ export default function ClientsPage() {
         admin_email: formData.adminEmail.trim(),
         temporary_password: formData.temporaryPassword.trim(),
         whatsapp_phone_number_id: formData.whatsappPhoneNumberId.trim(),
+        activity_key: formData.activityKey,
       }),
     });
     const data = await response.json().catch(() => ({}));
@@ -69,8 +69,8 @@ export default function ClientsPage() {
       throw new Error(`${prefix}: ${data.error || (ar ? "فشل إنشاء العميل" : "Failed to create client")}`);
     }
     setSuccessMessage(ar
-      ? `تم إنشاء العميل ${data.company_name || formData.companyName} وربط المدير: ${data.admin_email || formData.adminEmail}. أعطِه نفس كلمة المرور المؤقتة، وأول دخول رح يطلب تغييرها.`
-      : `Client ${data.company_name || formData.companyName} created and admin linked: ${data.admin_email || formData.adminEmail}. Share the same temporary password; first login will require changing it.`
+      ? `تم إنشاء العميل ${data.company_name || formData.companyName} كنشاط ${data.activity_label || formData.activityKey} وربط المدير: ${data.admin_email || formData.adminEmail}.`
+      : `Client ${data.company_name || formData.companyName} created as ${data.activity_label || formData.activityKey} and admin linked: ${data.admin_email || formData.adminEmail}.`
     );
     setShowModal(false);
     const companiesRes = await fetch("/api/clients");
@@ -79,9 +79,7 @@ export default function ClientsPage() {
   };
 
   const shell = (content: React.ReactNode) => <div className="min-h-screen bg-slate-950"><Sidebar userEmail={user?.email} userName={userName} /><div className="ml-64 flex min-h-screen flex-col"><DashboardHeader userEmail={user?.email} userName={userName} />{content}</div></div>;
-
   if (loading) return shell(<div className="flex flex-1 items-center justify-center"><p className="text-slate-400">{ar ? "جارٍ التحميل..." : "Loading..."}</p></div>);
   if (accessDenied) return shell(<div className="flex flex-1 items-center justify-center px-6 py-12"><div className="w-full max-w-md text-center"><div className="mb-6 inline-flex h-16 w-16 items-center justify-center rounded-full border border-red-500/30 bg-red-500/20"><span className="text-3xl text-red-400">!</span></div><h2 className="mb-2 text-2xl font-bold text-white">{ar ? "تم رفض الوصول" : "Access Denied"}</h2><p className="text-slate-400">{ar ? "هذه الصفحة مخصصة لـ King Admin في AVERO." : "This page is restricted to the AVERO King Admin."}</p></div></div>);
-
-  return shell(<div className="flex-1 px-4 py-6 md:px-6"><div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"><div><h1 className="text-3xl font-bold text-white">{ar ? "العملاء" : "Clients"}</h1><p className="mt-1 text-slate-400">{ar ? "إدارة حسابات الشركات واشتراكاتها" : "Manage company accounts"}</p></div><button onClick={() => setShowModal(true)} className="rounded-lg bg-blue-600 px-4 py-2 font-medium text-white transition-colors hover:bg-blue-700">+ {ar ? "إضافة عميل" : "Add Client"}</button></div>{successMessage && <div className="mb-6 rounded-lg border border-green-500/30 bg-green-500/20 p-4"><p className="text-green-300">{successMessage}</p></div>}<ClientsTable companies={companies} />{showModal && <AddClientModal onClose={() => setShowModal(false)} onSubmit={handleAddClient} />}</div>);
+  return shell(<div className="flex-1 px-4 py-6 md:px-6"><div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"><div><h1 className="text-3xl font-bold text-white">{ar ? "العملاء" : "Clients"}</h1><p className="mt-1 text-slate-400">{ar ? "إدارة حسابات الشركات واشتراكاتها وعقولها" : "Manage company accounts, plans and AI brains"}</p></div><button onClick={() => setShowModal(true)} className="rounded-lg bg-blue-600 px-4 py-2 font-medium text-white transition-colors hover:bg-blue-700">+ {ar ? "إضافة عميل" : "Add Client"}</button></div>{successMessage && <div className="mb-6 rounded-lg border border-green-500/30 bg-green-500/20 p-4"><p className="text-green-300">{successMessage}</p></div>}<ClientsTable companies={companies} />{showModal && <AddClientModal onClose={() => setShowModal(false)} onSubmit={handleAddClient} />}</div>);
 }
