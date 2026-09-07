@@ -7,7 +7,7 @@ import LogoutButton from "./LogoutButton";
 import AveroBrand from "./AveroBrand";
 import { useLanguage } from "./LanguageProvider";
 import type { AuthorizationContext } from "@/lib/auth/authorization";
-import { BarChart3, Bot, Building2, ChevronDown, ChevronRight, Headphones, Home, Menu, PackageCheck, PanelLeftClose, PanelLeftOpen, Sparkles, Store, UsersRound, Warehouse, X } from "lucide-react";
+import { BarChart3, Bot, Building2, ChevronDown, ChevronRight, CreditCard, Headphones, Home, Menu, PackageCheck, PanelLeftClose, PanelLeftOpen, Sparkles, Store, UsersRound, Warehouse, X } from "lucide-react";
 
 interface SidebarProps { userEmail?: string; userName?: string; access?: AuthorizationContext | null; }
 type NavIcon = ComponentType<{ size?: number; className?: string }>;
@@ -59,6 +59,7 @@ export default function Sidebar({ userEmail, userName, access }: SidebarProps) {
       <nav className="flex-1 space-y-2 overflow-y-auto p-3">
         <Main href="/" label={collapsed ? "" : "Home"} icon={Home} active={pathname === "/"} />
         <Main href="/pos" label={collapsed ? "" : "POS"} icon={Store} active={pathname?.startsWith("/pos")} />
+        <Main href="/subscriptions" label={collapsed ? "" : rtl ? "الاشتراكات" : "Subscriptions"} icon={CreditCard} active={pathname?.startsWith("/subscriptions")} />
         {agents.length > 0 && <div><button onClick={() => setAgentsOpen((value) => !value)} className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-slate-300 hover:bg-slate-900"><Bot size={18} /><span className={`flex-1 text-start text-sm font-medium ${collapsed ? "hidden md:hidden" : "block"}`}>AI Agents</span>{!collapsed && (agentsOpen ? <ChevronDown size={15} /> : arrow)}</button>{agentsOpen && !collapsed && <div className={`mt-2 space-y-1 border-slate-800 ${rtl ? "mr-5 border-r pr-3" : "ml-5 border-l pl-3"}`}>{agents.map((item) => <Sub key={item.href} href={item.href} label={item.label} pathname={pathname} icon={item.icon} />)}</div>}</div>}
         {crmVisible && <div><button onClick={() => setCrmOpen((value) => !value)} className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-slate-300 hover:bg-slate-900"><UsersRound size={18} /><span className={`flex-1 text-start text-sm font-medium ${collapsed ? "hidden" : "block"}`}>{t("crm")}</span>{!collapsed && (crmOpen ? <ChevronDown size={15} /> : arrow)}</button>{crmOpen && !collapsed && <div className={`mt-2 space-y-1 border-slate-800 ${rtl ? "mr-5 border-r pr-3" : "ml-5 border-l pl-3"}`}><Sub href="/crm" label={t("crmHub")} pathname={pathname} exact /><Sub href="/crm/sales" label={t("salesCrm")} pathname={pathname} /><Sub href="/crm/marketing" label={t("marketingCrm")} pathname={pathname} /><Sub href="/crm/hr" label={t("hrCrm")} pathname={pathname} /><Sub href="/crm/support" label={t("supportCrm")} pathname={pathname} /></div>}</div>}
         {analyticsVisible && <Main href="/analytics" label={collapsed ? "" : t("analytics")} icon={BarChart3} active={pathname?.startsWith("/analytics")} />}
