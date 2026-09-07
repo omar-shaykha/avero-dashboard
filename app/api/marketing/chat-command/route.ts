@@ -44,17 +44,14 @@ function fallbackDraft(input: { brandName: string; message: string; platforms: s
   const brand = input.brandName || "AVERO OS";
   return {
     campaign_name: `${brand} Daily Post`,
-    objective: "daily awareness and leads",
-    audience: "business owners and operations managers",
-    content_type: "post",
-    platforms: input.platforms,
     caption: `${brand} is built to make business operations easier.\n\nFrom leads and CRM to POS, inventory, HR, marketing and AI agents, your team can work from one clean operating system instead of scattered tools.\n\nTell us what part of your business you want to automate first.`,
     hashtags: ["AVEROOS", "BusinessOS", "AI", "CRM", "POS", "Automation"],
-    visual_idea: `${input.hasLogo ? "Use the uploaded AVERO logo" : "Use AVERO dark/cyan identity"}. Premium dark SaaS visual showing one command turning into content, CRM, POS and AI agents.` ,
+    visual_idea: `${input.hasLogo ? "Use the uploaded AVERO logo" : "Use AVERO dark/cyan identity"}. Premium dark SaaS visual showing one command turning into content, CRM, POS and AI agents.`,
     video_idea: "Short before/after reel: messy business workflow becomes one AVERO OS command center.",
     story_idea: "Story question: What is harder in your business today? Sales / Inventory / Team / Marketing.",
     carousel_idea: "4 slides: The problem, the command chat, AI departments, publish/track result.",
     call_to_action: "Message us to see AVERO OS in action.",
+    content_type: "post",
     needs_media: true,
   };
 }
@@ -104,7 +101,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true, kind: "assistant", message: "أنا AVERO Command Chat. احكيلي طبيعي: اعملي بوست اليوم على فيسبوك وانستغرام، أو حضّرلي ستوري، أو جهز إعلان." });
     }
 
-    const platforms = platformList(message);
+    const selectedPlatforms = platformList(message);
+    const channel = selectedPlatforms.length > 1 ? "multi_platform" : selectedPlatforms[0];
     const [{ data: brandKit }, { data: companyBrain }, { data: config }, { data: worker }] = await Promise.all([
       s.from("company_marketing_brand_kits").select("*").eq("company_id", profile.company_id).maybeSingle(),
       s.from("company_ai_profiles").select("industry,business_description,products_services,target_audience,brand_voice,languages,locations,social_notes").eq("company_id", profile.company_id).maybeSingle(),
@@ -116,7 +114,7 @@ export async function POST(req: NextRequest) {
 
     const brandName = safeString(brandKit?.brand_name, "AVERO OS");
     const hasLogo = Boolean(brandKit?.logo_data_url);
-    const prompt = `You are AVERO Command Chat controlling Foxy Marketing. The user gives a natural command. Create one approval-ready marketing draft. Be creative and out-of-the-box, but do not invent fake prices, clients, guarantees or results.\n\nUser command: ${message}\n\nCompany brain: ${JSON.stringify(companyBrain || {})}\nBrand kit: ${JSON.stringify({ ...(brandKit || {}), logo_data_url: hasLogo ? "uploaded_logo_available" : null })}\nWorker: ${JSON.stringify(worker || { worker_name: "Pulse", role_title: "Trend & Ideas Specialist" })}\nPlatforms: ${platforms.join(", ")}\n\nReturn exactly valid JSON:\n{\"campaign_name\":\"short title\",\"caption\":\"ready caption\",\"hashtags\":[\"tag\"],\"visual_idea\":\"image design idea\",\"video_idea\":\"short video idea\",\"story_idea\":\"story idea\",\"carousel_idea\":\"carousel idea\",\"call_to_action\":\"CTA\",\"platforms\":[\"facebook\",\"instagram\"],\"content_type\":\"post\",\"needs_media\":true}`;
+    const prompt = `You are AVERO Command Chat controlling Foxy Marketing. The user gives a natural command. Create one approval-ready marketing draft. Be creative and out-of-the-box, but do not invent fake prices, clients, guarantees or results.\n\nUser command: ${message}\n\nCompany brain: ${JSON.stringify(companyBrain || {})}\nBrand kit: ${JSON.stringify({ ...(brandKit || {}), logo_data_url: hasLogo ? "uploaded_logo_available" : null })}\nWorker: ${JSON.stringify(worker || { worker_name: "Pulse", role_title: "Trend & Ideas Specialist" })}\nPlatforms: ${selectedPlatforms.join(", ")}\n\nReturn exactly valid JSON:\n{\"campaign_name\":\"short title\",\"caption\":\"ready caption\",\"hashtags\":[\"tag\"],\"visual_idea\":\"image design idea\",\"video_idea\":\"short video idea\",\"story_idea\":\"story idea\",\"carousel_idea\":\"carousel idea\",\"call_to_action\":\"CTA\",\"content_type\":\"post\",\"needs_media\":true}`;
 
     let generated: Record<string, unknown>;
     let warning: string | null = null;
@@ -124,7 +122,7 @@ export async function POST(req: NextRequest) {
       generated = await geminiJson(prompt);
     } catch (error) {
       warning = error instanceof Error ? error.message : "AI fallback used";
-      generated = fallbackDraft({ brandName, message, platforms, hasLogo });
+      generated = fallbackDraft({ brandName, message, platforms: selectedPlatforms, hasLogo });
     }
 
     const now = new Date().toISOString();
@@ -136,8 +134,8 @@ export async function POST(req: NextRequest) {
       audience: safeString(companyBrain?.target_audience, "business owners and operations managers").slice(0, 800),
       currency: "SAR",
       creative_brief: message,
-      channel: platforms.length > 1 ? "multi_platform" : platforms[0],
-      platforms: asArray(generated.platforms, platforms).filter((p) => VALID_PLATFORMS.includes(p)),
+      channel,
+      platforms: selectedPlatforms,
       content_type: safeString(generated.content_type, "post").slice(0, 80),
       caption: safeString(generated.caption).slice(0, 8000),
       hashtags: asArray(generated.hashtags, ["AVEROOS", "BusinessOS"]),
@@ -167,14 +165,17 @@ export async function POST(req: NextRequest) {
     };
 
     const { data: item, error } = await s.from("marketing_content_queue").insert(payload).select("*").single();
-    if (error) return NextResponse.json({ error: `ما قدرت أحفظ المحتوى: ${error.message}` }, { status: 500 });
+    if (error) {
+      console.error("Marketing content insert error", error);
+      return NextResponse.json({ error: "Foxy ولّدت المحتوى، بس ما قدرت تحفظه بالكرت. جرّب مرة ثانية، وإذا تكررت بكون في إعداد داتابيس ناقص." }, { status: 500 });
+    }
 
     await s.from("ai_agent_runs").insert({
       company_id: profile.company_id,
       agent_key: "ai_marketing",
       action: "command_chat_generate_post",
       status: "approval_required",
-      input: { message, platforms, worker_key: "content_planner", worker_name: worker?.worker_name || "Pulse" },
+      input: { message, platforms: selectedPlatforms, worker_key: "content_planner", worker_name: worker?.worker_name || "Pulse" },
       output: { content_id: item.id, campaign_name: item.campaign_name, status: item.status },
       completed_at: now,
     });
