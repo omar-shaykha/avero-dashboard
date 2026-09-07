@@ -25,26 +25,30 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
     const now = new Date().toISOString();
     const update: Record<string, unknown> = { updated_at: now };
+    const hasApprovalNotes = Object.prototype.hasOwnProperty.call(body, "approval_notes");
+
     if (action === "approve") {
       update.status = "approved";
       update.approved_by = ctx.user.id;
       update.approved_at = now;
-      update.approval_notes = String(body.approval_notes || "").slice(0, 2000) || null;
+      if (hasApprovalNotes) update.approval_notes = String(body.approval_notes || "").slice(0, 2000) || null;
     }
     if (action === "schedule") {
       update.status = "scheduled";
       update.scheduled_for = body.scheduled_for ? new Date(body.scheduled_for).toISOString() : null;
       update.approved_by = ctx.user.id;
       update.approved_at = now;
+      if (hasApprovalNotes) update.approval_notes = String(body.approval_notes || "").slice(0, 2000) || null;
     }
     if (action === "publish") {
       update.status = "publishing";
       update.approved_by = ctx.user.id;
       update.approved_at = now;
+      if (hasApprovalNotes) update.approval_notes = String(body.approval_notes || "").slice(0, 2000) || null;
     }
     if (action === "reject") {
       update.status = "rejected";
-      update.approval_notes = String(body.approval_notes || "").slice(0, 2000) || null;
+      update.approval_notes = String(body.approval_notes || "Rejected by reviewer").slice(0, 2000);
     }
     if (action === "draft") {
       update.status = "draft";
