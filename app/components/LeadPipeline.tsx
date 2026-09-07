@@ -77,7 +77,6 @@ export default function LeadPipeline({ leads: initialLeads }: LeadPipelineProps)
   const closeModal = () => { setSelectedLead(null); setSelectedStatus(""); setUpdateMessage(null); };
   const leadsFor = (stage: StageKey) => localLeads.filter((lead) => normalizeStatus(lead.status) === stage);
   const stageLabel = (stage: StageKey) => ar ? STAGES[stage].labelAr : STAGES[stage].label;
-  const interestLabel = (value?: string | null) => value ? value : "-";
   const fmtDate = (value?: string | null) => value ? new Date(value).toLocaleString(ar ? "ar-SA" : "en-SA") : null;
   const whatsappUrl = (phone?: string | null) => phone ? `https://wa.me/${phone.replace(/\D/g, "")}` : null;
 
@@ -121,15 +120,15 @@ export default function LeadPipeline({ leads: initialLeads }: LeadPipelineProps)
           {STAGE_ORDER.map((stage) => {
             const stageLeads = leadsFor(stage);
             const { icon: Icon, accent } = STAGES[stage];
-            return <div key={stage} className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/80">
-              <div className={`${accent} h-1`} />
-              <div className="border-b border-slate-800 p-4">
+            return <div key={stage} className="flex h-[430px] flex-col overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/80">
+              <div className={`${accent} h-1 shrink-0`} />
+              <div className="shrink-0 border-b border-slate-800 p-4">
                 <div className="flex items-center justify-between gap-2">
                   <h3 className="flex items-center gap-2 text-sm font-black text-white"><Icon size={17} />{stageLabel(stage)}</h3>
                   <span className="rounded-full bg-slate-800 px-2.5 py-1 text-xs font-bold text-slate-300">{stageLeads.length}</span>
                 </div>
               </div>
-              <div className="space-y-3 p-3">
+              <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-3 pr-2">
                 {stageLeads.length ? stageLeads.map((lead) => <LeadCard key={lead.id} lead={lead} ar={ar} onOpen={() => { setSelectedLead(lead); setSelectedStatus(normalizeStatus(lead.status)); setUpdateMessage(null); }} />) : <EmptyStage ar={ar} />}
               </div>
             </div>;
