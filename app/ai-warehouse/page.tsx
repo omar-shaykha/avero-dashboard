@@ -1,2 +1,5 @@
-import AiDepartmentWorkspace from "@/app/components/AiDepartmentWorkspace";
-export default function AiWarehousePage(){return <AiDepartmentWorkspace agent="warehouse" title="Bruno Warehouse Agent"/>}
+import AgentOperatingRoom from "@/app/components/AgentOperatingRoom";
+
+export default function AiWarehousePage() {
+  return <AgentOperatingRoom agent="warehouse" />;
+}
