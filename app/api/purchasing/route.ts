@@ -14,7 +14,7 @@ export async function GET(){
  const q=(t:string,s="*")=>x.s.from(t).select(s).eq("company_id",x.c).order("created_at",{ascending:false}).limit(100);
  const z=await Promise.all([
   x.s.from("suppliers").select("id,name,supplier_code,currency,payment_terms_days").eq("company_id",x.c).eq("status","active").order("name"),
-  x.s.from("inventory_items").select("id,sku,name,purchase_unit_id,last_purchase_cost,tax_rate").eq("company_id",x.c).eq("active",true).order("name"),
+  x.s.from("inventory_items").select("id,sku,name,purchase_unit_id,last_purchase_cost,tax_rate,purchasable").eq("company_id",x.c).eq("active",true).eq("purchasable",true).order("name"),
   x.s.from("inventory_warehouses").select("id,code,name").eq("company_id",x.c).eq("active",true).order("name"),
   q("purchase_orders","*,suppliers(name),inventory_warehouses(name),purchase_order_lines(*)"),q("purchase_receipts","*,purchase_receipt_lines(*)"),q("supplier_invoices"),q("purchase_requests","*,purchase_request_lines(*)"),q("purchase_rfqs"),q("purchase_quotes","*,suppliers(name),purchase_quote_lines(*)"),q("supplier_payments"),q("supplier_credit_notes","*,supplier_credit_note_lines(*)"),q("purchase_approval_rules")
  ]);
