@@ -13,7 +13,7 @@ async function context(){
 }
 
 function canManage(auth:any){
-  return isKingAdmin(auth) || isTenantAdmin(auth) || hasPermission(auth,'sales.manage');
+  return isKingAdmin(auth) || isTenantAdmin(auth) || hasPermission(auth,'zatca.manage') || hasPermission(auth,'apps.manage');
 }
 function digits(value:unknown){ return String(value ?? '').replace(/\D/g,''); }
 function vatValid(value:unknown){ return /^3\d{13}3$/.test(digits(value)); }
@@ -117,7 +117,6 @@ export async function POST(req:Request){
       default_vat_rate:Number.isFinite(Number(data.default_vat_rate)) ? Number(data.default_vat_rate) : 15,
       updated_at:new Date().toISOString()
     };
-
     const r = await x.supabase.from('zatca_company_settings').upsert(payload,{onConflict:'company_id'}).select().single();
     return r.error ? NextResponse.json({error:r.error.message},{status:400}) : NextResponse.json({record:r.data});
   }
