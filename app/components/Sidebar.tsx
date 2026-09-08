@@ -7,7 +7,7 @@ import LogoutButton from "./LogoutButton";
 import AveroBrand from "./AveroBrand";
 import { useLanguage } from "./LanguageProvider";
 import type { AuthorizationContext } from "@/lib/auth/authorization";
-import { AppWindow, BarChart3, Bot, Building2, ChevronDown, ChevronRight, CreditCard, Menu, PanelLeftClose, PanelLeftOpen, Settings, Sparkles, Store, UserRound, UsersRound, X } from "lucide-react";
+import { AppWindow, BarChart3, Bot, Building2, ChevronDown, ChevronRight, CreditCard, Menu, PanelLeftClose, PanelLeftOpen, Settings, Sparkles, Store, UsersRound, X } from "lucide-react";
 
 interface SidebarProps { userEmail?: string; userName?: string; access?: AuthorizationContext | null; }
 type NavIcon = ComponentType<{ size?: number; className?: string }>;
@@ -53,7 +53,6 @@ export default function Sidebar({ userEmail, userName, access }: SidebarProps) {
       <div className="border-b border-slate-800/80 px-4 py-4"><div className="flex items-center justify-between gap-2">{collapsed ? <div className="scale-90"><AveroBrand compact /></div> : <AveroBrand />}<button onClick={() => setCollapsed((value) => !value)} className="hidden rounded-xl border border-slate-800 p-2 text-slate-400 hover:bg-slate-900 hover:text-white md:block">{collapsed ? <PanelLeftOpen size={17} /> : <PanelLeftClose size={17} />}</button></div></div>
       <nav className="flex-1 space-y-2 overflow-y-auto p-3">
         {monitoringVisible && <Main href="/manager-monitoring" label={collapsed ? "" : "Manager Monitoring"} icon={BarChart3} active={pathname?.startsWith("/manager-monitoring") || pathname?.startsWith("/analytics")} />}
-        <Main href="/profile" label={collapsed ? "" : rtl ? "الملف الشخصي" : "Profile"} icon={UserRound} active={pathname?.startsWith("/profile")} />
         <Main href="/pos" label={collapsed ? "" : "POS"} icon={Store} active={pathname?.startsWith("/pos")} />
         {appsVisible && <Main href="/apps" label={collapsed ? "" : rtl ? "التطبيقات" : "Apps"} icon={AppWindow} active={pathname?.startsWith("/apps")} />}
         {settingsVisible && <Main href="/settings" label={collapsed ? "" : rtl ? "الإعدادات" : "Settings"} icon={Settings} active={pathname?.startsWith("/settings") && !pathname?.startsWith("/settings/meta-whatsapp") && !pathname?.startsWith("/settings/zatca")} />}
