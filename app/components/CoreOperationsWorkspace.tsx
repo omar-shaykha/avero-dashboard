@@ -10,14 +10,15 @@ import RecipeWorkspace from "@/app/components/RecipeWorkspace";
 import RecipeCashierPublisher from "@/app/components/RecipeCashierPublisher";
 import CommerceAdminWorkspace from "@/app/components/CommerceAdminWorkspace";
 import CashierWorkspace from "@/app/components/CashierWorkspace";
+import AccountingWorkspace from "@/app/components/AccountingWorkspace";
 import { useLanguage } from "@/app/components/LanguageProvider";
 
-type Area = "inventory"|"suppliers"|"purchasing"|"production"|"recipes"|"subrecipes"|"products"|"customers"|"b2b"|"invoice"|"cashier";
+type Area = "inventory"|"suppliers"|"purchasing"|"production"|"recipes"|"subrecipes"|"products"|"customers"|"b2b"|"accounting"|"invoice"|"cashier";
 export default function CoreOperationsWorkspace() {
   const [area,setArea]=useState<Area>("inventory");
   const {language}=useLanguage();const ar=language==="ar";const L=(en:string,arabic:string)=>ar?arabic:en;
   const tabs:[Area,string][]=[
-    ["inventory",L("Inventory","المخزون")],["suppliers",L("Suppliers","الموردون")],["purchasing",L("Purchasing","المشتريات")],["production",L("Production","الإنتاج")],["recipes",L("Recipes","الوصفات")],["subrecipes",L("Sub Recipe","الوصفات الفرعية")],["products",L("Products","المنتجات")],["customers",L("Customers","العملاء")],["b2b","B2B"],["invoice",L("Invoice Customization","تخصيص الفاتورة")],["cashier",L("Cashier","الكاشير")]
+    ["inventory",L("Inventory","المخزون")],["suppliers",L("Suppliers","الموردون")],["purchasing",L("Purchasing","المشتريات")],["production",L("Production","الإنتاج")],["recipes",L("Recipes","الوصفات")],["subrecipes",L("Sub Recipe","الوصفات الفرعية")],["products",L("Products","المنتجات")],["customers",L("Customers","العملاء")],["b2b","B2B"],["accounting",L("Accounting","المحاسبة")],["invoice",L("Invoice Customization","تخصيص الفاتورة")],["cashier",L("Cashier","الكاشير")]
   ];
   return <div>
     <div className="mb-6 flex flex-wrap gap-2 rounded-2xl border border-slate-800 bg-slate-900 p-2">
@@ -32,6 +33,7 @@ export default function CoreOperationsWorkspace() {
      area==="products"?<CommerceAdminWorkspace mode="products"/>:
      area==="customers"?<CommerceAdminWorkspace mode="customers"/>:
      area==="b2b"?<CommerceAdminWorkspace mode="b2b"/>:
+     area==="accounting"?<AccountingWorkspace/>:
      area==="invoice"?<CommerceAdminWorkspace mode="invoice"/>:
      <CashierWorkspace/>}
   </div>;
