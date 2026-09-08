@@ -7,7 +7,7 @@ import LogoutButton from "./LogoutButton";
 import AveroBrand from "./AveroBrand";
 import { useLanguage } from "./LanguageProvider";
 import type { AuthorizationContext } from "@/lib/auth/authorization";
-import { BarChart3, Bot, Building2, ChevronDown, ChevronRight, CreditCard, Home, Menu, PanelLeftClose, PanelLeftOpen, Sparkles, Store, UserRound, UsersRound, X } from "lucide-react";
+import { AppWindow, BarChart3, Bot, Building2, ChevronDown, ChevronRight, CreditCard, Home, Menu, PanelLeftClose, PanelLeftOpen, Settings, Sparkles, Store, UserRound, UsersRound, X } from "lucide-react";
 
 interface SidebarProps { userEmail?: string; userName?: string; access?: AuthorizationContext | null; }
 type NavIcon = ComponentType<{ size?: number; className?: string }>;
@@ -34,6 +34,8 @@ export default function Sidebar({ userEmail, userName, access }: SidebarProps) {
   const crmVisible = has("crm", "view_crm");
   const analyticsVisible = has("analytics", "view_analytics");
   const clientsVisible = isKingAdmin;
+  const appsVisible = isKingAdmin || permitted("apps.view");
+  const settingsVisible = isKingAdmin || permitted("settings.view");
   const agents: NavItem[] = [
     { label: "AI Add-ons", href: "/ai-agents", show: true, icon: Sparkles },
     { label: "Leo — Sales", href: "/ai-sales", show: has("ai_sales", "view_ai_sales"), icon: Bot },
@@ -52,6 +54,8 @@ export default function Sidebar({ userEmail, userName, access }: SidebarProps) {
         <Main href="/" label={collapsed ? "" : "Home"} icon={Home} active={pathname === "/"} />
         <Main href="/profile" label={collapsed ? "" : rtl ? "الملف الشخصي" : "Profile"} icon={UserRound} active={pathname?.startsWith("/profile")} />
         <Main href="/pos" label={collapsed ? "" : "POS"} icon={Store} active={pathname?.startsWith("/pos")} />
+        {appsVisible && <Main href="/apps" label={collapsed ? "" : rtl ? "التطبيقات" : "Apps"} icon={AppWindow} active={pathname?.startsWith("/apps")} />}
+        {settingsVisible && <Main href="/settings" label={collapsed ? "" : rtl ? "الإعدادات" : "Settings"} icon={Settings} active={pathname?.startsWith("/settings") && !pathname?.startsWith("/settings/meta-whatsapp") && !pathname?.startsWith("/settings/zatca")} />}
         <Main href="/subscriptions" label={collapsed ? "" : rtl ? "الاشتراكات" : "Subscriptions"} icon={CreditCard} active={pathname?.startsWith("/subscriptions")} />
         {agents.length > 0 && <div><button onClick={() => setAgentsOpen((value) => !value)} className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-slate-300 hover:bg-slate-900"><Bot size={18} /><span className={`flex-1 text-start text-sm font-medium ${collapsed ? "hidden md:hidden" : "block"}`}>AI Add-ons</span>{!collapsed && (agentsOpen ? <ChevronDown size={15} /> : arrow)}</button>{agentsOpen && !collapsed && <div className={`mt-2 space-y-1 border-slate-800 ${rtl ? "mr-5 border-r pr-3" : "ml-5 border-l pl-3"}`}>{agents.map((item) => <Sub key={item.href} href={item.href} label={item.label} pathname={pathname} icon={item.icon} />)}</div>}</div>}
         {crmVisible && <Main href="/crm" label={collapsed ? "" : "CRM"} icon={UsersRound} active={pathname?.startsWith("/crm")} />}
