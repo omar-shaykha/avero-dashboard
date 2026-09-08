@@ -7,7 +7,7 @@ import LogoutButton from "./LogoutButton";
 import AveroBrand from "./AveroBrand";
 import { useLanguage } from "./LanguageProvider";
 import type { AuthorizationContext } from "@/lib/auth/authorization";
-import { AppWindow, BarChart3, Bot, Building2, ChevronDown, ChevronRight, CreditCard, Home, Menu, PanelLeftClose, PanelLeftOpen, Settings, Sparkles, Store, UserRound, UsersRound, X } from "lucide-react";
+import { AppWindow, BarChart3, Bot, Building2, ChevronDown, ChevronRight, CreditCard, Menu, PanelLeftClose, PanelLeftOpen, Settings, Sparkles, Store, UserRound, UsersRound, X } from "lucide-react";
 
 interface SidebarProps { userEmail?: string; userName?: string; access?: AuthorizationContext | null; }
 type NavIcon = ComponentType<{ size?: number; className?: string }>;
@@ -28,11 +28,12 @@ export default function Sidebar({ userEmail, userName, access }: SidebarProps) {
 
   const currentAccess = access ?? loadedAccess;
   const isKingAdmin = currentAccess?.profile.role === "king_admin";
+  const isTenantAdmin = currentAccess?.profile.role === "super_admin" || currentAccess?.profile.role === "admin";
   const aliases: Record<string, string> = { view_crm: "crm.view", view_analytics: "analytics.view", view_ai_sales: "sales.view" };
   const permitted = (permission: string) => isKingAdmin || !!currentAccess?.permissions.includes(aliases[permission] || permission);
   const has = (feature: string, permission: string) => isKingAdmin || !!(currentAccess?.features.includes(feature) && permitted(permission));
   const crmVisible = has("crm", "view_crm");
-  const analyticsVisible = has("analytics", "view_analytics");
+  const monitoringVisible = isKingAdmin || isTenantAdmin || permitted("analytics.view");
   const clientsVisible = isKingAdmin;
   const appsVisible = isKingAdmin || permitted("apps.view");
   const settingsVisible = isKingAdmin || permitted("settings.view");
@@ -51,7 +52,7 @@ export default function Sidebar({ userEmail, userName, access }: SidebarProps) {
     <div className={`fixed top-0 z-40 flex h-screen ${width} ${mobileTransform} flex-col border-slate-800/80 bg-[radial-gradient(circle_at_top_left,rgba(37,99,235,0.10),transparent_28%),#020617] transition-all duration-300 ${rtl ? "right-0 border-l" : "left-0 border-r"}`} dir={rtl ? "rtl" : "ltr"}>
       <div className="border-b border-slate-800/80 px-4 py-4"><div className="flex items-center justify-between gap-2">{collapsed ? <div className="scale-90"><AveroBrand compact /></div> : <AveroBrand />}<button onClick={() => setCollapsed((value) => !value)} className="hidden rounded-xl border border-slate-800 p-2 text-slate-400 hover:bg-slate-900 hover:text-white md:block">{collapsed ? <PanelLeftOpen size={17} /> : <PanelLeftClose size={17} />}</button></div></div>
       <nav className="flex-1 space-y-2 overflow-y-auto p-3">
-        <Main href="/" label={collapsed ? "" : "Home"} icon={Home} active={pathname === "/"} />
+        {monitoringVisible && <Main href="/manager-monitoring" label={collapsed ? "" : "Manager Monitoring"} icon={BarChart3} active={pathname?.startsWith("/manager-monitoring") || pathname?.startsWith("/analytics")} />}
         <Main href="/profile" label={collapsed ? "" : rtl ? "الملف الشخصي" : "Profile"} icon={UserRound} active={pathname?.startsWith("/profile")} />
         <Main href="/pos" label={collapsed ? "" : "POS"} icon={Store} active={pathname?.startsWith("/pos")} />
         {appsVisible && <Main href="/apps" label={collapsed ? "" : rtl ? "التطبيقات" : "Apps"} icon={AppWindow} active={pathname?.startsWith("/apps")} />}
@@ -59,7 +60,6 @@ export default function Sidebar({ userEmail, userName, access }: SidebarProps) {
         <Main href="/subscriptions" label={collapsed ? "" : rtl ? "الاشتراكات" : "Subscriptions"} icon={CreditCard} active={pathname?.startsWith("/subscriptions")} />
         {agents.length > 0 && <div><button onClick={() => setAgentsOpen((value) => !value)} className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-slate-300 hover:bg-slate-900"><Bot size={18} /><span className={`flex-1 text-start text-sm font-medium ${collapsed ? "hidden md:hidden" : "block"}`}>AI Add-ons</span>{!collapsed && (agentsOpen ? <ChevronDown size={15} /> : arrow)}</button>{agentsOpen && !collapsed && <div className={`mt-2 space-y-1 border-slate-800 ${rtl ? "mr-5 border-r pr-3" : "ml-5 border-l pl-3"}`}>{agents.map((item) => <Sub key={item.href} href={item.href} label={item.label} pathname={pathname} icon={item.icon} />)}</div>}</div>}
         {crmVisible && <Main href="/crm" label={collapsed ? "" : "CRM"} icon={UsersRound} active={pathname?.startsWith("/crm")} />}
-        {analyticsVisible && <Main href="/analytics" label={collapsed ? "" : t("analytics")} icon={BarChart3} active={pathname?.startsWith("/analytics")} />}
         {clientsVisible && <Main href="/clients" label={collapsed ? "" : t("clients")} icon={Building2} active={pathname?.startsWith("/clients")} />}
       </nav>
       <div className="border-t border-slate-800 p-3"><div className="flex items-center gap-3 rounded-2xl border border-slate-800 bg-slate-900/55 p-3"><div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-cyan-500 text-sm font-semibold">{initials}</div>{!collapsed && <div className="min-w-0 flex-1"><p className="truncate text-sm font-semibold">{userName || userEmail || "User"}</p><p className="text-[11px] uppercase tracking-[.13em] text-slate-500">{isKingAdmin ? "King Admin" : currentAccess?.profile.role?.replaceAll("_", " ") || "User"}</p></div>}<LogoutButton /></div></div>
