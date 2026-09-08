@@ -15,15 +15,15 @@ import AccountingWorkspace from "@/app/components/AccountingWorkspace";
 type Area = "inventory"|"suppliers"|"purchasing"|"production"|"recipes"|"subrecipes"|"products"|"customers"|"b2b"|"accounting"|"cashier";
 const allowed:Area[]=["inventory","suppliers","purchasing","production","recipes","subrecipes","products","customers","b2b","accounting","cashier"];
 
-export default function CoreOperationsWorkspace({initialArea="cashier"}:{initialArea?:string}) {
+export default function CoreOperationsWorkspace({initialArea="cashier",initialTab=""}:{initialArea?:string;initialTab?:string}) {
   const safeInitial=allowed.includes(initialArea as Area)?initialArea as Area:"cashier";
   const [area,setArea]=useState<Area>(safeInitial);
   useEffect(()=>{setArea(allowed.includes(initialArea as Area)?initialArea as Area:"cashier")},[initialArea]);
 
   return <div>
-    {area==="inventory"?<div className="space-y-8"><InventoryWorkspace/><InventoryAdvancedControls/><InventoryPermissionsPanel/></div>:
+    {area==="inventory"?<div className="space-y-8"><InventoryWorkspace initialTab={initialTab||"Dashboard"}/><InventoryAdvancedControls/><InventoryPermissionsPanel/></div>:
      area==="suppliers"?<SuppliersWorkspace/>:
-     area==="purchasing"?<PurchasingWorkspace/>:
+     area==="purchasing"?<PurchasingWorkspace initialTab={initialTab||"Orders"}/>:
      area==="production"?<ProductionWorkspace/>:
      area==="recipes"?<div className="space-y-8"><RecipeWorkspace type="main"/><RecipeCashierPublisher/></div>:
      area==="subrecipes"?<RecipeWorkspace type="sub"/>:
