@@ -12,6 +12,7 @@ interface SidebarProps { userEmail?: string; userName?: string; access?: Authori
 type NavIcon = ComponentType<{ size?: number; className?: string }>;
 type NavItem = { label: string; href: string; show: boolean; icon?: NavIcon };
 type PosArea = "cashier"|"inventory"|"suppliers"|"purchasing"|"production"|"recipes"|"subrecipes"|"products"|"customers"|"b2b"|"accounting";
+type PosItem={key:PosArea;en:string;ar:string;show:boolean};
 
 export default function Sidebar({ access }: SidebarProps) {
   const pathname = usePathname();
@@ -57,7 +58,7 @@ export default function Sidebar({ access }: SidebarProps) {
     { label: "AI Add-ons", href: "/ai-agents", show: true, icon: Sparkles },
     { label: "Leo — Sales", href: "/ai-sales", show: has("ai_sales", "view_ai_sales"), icon: Bot },
   ].filter((item) => item.show);
-  const posItems:{key:PosArea;en:string;ar:string;show:boolean}[]=[
+  const allPosItems:PosItem[]=[
     {key:"cashier",en:"Cashier",ar:"الكاشير",show:canModule("sales.view","sales.cashier")},
     {key:"inventory",en:"Inventory",ar:"المخزون",show:canModule("inventory.view")},
     {key:"suppliers",en:"Suppliers",ar:"الموردون",show:canModule("suppliers.view")},
@@ -69,7 +70,8 @@ export default function Sidebar({ access }: SidebarProps) {
     {key:"customers",en:"Customers",ar:"العملاء",show:canModule("customers.view","customers.manage","sales.view")},
     {key:"b2b",en:"B2B",ar:"المنشآت B2B",show:canModule("b2b.view","b2b.manage")},
     {key:"accounting",en:"Accounting",ar:"المحاسبة",show:canModule("accounting.view","sales.cost.view")},
-  ].filter(x=>x.show);
+  ];
+  const posItems=allPosItems.filter(x=>x.show);
   const arrow = rtl ? <ChevronRight size={15} className="rotate-180" /> : <ChevronRight size={15} />;
   const width = collapsed ? "md:w-20 w-72" : "md:w-64 w-72";
   const mobileTransform = mobileOpen ? "translate-x-0" : rtl ? "translate-x-full md:translate-x-0" : "-translate-x-full md:translate-x-0";
