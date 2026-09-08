@@ -1,12 +1,14 @@
 // @ts-nocheck
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { getAuthorizationContext } from "@/lib/auth/authorization";
+import { getAuthorizationContext, hasPermission, isKingAdmin, isTenantAdmin } from "@/lib/auth/authorization";
 
 const db = () =>
   createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SECRET_KEY!, {
     auth: { persistSession: false },
   });
+
+const can = (access: any, permission: string) => isKingAdmin(access) || isTenantAdmin(access) || hasPermission(access, permission);
 
 async function ctx() {
   const a = await getAuthorizationContext();
@@ -26,6 +28,7 @@ async function ownsSupplier(s: ReturnType<typeof db>, companyId: string, supplie
 export async function GET(_: Request, { params }: { params: Promise<{ id: string }> }) {
   const c = await ctx();
   if (!c) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!can(c.a, "suppliers.view") && !can(c.a, "suppliers.manage")) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   const { id } = await params;
 
   const { data: supplier, error } = await c.s
@@ -61,6 +64,7 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const c = await ctx();
   if (!c) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!can(c.a, "suppliers.manage")) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   const { id } = await params;
 
   if (!(await ownsSupplier(c.s, c.companyId, id))) {
@@ -71,8 +75,15 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   delete b.id;
   delete b.company_id;
   delete b.created_at;
+  delete b.created_by;
+  delete b.updated_by;
   b.updated_at = new Date().toISOString();
   b.updated_by = c.a.user?.id;
+
+  if (b.tax_enabled && b.tax_rate !== undefined) {
+    const taxRate = Number(b.tax_rate);
+    if (!Number.isFinite(taxRate) || taxRate < 0 || taxRate > 100) return NextResponse.json({ error: "Tax rate must be between 0 and 100" }, { status: 400 });
+  }
 
   const { data, error } = await c.s
     .from("suppliers")
@@ -88,9 +99,9 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const c = await ctx();
   if (!c) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!can(c.a, "suppliers.manage")) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   const { id } = await params;
 
-  // Never allow a tenant to attach child rows to another tenant's supplier UUID.
   if (!(await ownsSupplier(c.s, c.companyId, id))) {
     return NextResponse.json({ error: "Supplier not found" }, { status: 404 });
   }
@@ -114,6 +125,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   delete raw.supplier_id;
   delete raw.created_at;
   delete raw.updated_at;
+  delete raw.created_by;
+  delete raw.updated_by;
 
   const payload = { ...raw, company_id: c.companyId, supplier_id: id };
   const { data, error } = await c.s.from(table).insert(payload).select("*").single();
