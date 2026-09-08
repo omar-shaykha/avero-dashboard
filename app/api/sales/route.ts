@@ -1,4 +1,120 @@
 // @ts-nocheck
-import{NextResponse}from'next/server';import{createClient}from'@supabase/supabase-js';import{getAuthorizationContext,isKingAdmin,isTenantAdmin,hasPermission}from'@/lib/auth/authorization';const db=()=>createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!,process.env.SUPABASE_SECRET_KEY!,{auth:{persistSession:false}});const can=(a:any,p:string)=>isKingAdmin(a)||isTenantAdmin(a)||hasPermission(a,p);async function C(){let a=await getAuthorizationContext();return a?.profile?.company_id?{a,c:a.profile.company_id,s:db()}:null}
-export async function GET(){let x=await C();if(!x)return NextResponse.json({error:'Unauthorized'},{status:401});if(!can(x.a,'sales.view')&&!can(x.a,'sales.cashier'))return NextResponse.json({error:'Forbidden'},{status:403});let [products,categories,orders,settings,warehouses,items,recipes,shifts]=await Promise.all([x.s.from('sales_products').select('*,sales_categories(name),sales_product_modifiers(*)').eq('company_id',x.c).order('sort_order'),x.s.from('sales_categories').select('*').eq('company_id',x.c).order('sort_order'),x.s.from('sales_orders').select('*,sales_order_lines(*),sales_payments(*)').eq('company_id',x.c).order('created_at',{ascending:false}).limit(100),x.s.from('sales_settings').select('*').eq('company_id',x.c).maybeSingle(),x.s.from('inventory_warehouses').select('id,name').eq('company_id',x.c).eq('active',true),x.s.from('inventory_items').select('id,name,sku,average_cost').eq('company_id',x.c).eq('active',true),x.s.from('production_recipes').select('id,name,output_item_id').eq('company_id',x.c).eq('status','active'),x.s.from('sales_shifts').select('*').eq('company_id',x.c).order('created_at',{ascending:false}).limit(20)]);return NextResponse.json({products:products.data||[],categories:categories.data||[],orders:orders.data||[],settings:settings.data||null,warehouses:warehouses.data||[],items:items.data||[],recipes:recipes.data||[],shifts:shifts.data||[]})}
-export async function POST(req:Request){let x=await C();if(!x)return NextResponse.json({error:'Unauthorized'},{status:401});let b=await req.json(),d=b.data||{};if(b.kind==='generate_code'){let r=await x.s.rpc('sales_generate_code',{p_company_id:x.c,p_prefix:d.prefix||'PRD'});return NextResponse.json({code:r.data})}if(b.kind==='category'){if(!can(x.a,'sales.manage'))return NextResponse.json({error:'Forbidden'},{status:403});let r=await x.s.from('sales_categories').insert({company_id:x.c,name:d.name,code:d.code||null,description:d.description||null,sort_order:Number(d.sort_order||0)}).select().single();return r.error?NextResponse.json({error:r.error.message},{status:400}):NextResponse.json({record:r.data})}if(b.kind==='product'){if(!can(x.a,'sales.manage'))return NextResponse.json({error:'Forbidden'},{status:403});let sku=d.sku;if(!sku){let g=await x.s.rpc('sales_generate_code',{p_company_id:x.c,p_prefix:'PRD'});sku=g.data}let r=await x.s.from('sales_products').insert({company_id:x.c,category_id:d.category_id||null,inventory_item_id:d.inventory_item_id||null,recipe_id:d.recipe_id||null,sku,barcode:d.barcode||sku,name:d.name,description:d.description||null,image_url:d.image_url||null,image_path:d.image_path||null,sale_unit:d.sale_unit||'piece',weight:d.weight?Number(d.weight):null,price:Number(d.price||0),tax_enabled:!!d.tax_enabled,tax_rate:d.tax_enabled?Number(d.tax_rate||0):0,track_inventory:!!d.track_inventory,show_on_cashier:d.show_on_cashier!==false,active:true,sort_order:Number(d.sort_order||0)}).select().single();return r.error?NextResponse.json({error:r.error.message},{status:400}):NextResponse.json({record:r.data})}if(b.kind==='settings'){if(!can(x.a,'sales.manage'))return NextResponse.json({error:'Forbidden'},{status:403});let r=await x.s.from('sales_settings').upsert({company_id:x.c,cashier_mode:d.cashier_mode||'retail',default_warehouse_id:d.default_warehouse_id||null,currency:d.currency||'SAR',prices_include_tax:!!d.prices_include_tax,allow_discount:d.allow_discount!==false}).select().single();return r.error?NextResponse.json({error:r.error.message},{status:400}):NextResponse.json({record:r.data})}if(b.kind==='open_shift'){if(!can(x.a,'sales.cashier'))return NextResponse.json({error:'Forbidden'},{status:403});let r=await x.s.from('sales_shifts').insert({company_id:x.c,user_id:x.a.user.id,warehouse_id:d.warehouse_id||null,opening_cash:Number(d.opening_cash||0),status:'open'}).select().single();return r.error?NextResponse.json({error:r.error.message},{status:400}):NextResponse.json({record:r.data})}if(b.kind==='checkout'){if(!can(x.a,'sales.cashier'))return NextResponse.json({error:'Forbidden'},{status:403});let r=await x.s.rpc('sales_checkout',{p_company_id:x.c,p_cashier:x.a.user.id,p_shift_id:d.shift_id||null,p_warehouse_id:d.warehouse_id,p_service_type:d.service_type||'retail',p_table_no:d.table_no||null,p_discount:Number(d.discount||0),p_lines:d.lines||[],p_payments:d.payments||[],p_notes:d.notes||null});return r.error?NextResponse.json({error:r.error.message},{status:400}):NextResponse.json({result:r.data})}return NextResponse.json({error:'Invalid action'},{status:400})}
+import { NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
+import { getAuthorizationContext, isKingAdmin, isTenantAdmin, hasPermission } from '@/lib/auth/authorization';
+
+const db = () => createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SECRET_KEY!, { auth: { persistSession: false } });
+const can = (a:any,p:string) => isKingAdmin(a) || isTenantAdmin(a) || hasPermission(a,p);
+async function C(){ const a=await getAuthorizationContext(); return a?.profile?.company_id ? {a,c:a.profile.company_id,s:db()} : null; }
+async function owned(s:any,table:string,id:string|undefined,c:string){ if(!id)return true; const r=await s.from(table).select('id').eq('id',id).eq('company_id',c).maybeSingle(); return !!r.data; }
+
+export async function GET(){
+  const x=await C(); if(!x)return NextResponse.json({error:'Unauthorized'},{status:401});
+  if(!can(x.a,'sales.view')&&!can(x.a,'sales.cashier'))return NextResponse.json({error:'Forbidden'},{status:403});
+  const showCost=can(x.a,'sales.cost.view')||can(x.a,'inventory.cost.view');
+  const [products,categories,orders,settings,warehouses,items,recipes,shifts]=await Promise.all([
+    x.s.from('sales_products').select('*,sales_categories(name),sales_product_modifiers(*)').eq('company_id',x.c).eq('active',true).order('sort_order'),
+    x.s.from('sales_categories').select('*').eq('company_id',x.c).eq('active',true).order('sort_order'),
+    x.s.from('sales_orders').select('*,sales_order_lines(*),sales_payments(*)').eq('company_id',x.c).order('created_at',{ascending:false}).limit(150),
+    x.s.from('sales_settings').select('*').eq('company_id',x.c).maybeSingle(),
+    x.s.from('inventory_warehouses').select('id,name').eq('company_id',x.c).eq('active',true),
+    x.s.from('inventory_items').select(showCost?'id,name,sku,average_cost':'id,name,sku').eq('company_id',x.c).eq('active',true),
+    x.s.from('production_recipes').select('id,name,recipe_code,output_item_id,yield_qty,status').eq('company_id',x.c).eq('status','active'),
+    x.s.from('sales_shifts').select('*').eq('company_id',x.c).order('created_at',{ascending:false}).limit(30)
+  ]);
+  return NextResponse.json({products:products.data||[],categories:categories.data||[],orders:orders.data||[],settings:settings.data||null,warehouses:warehouses.data||[],items:items.data||[],recipes:recipes.data||[],shifts:shifts.data||[]});
+}
+
+export async function POST(req:Request){
+  const x=await C(); if(!x)return NextResponse.json({error:'Unauthorized'},{status:401});
+  const b=await req.json(), d=b.data||{};
+
+  if(b.kind==='generate_code'){
+    if(!can(x.a,'sales.manage'))return NextResponse.json({error:'Forbidden'},{status:403});
+    const r=await x.s.rpc('sales_generate_code',{p_company_id:x.c,p_prefix:d.prefix||'PRD'});
+    return r.error?NextResponse.json({error:r.error.message},{status:400}):NextResponse.json({code:r.data});
+  }
+
+  if(b.kind==='category'){
+    if(!can(x.a,'sales.manage'))return NextResponse.json({error:'Forbidden'},{status:403});
+    if(!String(d.name||'').trim())return NextResponse.json({error:'Category name is required'},{status:400});
+    const r=await x.s.from('sales_categories').insert({company_id:x.c,name:String(d.name).trim(),code:d.code||null,description:d.description||null,sort_order:Number(d.sort_order||0)}).select().single();
+    return r.error?NextResponse.json({error:r.error.message},{status:400}):NextResponse.json({record:r.data});
+  }
+
+  if(b.kind==='product'){
+    if(!can(x.a,'sales.manage')&&!can(x.a,'production.manage'))return NextResponse.json({error:'Forbidden'},{status:403});
+    if(!String(d.name||'').trim())return NextResponse.json({error:'Product name is required'},{status:400});
+    if(Number(d.price)<0)return NextResponse.json({error:'Price cannot be negative'},{status:400});
+    if(d.category_id && !await owned(x.s,'sales_categories',d.category_id,x.c))return NextResponse.json({error:'Invalid category'},{status:400});
+    if(d.inventory_item_id && !await owned(x.s,'inventory_items',d.inventory_item_id,x.c))return NextResponse.json({error:'Invalid inventory item'},{status:400});
+    if(d.recipe_id && !await owned(x.s,'production_recipes',d.recipe_id,x.c))return NextResponse.json({error:'Invalid recipe'},{status:400});
+    let sku=d.sku;
+    if(!sku){ const g=await x.s.rpc('sales_generate_code',{p_company_id:x.c,p_prefix:d.recipe_id?'RCP':'PRD'}); if(g.error)return NextResponse.json({error:g.error.message},{status:400}); sku=g.data; }
+    const r=await x.s.from('sales_products').insert({company_id:x.c,category_id:d.category_id||null,inventory_item_id:d.inventory_item_id||null,recipe_id:d.recipe_id||null,sku,barcode:d.barcode||sku,name:String(d.name).trim(),description:d.description||null,image_url:d.image_url||null,image_path:d.image_path||null,sale_unit:d.sale_unit||'piece',weight:d.weight?Number(d.weight):null,price:Number(d.price||0),tax_enabled:!!d.tax_enabled,tax_rate:d.tax_enabled?Number(d.tax_rate||0):0,track_inventory:!!d.track_inventory,show_on_cashier:d.show_on_cashier!==false,active:true,sort_order:Number(d.sort_order||0)}).select().single();
+    return r.error?NextResponse.json({error:r.error.message},{status:400}):NextResponse.json({record:r.data});
+  }
+
+  if(b.kind==='settings'){
+    if(!can(x.a,'sales.manage'))return NextResponse.json({error:'Forbidden'},{status:403});
+    if(d.default_warehouse_id && !await owned(x.s,'inventory_warehouses',d.default_warehouse_id,x.c))return NextResponse.json({error:'Invalid warehouse'},{status:400});
+    const r=await x.s.from('sales_settings').upsert({company_id:x.c,cashier_mode:d.cashier_mode||'retail',default_warehouse_id:d.default_warehouse_id||null,currency:d.currency||'SAR',prices_include_tax:!!d.prices_include_tax,allow_discount:d.allow_discount!==false,allow_negative_sale:!!d.allow_negative_sale,auto_print_receipt:!!d.auto_print_receipt}).select().single();
+    return r.error?NextResponse.json({error:r.error.message},{status:400}):NextResponse.json({record:r.data});
+  }
+
+  if(b.kind==='open_shift'){
+    if(!can(x.a,'sales.cashier'))return NextResponse.json({error:'Forbidden'},{status:403});
+    if(d.warehouse_id && !await owned(x.s,'inventory_warehouses',d.warehouse_id,x.c))return NextResponse.json({error:'Invalid warehouse'},{status:400});
+    const existing=await x.s.from('sales_shifts').select('id').eq('company_id',x.c).eq('user_id',x.a.user.id).eq('status','open').maybeSingle();
+    if(existing.data)return NextResponse.json({record:existing.data});
+    const r=await x.s.from('sales_shifts').insert({company_id:x.c,user_id:x.a.user.id,warehouse_id:d.warehouse_id||null,opening_cash:Number(d.opening_cash||0),status:'open'}).select().single();
+    return r.error?NextResponse.json({error:r.error.message},{status:400}):NextResponse.json({record:r.data});
+  }
+
+  if(b.kind==='close_shift'){
+    if(!can(x.a,'sales.cashier'))return NextResponse.json({error:'Forbidden'},{status:403});
+    const r=await x.s.from('sales_shifts').update({status:'closed',closed_at:new Date().toISOString(),closing_cash:Number(d.closing_cash||0)}).eq('id',d.shift_id).eq('company_id',x.c).eq('user_id',x.a.user.id).eq('status','open').select().single();
+    return r.error?NextResponse.json({error:r.error.message},{status:400}):NextResponse.json({record:r.data});
+  }
+
+  if(b.kind==='hold'){
+    if(!can(x.a,'sales.cashier'))return NextResponse.json({error:'Forbidden'},{status:403});
+    if(!Array.isArray(d.lines)||!d.lines.length)return NextResponse.json({error:'Cart is empty'},{status:400});
+    if(!await owned(x.s,'inventory_warehouses',d.warehouse_id,x.c))return NextResponse.json({error:'Invalid warehouse'},{status:400});
+    const ids=d.lines.map((z:any)=>z.product_id);
+    const pr=await x.s.from('sales_products').select('id,name,price,tax_enabled,tax_rate,inventory_item_id,recipe_id').eq('company_id',x.c).in('id',ids);
+    if(pr.error||pr.data.length!==new Set(ids).size)return NextResponse.json({error:'Invalid product in cart'},{status:400});
+    const map=new Map(pr.data.map((p:any)=>[p.id,p])); let subtotal=0,tax=0;
+    const lines=d.lines.map((z:any)=>{const p:any=map.get(z.product_id),q=Number(z.quantity||0),ld=Math.max(0,Number(z.discount||0)),base=Math.max(0,p.price*q-ld),tx=p.tax_enabled?base*Number(p.tax_rate||0)/100:0;subtotal+=base;tax+=tx;return{company_id:x.c,product_id:p.id,inventory_item_id:p.inventory_item_id,recipe_id:p.recipe_id,product_name:p.name,quantity:q,unit_price:Number(p.price),discount:ld,tax_rate:p.tax_enabled?Number(p.tax_rate||0):0,tax_amount:tx,line_total:base+tx,unit_cost:0,total_cost:0};});
+    const discount=Math.max(0,Number(d.discount||0));
+    const no='H-'+Date.now().toString(36).toUpperCase();
+    const or=await x.s.from('sales_orders').insert({company_id:x.c,order_no:no,shift_id:d.shift_id||null,cashier_id:x.a.user.id,warehouse_id:d.warehouse_id,service_type:d.service_type||'retail',table_no:d.table_no||null,status:'held',subtotal,discount,tax,total:Math.max(0,subtotal+tax-discount),customer_name:d.customer?.name||null,customer_phone:d.customer?.phone||null,customer_email:d.customer?.email||null,customer_notes:d.customer?.notes||null,discount_percent:Number(d.discount_percent||0),notes:d.notes||null}).select().single();
+    if(or.error)return NextResponse.json({error:or.error.message},{status:400});
+    const lr=await x.s.from('sales_order_lines').insert(lines.map((l:any)=>({...l,order_id:or.data.id})));
+    if(lr.error){await x.s.from('sales_orders').delete().eq('id',or.data.id).eq('company_id',x.c);return NextResponse.json({error:lr.error.message},{status:400});}
+    return NextResponse.json({record:or.data});
+  }
+
+  if(b.kind==='cancel_hold'){
+    if(!can(x.a,'sales.cashier'))return NextResponse.json({error:'Forbidden'},{status:403});
+    const h=await x.s.from('sales_orders').select('id').eq('id',d.order_id).eq('company_id',x.c).eq('status','held').maybeSingle();
+    if(!h.data)return NextResponse.json({error:'Held order not found'},{status:404});
+    await x.s.from('sales_order_lines').delete().eq('order_id',d.order_id).eq('company_id',x.c); await x.s.from('sales_orders').delete().eq('id',d.order_id).eq('company_id',x.c);
+    return NextResponse.json({ok:true});
+  }
+
+  if(b.kind==='checkout'){
+    if(!can(x.a,'sales.cashier'))return NextResponse.json({error:'Forbidden'},{status:403});
+    if(!await owned(x.s,'inventory_warehouses',d.warehouse_id,x.c))return NextResponse.json({error:'Invalid warehouse'},{status:400});
+    const discount=Number(d.discount||0); if(discount>0 && !can(x.a,'sales.discount'))return NextResponse.json({error:'Discount permission required'},{status:403});
+    if(d.shift_id){const sh=await x.s.from('sales_shifts').select('id').eq('id',d.shift_id).eq('company_id',x.c).eq('status','open').maybeSingle();if(!sh.data)return NextResponse.json({error:'Shift is not open'},{status:400});}
+    const r=await x.s.rpc('sales_checkout',{p_company_id:x.c,p_cashier:x.a.user.id,p_shift_id:d.shift_id||null,p_warehouse_id:d.warehouse_id,p_service_type:d.service_type||'retail',p_table_no:d.table_no||null,p_discount:discount,p_lines:d.lines||[],p_payments:d.payments||[],p_notes:d.notes||null});
+    if(r.error)return NextResponse.json({error:r.error.message},{status:400});
+    const oid=r.data?.order_id;
+    if(oid)await x.s.from('sales_orders').update({customer_name:d.customer?.name||null,customer_phone:d.customer?.phone||null,customer_email:d.customer?.email||null,customer_notes:d.customer?.notes||null,discount_percent:Number(d.discount_percent||0)}).eq('id',oid).eq('company_id',x.c);
+    if(d.held_order_id){await x.s.from('sales_order_lines').delete().eq('order_id',d.held_order_id).eq('company_id',x.c);await x.s.from('sales_orders').delete().eq('id',d.held_order_id).eq('company_id',x.c).eq('status','held');}
+    return NextResponse.json({result:r.data});
+  }
+
+  return NextResponse.json({error:'Invalid action'},{status:400});
+}
