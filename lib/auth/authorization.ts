@@ -21,6 +21,10 @@ export async function getAuthorizationContext():Promise<AuthorizationContext|nul
  const supabase=getAdminClient();
  const{data:profile,error:profileError}=await supabase.from("user_profiles").select("company_id,role,role_id").eq("user_id",user.id).maybeSingle();if(profileError)throw profileError;
  const effective=new Map<string,boolean>();
+ if(profile?.role_id){
+   const{data:rolePermissions,error:rolePermissionsError}=await supabase.from("role_permissions").select("permissions(key)").eq("role_id",profile.role_id);if(rolePermissionsError)throw rolePermissionsError;
+   for(const row of rolePermissions||[]){const permission=Array.isArray(row.permissions)?row.permissions[0]:row.permissions;if(permission?.key)effective.set(permission.key,true)}
+ }
  const{data:overrides,error:overridesError}=await supabase.from("user_permission_overrides").select("allowed,permissions(key)").eq("user_id",user.id);if(overridesError)throw overridesError;
  for(const row of overrides||[]){const permission=Array.isArray(row.permissions)?row.permissions[0]:row.permissions;if(permission?.key)effective.set(permission.key,Boolean(row.allowed))}
  const permissions=[...effective.entries()].filter(([,allowed])=>allowed).map(([key])=>key);
@@ -34,4 +38,4 @@ export function isTenantAdmin(context:AuthorizationContext|null){return context?
 export function hasPermission(context:AuthorizationContext|null,permissionKey:string){return Boolean(isKingAdmin(context)||context?.permissions.includes(normalizePermissionKey(permissionKey)))}
 export function hasFeature(context:AuthorizationContext|null,featureKey:FeatureKey){return Boolean(isKingAdmin(context)||context?.features.includes(featureKey))}
 export function canAccess(context:AuthorizationContext|null,featureKey:FeatureKey,permissionKey:string){return Boolean(isKingAdmin(context)||(hasFeature(context,featureKey)&&hasPermission(context,permissionKey)))}
-export function canManageCompanyUsers(context:AuthorizationContext|null){return Boolean(isKingAdmin(context)||hasPermission(context,"users.permissions.manage"))}
+export function canManageCompanyUsers(context:AuthorizationContext|null){return Boolean(isKingAdmin(context)||isSuperAdmin(context)||hasPermission(context,"users.permissions.manage"))}
