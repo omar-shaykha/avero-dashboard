@@ -6,6 +6,7 @@ import InventoryAdvancedControls from "@/app/components/InventoryAdvancedControl
 import InventoryPermissionsPanel from "@/app/components/InventoryPermissionsPanel";
 import PurchasingWorkspace from "@/app/components/PurchasingWorkspace";
 import ProductionRecipeWorkspace from "@/app/components/ProductionRecipeWorkspace";
+import RecipeCashierPublisher from "@/app/components/RecipeCashierPublisher";
 import SalesPosWorkspace from "@/app/components/SalesPosWorkspace";
 
 export default function CoreOperationsWorkspace() {
@@ -48,7 +49,10 @@ export default function CoreOperationsWorkspace() {
       ) : area === "purchasing" ? (
         <PurchasingWorkspace />
       ) : area === "production" ? (
-        <ProductionRecipeWorkspace />
+        <div className="space-y-8">
+          <ProductionRecipeWorkspace />
+          <RecipeCashierPublisher />
+        </div>
       ) : (
         <SalesPosWorkspace />
       )}
