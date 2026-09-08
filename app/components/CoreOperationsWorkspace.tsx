@@ -15,7 +15,6 @@ import AccountingWorkspace from "@/app/components/AccountingWorkspace";
 import { useLanguage } from "@/app/components/LanguageProvider";
 
 type Area = "inventory"|"suppliers"|"purchasing"|"production"|"recipes"|"subrecipes"|"products"|"customers"|"b2b"|"accounting"|"cashier";
-
 type MenuItem={key:Area;en:string;ar:string;group:"operations"|"master"|"finance"|"sales"};
 
 export default function CoreOperationsWorkspace() {
@@ -65,7 +64,7 @@ export default function CoreOperationsWorkspace() {
             </div>
           </div>)}
           <div className="mt-3 border-t border-slate-800 pt-3">
-            <Link href="/settings?tab=pos" className="flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-sm font-bold text-slate-300 hover:bg-slate-900" onClick={()=>setMenuOpen(false)}>
+            <Link href="/settings/pos" className="flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-sm font-bold text-slate-300 hover:bg-slate-900" onClick={()=>setMenuOpen(false)}>
               <span>{L("POS, Payments & Invoice Settings","إعدادات نقاط البيع والدفع والفاتورة")}</span><span>→</span>
             </Link>
           </div>
