@@ -12,7 +12,13 @@ interface SidebarProps { userEmail?: string; userName?: string; access?: Authori
 type NavIcon = ComponentType<{ size?: number; className?: string }>;
 type NavItem = { label: string; href: string; show: boolean; icon?: NavIcon };
 type PosArea = "cashier"|"inventory"|"suppliers"|"purchasing"|"production"|"recipes"|"subrecipes"|"products"|"customers"|"b2b"|"accounting";
-type PosItem={key:PosArea;en:string;ar:string;show:boolean};
+
+const inventorySections=[
+  {key:"Dashboard",en:"Dashboard",ar:"لوحة التحكم"},{key:"Items",en:"Items",ar:"الأصناف"},{key:"Warehouses",en:"Warehouses",ar:"المستودعات"},{key:"Stock",en:"Stock",ar:"المخزون"},{key:"Movements",en:"Movements",ar:"الحركات"},{key:"Transfers",en:"Transfers",ar:"التحويلات"},{key:"Stock Count",en:"Stock Count",ar:"الجرد"},{key:"Waste",en:"Waste",ar:"الهدر"},{key:"Expiry",en:"Expiry",ar:"الصلاحية"},{key:"Reports",en:"Reports",ar:"التقارير"}
+];
+const purchasingSections=[
+  {key:"Orders",en:"Orders",ar:"أوامر الشراء"},{key:"Requests",en:"Requests",ar:"طلبات الشراء"},{key:"RFQ & Quotes",en:"RFQ & Quotes",ar:"طلبات وعروض الأسعار"},{key:"Receipts",en:"Receipts / GRN",ar:"الاستلام"},{key:"Invoices",en:"Supplier Invoices",ar:"فواتير الموردين"},{key:"Payments",en:"Payments",ar:"المدفوعات"},{key:"Returns",en:"Returns",ar:"المرتجعات"},{key:"Approval Rules",en:"Approval Rules",ar:"قواعد الموافقات"}
+];
 
 export default function Sidebar({ access }: SidebarProps) {
   const pathname = usePathname();
@@ -24,21 +30,29 @@ export default function Sidebar({ access }: SidebarProps) {
   const [agentsOpen, setAgentsOpen] = useState(pathname?.startsWith("/ai-") ?? true);
   const [posOpen,setPosOpen]=useState(pathname?.startsWith("/pos") ?? false);
   const [settingsOpen,setSettingsOpen]=useState(pathname?.startsWith("/settings") ?? false);
+  const [inventoryOpen,setInventoryOpen]=useState(false);
+  const [purchasingOpen,setPurchasingOpen]=useState(false);
   const [currentArea,setCurrentArea]=useState<PosArea>("cashier");
+  const [currentTab,setCurrentTab]=useState("");
 
   useEffect(() => { if (access !== undefined) return; fetch("/api/auth/access").then((r) => r.ok ? r.json() : null).then((d) => d && setLoadedAccess(d)).catch(() => undefined); }, [access]);
   useEffect(() => {
     if (pathname?.startsWith("/ai-")) setAgentsOpen(true);
-    if (pathname?.startsWith("/pos")) {
-      setPosOpen(true);
-      const syncArea=()=>{const a=new URLSearchParams(window.location.search).get("area") as PosArea|null;if(a)setCurrentArea(a);else setCurrentArea("cashier")};
-      syncArea();
-      window.addEventListener("popstate",syncArea);
-      setMobileOpen(false);
-      return ()=>window.removeEventListener("popstate",syncArea);
-    }
-    if(pathname?.startsWith("/settings"))setSettingsOpen(true);
+    const syncRoute=()=>{
+      if(pathname?.startsWith("/pos")){
+        const q=new URLSearchParams(window.location.search);
+        const a=(q.get("area")||"cashier") as PosArea;
+        const tab=q.get("tab")||"";
+        setPosOpen(true);setCurrentArea(a);setCurrentTab(tab);
+        if(a==="inventory")setInventoryOpen(true);
+        if(a==="purchasing")setPurchasingOpen(true);
+      }
+      if(pathname?.startsWith("/settings"))setSettingsOpen(true);
+    };
+    syncRoute();
+    window.addEventListener("popstate",syncRoute);
     setMobileOpen(false);
+    return ()=>window.removeEventListener("popstate",syncRoute);
   }, [pathname]);
   useEffect(() => { document.documentElement.classList.toggle("sidebar-collapsed", collapsed); return () => document.documentElement.classList.remove("sidebar-collapsed"); }, [collapsed]);
 
@@ -58,24 +72,13 @@ export default function Sidebar({ access }: SidebarProps) {
     { label: "AI Add-ons", href: "/ai-agents", show: true, icon: Sparkles },
     { label: "Leo — Sales", href: "/ai-sales", show: has("ai_sales", "view_ai_sales"), icon: Bot },
   ].filter((item) => item.show);
-  const allPosItems:PosItem[]=[
-    {key:"cashier",en:"Cashier",ar:"الكاشير",show:canModule("sales.view","sales.cashier")},
-    {key:"inventory",en:"Inventory",ar:"المخزون",show:canModule("inventory.view")},
-    {key:"suppliers",en:"Suppliers",ar:"الموردون",show:canModule("suppliers.view")},
-    {key:"purchasing",en:"Purchasing",ar:"المشتريات",show:canModule("purchasing.view")},
-    {key:"production",en:"Production",ar:"الإنتاج",show:canModule("production.view")},
-    {key:"recipes",en:"Recipes",ar:"الوصفات",show:canModule("production.view")},
-    {key:"subrecipes",en:"Sub Recipe",ar:"الوصفات الفرعية",show:canModule("production.view")},
-    {key:"products",en:"Products",ar:"المنتجات",show:canModule("sales.view","sales.manage")},
-    {key:"customers",en:"Customers",ar:"العملاء",show:canModule("customers.view","customers.manage","sales.view")},
-    {key:"b2b",en:"B2B",ar:"المنشآت B2B",show:canModule("b2b.view","b2b.manage")},
-    {key:"accounting",en:"Accounting",ar:"المحاسبة",show:canModule("accounting.view","sales.cost.view")},
-  ];
-  const posItems=allPosItems.filter(x=>x.show);
   const arrow = rtl ? <ChevronRight size={15} className="rotate-180" /> : <ChevronRight size={15} />;
   const width = collapsed ? "md:w-20 w-72" : "md:w-64 w-72";
   const mobileTransform = mobileOpen ? "translate-x-0" : rtl ? "translate-x-full md:translate-x-0" : "-translate-x-full md:translate-x-0";
   const subBorder=rtl?"mr-5 border-r pr-3":"ml-5 border-l pl-3";
+  const nestedBorder=rtl?"mr-3 border-r pr-2":"ml-3 border-l pl-2";
+  const L=(en:string,ar:string)=>rtl?ar:en;
+  const selectRoute=(area:PosArea,tab="")=>{setCurrentArea(area);setCurrentTab(tab);setMobileOpen(false)};
 
   return <>
     <button onClick={() => setMobileOpen((value) => !value)} className={`fixed top-3 z-50 rounded-xl border border-cyan-400/30 bg-slate-950/95 p-3 text-cyan-200 shadow-2xl md:hidden ${rtl ? "right-3" : "left-3"}`}>{mobileOpen ? <X size={20} /> : <Menu size={20} />}</button>
@@ -88,7 +91,27 @@ export default function Sidebar({ access }: SidebarProps) {
         <div>
           <button onClick={()=>{if(collapsed){setCollapsed(false);setPosOpen(true)}else setPosOpen(v=>!v)}} className={`flex w-full items-center gap-3 rounded-xl px-4 py-3 ${pathname?.startsWith("/pos")?"bg-cyan-500/10 text-cyan-300":"text-slate-300 hover:bg-slate-900"}`}><Store size={18}/><span className={`flex-1 text-start text-sm font-medium ${collapsed?"hidden":"block"}`}>POS</span>{!collapsed&&(posOpen?<ChevronDown size={15}/>:arrow)}</button>
           {posOpen&&!collapsed&&<div className={`mt-2 space-y-1 border-slate-800 ${subBorder}`}>
-            {posItems.map(item=><Link key={item.key} href={`/pos?area=${item.key}`} onClick={()=>{setCurrentArea(item.key);setMobileOpen(false)}} className={`flex items-center justify-between rounded-lg px-3 py-2 text-xs ${pathname?.startsWith("/pos")&&currentArea===item.key?"bg-cyan-500/10 font-bold text-cyan-300":"text-slate-500 hover:bg-slate-900 hover:text-slate-300"}`}><span>{rtl?item.ar:item.en}</span>{pathname?.startsWith("/pos")&&currentArea===item.key&&<span className="text-[10px]">●</span>}</Link>)}
+            {canModule("sales.view","sales.cashier")&&<ModuleLink href="/pos?area=cashier" label={L("Cashier","الكاشير")} active={pathname?.startsWith("/pos")&&currentArea==="cashier"} onClick={()=>selectRoute("cashier")}/>} 
+
+            {canModule("inventory.view")&&<div>
+              <button onClick={()=>setInventoryOpen(v=>!v)} className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-xs ${currentArea==="inventory"?"font-bold text-cyan-300":"text-slate-500 hover:bg-slate-900 hover:text-slate-300"}`}><span>{L("Inventory","المخزون")}</span>{inventoryOpen?<ChevronDown size={13}/>:arrow}</button>
+              {inventoryOpen&&<div className={`space-y-1 border-slate-800 ${nestedBorder}`}>{inventorySections.map(s=><ModuleLink key={s.key} href={`/pos?area=inventory&tab=${encodeURIComponent(s.key)}`} label={rtl?s.ar:s.en} active={pathname?.startsWith("/pos")&&currentArea==="inventory"&&(currentTab||"Dashboard")===s.key} onClick={()=>selectRoute("inventory",s.key)}/>)}</div>}
+            </div>}
+
+            {canModule("suppliers.view")&&<ModuleLink href="/pos?area=suppliers" label={L("Suppliers","الموردون")} active={currentArea==="suppliers"} onClick={()=>selectRoute("suppliers")}/>} 
+
+            {canModule("purchasing.view")&&<div>
+              <button onClick={()=>setPurchasingOpen(v=>!v)} className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-xs ${currentArea==="purchasing"?"font-bold text-cyan-300":"text-slate-500 hover:bg-slate-900 hover:text-slate-300"}`}><span>{L("Purchasing","المشتريات")}</span>{purchasingOpen?<ChevronDown size={13}/>:arrow}</button>
+              {purchasingOpen&&<div className={`space-y-1 border-slate-800 ${nestedBorder}`}>{purchasingSections.map(s=><ModuleLink key={s.key} href={`/pos?area=purchasing&tab=${encodeURIComponent(s.key)}`} label={rtl?s.ar:s.en} active={pathname?.startsWith("/pos")&&currentArea==="purchasing"&&(currentTab||"Orders")===s.key} onClick={()=>selectRoute("purchasing",s.key)}/>)}</div>}
+            </div>}
+
+            {canModule("production.view")&&<ModuleLink href="/pos?area=production" label={L("Production","الإنتاج")} active={currentArea==="production"} onClick={()=>selectRoute("production")}/>} 
+            {canModule("production.view")&&<ModuleLink href="/pos?area=recipes" label={L("Recipes","الوصفات")} active={currentArea==="recipes"} onClick={()=>selectRoute("recipes")}/>} 
+            {canModule("production.view")&&<ModuleLink href="/pos?area=subrecipes" label={L("Sub Recipe","الوصفات الفرعية")} active={currentArea==="subrecipes"} onClick={()=>selectRoute("subrecipes")}/>} 
+            {canModule("sales.view","sales.manage")&&<ModuleLink href="/pos?area=products" label={L("Products","المنتجات")} active={currentArea==="products"} onClick={()=>selectRoute("products")}/>} 
+            {canModule("customers.view","customers.manage","sales.view")&&<ModuleLink href="/pos?area=customers" label={L("Customers","العملاء")} active={currentArea==="customers"} onClick={()=>selectRoute("customers")}/>} 
+            {canModule("b2b.view","b2b.manage")&&<ModuleLink href="/pos?area=b2b" label={L("B2B","منشآت B2B")} active={currentArea==="b2b"} onClick={()=>selectRoute("b2b")}/>} 
+            {canModule("accounting.view","sales.cost.view")&&<ModuleLink href="/pos?area=accounting" label={L("Accounting","المحاسبة")} active={currentArea==="accounting"} onClick={()=>selectRoute("accounting")}/>} 
           </div>}
         </div>
 
@@ -112,5 +135,6 @@ export default function Sidebar({ access }: SidebarProps) {
   </>;
 }
 function Main({ href, label, icon: Icon, active }: { href: string; label: string; icon: NavIcon; active?: boolean }) { return <Link href={href} className={`flex items-center gap-3 rounded-xl px-4 py-3 ${active ? "bg-cyan-500/10 text-cyan-300" : "text-slate-300 hover:bg-slate-900"}`}><Icon size={18} /><span className={`text-sm font-medium ${label ? "block" : "hidden"}`}>{label}</span></Link>; }
+function ModuleLink({href,label,active,onClick}:{href:string;label:string;active?:boolean;onClick?:()=>void}){return <Link href={href} onClick={onClick} className={`flex items-center justify-between rounded-lg px-3 py-2 text-xs ${active?"bg-cyan-500/10 font-bold text-cyan-300":"text-slate-500 hover:bg-slate-900 hover:text-slate-300"}`}><span>{label}</span>{active&&<span className="text-[9px]">●</span>}</Link>}
 function SubLink({href,label,active}:{href:string;label:string;active?:boolean}){return <Link href={href} className={`block rounded-lg px-3 py-2 text-xs ${active?"bg-cyan-500/10 font-bold text-cyan-300":"text-slate-500 hover:bg-slate-900 hover:text-slate-300"}`}>{label}</Link>}
 function Sub({ href, label, pathname, exact = false, icon: Icon = Sparkles }: { href: string; label: string; pathname: string | null; exact?: boolean; icon?: NavIcon }) { const active = exact ? pathname === href : pathname?.startsWith(href); return <Link href={href} className={`flex items-center gap-2 rounded-lg px-3 py-2 text-xs ${active ? "bg-cyan-500/10 text-cyan-300" : "text-slate-500 hover:text-slate-300"}`}><Icon size={12} />{label}</Link>; }
