@@ -5,7 +5,7 @@ import { useLanguage } from "./LanguageProvider";
 
 const panel = "rounded-2xl border border-slate-800 bg-slate-900";
 const btn = "rounded-xl bg-cyan-400 px-4 py-3 font-black text-slate-950 disabled:opacity-40";
-const ghost = "rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 font-bold text-slate-300";
+const ghost = "rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 font-bold text-slate-300 disabled:opacity-40";
 const inp = "w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2.5";
 
 const esc = (value: any) => String(value ?? "")
@@ -38,7 +38,7 @@ export default function CashierWorkspace() {
 
   async function load() {
     const [a, b] = await Promise.all([
-      fetch("/api/sales", { cache: "no-store" }),
+      fetch("/api/cashier-data", { cache: "no-store" }),
       fetch("/api/cashier-extras", { cache: "no-store" })
     ]);
     if (a.ok) S(await a.json());
@@ -87,9 +87,7 @@ export default function CashierWorkspace() {
   function add(p: any) {
     K(a => {
       const i = a.findIndex((z: any) => z.id === p.id);
-      return i < 0
-        ? [...a, { ...p, quantity: 1, notes: "" }]
-        : a.map((z: any, n: number) => n === i ? { ...z, quantity: z.quantity + 1 } : z);
+      return i < 0 ? [...a, { ...p, quantity: 1, notes: "" }] : a.map((z: any, n: number) => n === i ? { ...z, quantity: z.quantity + 1 } : z);
     });
   }
 
@@ -104,97 +102,35 @@ export default function CashierWorkspace() {
   function printReceipt(result: any, items: any[], method: any) {
     const frame = document.createElement("iframe");
     frame.setAttribute("aria-hidden", "true");
-    frame.style.position = "fixed";
-    frame.style.right = "0";
-    frame.style.bottom = "0";
-    frame.style.width = "1px";
-    frame.style.height = "1px";
-    frame.style.border = "0";
-    frame.style.opacity = "0";
+    Object.assign(frame.style, { position: "fixed", right: "0", bottom: "0", width: "1px", height: "1px", border: "0", opacity: "0" });
     document.body.appendChild(frame);
-
     const doc = frame.contentDocument || frame.contentWindow?.document;
     if (!doc) { frame.remove(); return; }
 
     const itemRows = items.map((z: any) => {
       const u = Number(z.receipt_price ?? z.price ?? 0);
-      return `
-      <div class="item">
-        <div class="row"><b>${esc(z.name)}</b><b>${(u * Number(z.quantity)).toFixed(2)}</b></div>
-        <div class="muted">${Number(z.quantity)} × ${u.toFixed(2)} ${esc(currency)}</div>
-        ${z.notes ? `<div class="note">${esc(z.notes)}</div>` : ""}
-      </div>`;
+      return `<div class="item"><div class="row"><b>${esc(z.name)}</b><b>${(u * Number(z.quantity)).toFixed(2)}</b></div><div class="muted">${Number(z.quantity)} × ${u.toFixed(2)} ${esc(currency)}</div>${z.notes ? `<div class="note">${esc(z.notes)}</div>` : ""}</div>`;
     }).join("");
 
     doc.open();
-    doc.write(`<!doctype html>
-      <html dir="${ar ? "rtl" : "ltr"}">
-      <head>
-        <meta charset="utf-8" />
-        <title>${esc(result?.order_no || "Receipt")}</title>
-        <style>
-          @page { size: 80mm auto; margin: 3mm; }
-          * { box-sizing: border-box; }
-          body { margin: 0; width: 74mm; font-family: Arial, sans-serif; color: #000; font-size: 12px; }
-          h1 { font-size: 17px; margin: 0 0 4px; text-align: center; }
-          .center { text-align: center; }
-          .muted { color: #444; font-size: 10px; }
-          .sep { border-top: 1px dashed #000; margin: 7px 0; }
-          .row { display: flex; justify-content: space-between; gap: 8px; }
-          .item { padding: 5px 0; border-bottom: 1px dotted #999; }
-          .note { margin-top: 3px; padding: 3px 5px; border: 1px solid #aaa; border-radius: 3px; white-space: pre-wrap; }
-          .total { font-size: 16px; font-weight: 700; margin-top: 5px; }
-        </style>
-      </head>
-      <body>
-        <h1>AVERO</h1>
-        <div class="center">${esc(L("Sales Receipt", "إيصال مبيعات"))}</div>
-        <div class="sep"></div>
-        <div>${esc(result?.order_no || "")}</div>
-        <div>${esc(new Date().toLocaleString(ar ? "ar-SA" : "en-SA"))}</div>
-        <div>${esc(L("Cashier", "الكاشير"))}: ${esc(x.cashier_name)}</div>
-        <div>${esc(L("Service", "الخدمة"))}: ${esc(service)}</div>
-        ${table ? `<div>${esc(L("Table", "الطاولة"))}: ${esc(table.name)}</div>` : ""}
-        <div class="sep"></div>
-        ${itemRows}
-        <div class="sep"></div>
-        <div class="row"><span>${esc(L("Subtotal", "المجموع الفرعي"))}</span><span>${Number(result?.subtotal || 0).toFixed(2)}</span></div>
-        ${Number(result?.discount || 0) > 0 ? `<div class="row"><span>${esc(L("Discount", "الخصم"))}</span><span>-${Number(result?.discount || 0).toFixed(2)}</span></div>` : ""}
-        <div class="row"><span>${esc(L("Tax", "الضريبة"))}</span><span>${Number(result?.tax || 0).toFixed(2)}</span></div>
-        <div class="row total"><span>${esc(L("Total", "الإجمالي"))}</span><span>${Number(result?.total || 0).toFixed(2)} ${esc(currency)}</span></div>
-        <div class="sep"></div>
-        <div>${esc(L("Payment", "الدفع"))}: ${esc(method?.name || method?.code || "Cash")}</div>
-        <div class="center" style="margin-top:10px">${esc(L("Thank you", "شكراً لكم"))}</div>
-      </body>
-      </html>`);
+    doc.write(`<!doctype html><html dir="${ar ? "rtl" : "ltr"}"><head><meta charset="utf-8"/><title>${esc(result?.order_no || "Receipt")}</title><style>@page{size:80mm auto;margin:3mm}*{box-sizing:border-box}body{margin:0;width:74mm;font-family:Arial,sans-serif;color:#000;font-size:12px}h1{font-size:17px;margin:0 0 4px;text-align:center}.center{text-align:center}.muted{color:#444;font-size:10px}.sep{border-top:1px dashed #000;margin:7px 0}.row{display:flex;justify-content:space-between;gap:8px}.item{padding:5px 0;border-bottom:1px dotted #999}.note{margin-top:3px;padding:3px 5px;border:1px solid #aaa;border-radius:3px;white-space:pre-wrap}.total{font-size:16px;font-weight:700;margin-top:5px}</style></head><body><h1>AVERO</h1><div class="center">${esc(L("Sales Receipt", "إيصال مبيعات"))}</div><div class="sep"></div><div>${esc(result?.order_no || "")}</div><div>${esc(new Date().toLocaleString(ar ? "ar-SA" : "en-SA"))}</div><div>${esc(L("Cashier", "الكاشير"))}: ${esc(x.cashier_name)}</div><div>${esc(L("Service", "الخدمة"))}: ${esc(service)}</div>${table ? `<div>${esc(L("Table", "الطاولة"))}: ${esc(table.name)}</div>` : ""}<div class="sep"></div>${itemRows}<div class="sep"></div><div class="row"><span>${esc(L("Subtotal", "المجموع الفرعي"))}</span><span>${Number(result?.subtotal || 0).toFixed(2)}</span></div>${Number(result?.discount || 0) > 0 ? `<div class="row"><span>${esc(L("Discount", "الخصم"))}</span><span>-${Number(result?.discount || 0).toFixed(2)}</span></div>` : ""}<div class="row"><span>${esc(L("Tax", "الضريبة"))}</span><span>${Number(result?.tax || 0).toFixed(2)}</span></div><div class="row total"><span>${esc(L("Total", "الإجمالي"))}</span><span>${Number(result?.total || 0).toFixed(2)} ${esc(currency)}</span></div><div class="sep"></div><div>${esc(L("Payment", "الدفع"))}: ${esc(method?.name || method?.code || "Cash")}</div><div class="center" style="margin-top:10px">${esc(L("Thank you", "شكراً لكم"))}</div></body></html>`);
     doc.close();
 
     const cleanup = () => { if (frame.isConnected) frame.remove(); };
     if (frame.contentWindow) frame.contentWindow.onafterprint = cleanup;
-    setTimeout(() => {
-      frame.contentWindow?.focus();
-      frame.contentWindow?.print();
-    }, 250);
+    setTimeout(() => { frame.contentWindow?.focus(); frame.contentWindow?.print(); }, 250);
     setTimeout(cleanup, 60000);
   }
 
   async function api(kind: string, data: any) {
-    const r = await fetch("/api/sales", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ kind, data })
-    });
+    const r = await fetch("/api/sales", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ kind, data }) });
     const j = await r.json();
     if (!r.ok) { alert(j.error || L("Action failed", "فشلت العملية")); return null; }
     return j;
   }
 
   async function extra(kind: string, data: any) {
-    const r = await fetch("/api/cashier-extras", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ kind, data })
-    });
+    const r = await fetch("/api/cashier-extras", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ kind, data }) });
     const j = await r.json();
     if (!r.ok) { alert(j.error || L("Action failed", "فشلت العملية")); return null; }
     return j;
@@ -213,40 +149,32 @@ export default function CashierWorkspace() {
     if (!wh) return alert(L("Select a warehouse first", "اختر مستودعاً أولاً"));
 
     setPaying(true);
-    const activeShift = await ensureShift();
-    if (!activeShift) { setPaying(false); return; }
-
-    const calc = totals(method);
-    const receiptItems = cart.map((z: any) => ({ ...z, receipt_price: unitPrice(z, method) }));
-    const j = await api("checkout", {
-      shift_id: activeShift.id,
-      warehouse_id: wh,
-      service_type: service,
-      discount: calc.discount,
-      discount_percent: disc,
-      customer,
-      held_order_id: heldId,
-      lines: cart.map((z: any) => ({ product_id: z.id, quantity: z.quantity, discount: 0, notes: z.notes || "" })),
-      payments: [{
-        payment_method: method.code || method.name,
-        base_amount: calc.total,
-        amount: calc.total
-      }]
-    });
-
-    if (j) {
-      await extra("attach_order", { order_id: j.result.order_id, table_id: table?.id || null, table_name: table?.name || null });
-      Z("");
-      printReceipt(j.result, receiptItems, method);
-      K([]);
-      D(0);
-      U({ name: "", phone: "", email: "", notes: "" });
-      H(null);
-      T(null);
-      P(null);
-      await load();
+    try {
+      const activeShift = await ensureShift();
+      if (!activeShift) return;
+      const calc = totals(method);
+      const receiptItems = cart.map((z: any) => ({ ...z, receipt_price: unitPrice(z, method) }));
+      const j = await api("checkout", {
+        shift_id: activeShift.id,
+        warehouse_id: wh,
+        service_type: service,
+        discount: calc.discount,
+        discount_percent: disc,
+        customer,
+        held_order_id: heldId,
+        lines: cart.map((z: any) => ({ product_id: z.id, quantity: z.quantity, discount: 0, notes: z.notes || "" })),
+        payments: [{ payment_method: method.code || method.name, base_amount: calc.total, amount: calc.total }]
+      });
+      if (j) {
+        await extra("attach_order", { order_id: j.result.order_id, table_id: table?.id || null, table_name: table?.name || null });
+        Z("");
+        printReceipt(j.result, receiptItems, method);
+        K([]); D(0); U({ name: "", phone: "", email: "", notes: "" }); H(null); T(null); P(null);
+        await load();
+      }
+    } finally {
+      setPaying(false);
     }
-    setPaying(false);
   }
 
   async function hold() {
@@ -271,11 +199,7 @@ export default function CashierWorkspace() {
 
   async function addTable() {
     if (!String(tableForm.name || "").trim()) return alert(L("Table name is required", "اسم الطاولة مطلوب"));
-    const r = await fetch("/api/commerce-admin", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ kind: "dining_table", data: tableForm })
-    });
+    const r = await fetch("/api/commerce-admin", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ kind: "dining_table", data: tableForm }) });
     if (!r.ok) return alert((await r.json()).error);
     setTableForm({ name: "", area: "Main", seats: 2 });
     load();
@@ -295,12 +219,7 @@ export default function CashierWorkspace() {
   }
 
   return <div className="space-y-4">
-    <header className="flex flex-wrap items-center justify-between gap-3">
-      <div>
-        <h1 className="text-3xl font-black">{L("Cashier", "الكاشير")}</h1>
-        <p className="text-sm text-slate-400">{L("Cashier", "الكاشير")}: <b className="text-cyan-300">{x.cashier_name}</b> · {L("Shift", "الوردية")} {shift ? L("OPEN", "مفتوحة") : L("CLOSED", "مغلقة")}</p>
-      </div>
-    </header>
+    <header className="flex flex-wrap items-center justify-between gap-3"><div><h1 className="text-3xl font-black">{L("Cashier", "الكاشير")}</h1><p className="text-sm text-slate-400">{L("Cashier", "الكاشير")}: <b className="text-cyan-300">{x.cashier_name}</b> · {L("Shift", "الوردية")} {shift ? L("OPEN", "مفتوحة") : L("CLOSED", "مغلقة")}</p></div></header>
 
     <div className="flex flex-wrap gap-2">
       {!shift && <button className={btn} onClick={openShift}>{L("Open Shift", "فتح وردية")}</button>}
@@ -324,73 +243,38 @@ export default function CashierWorkspace() {
 
         <div className="grid grid-cols-2 gap-3 md:grid-cols-3 2xl:grid-cols-4">
           {products.map((p: any) => <button key={p.id} onClick={() => add(p)} className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-950 text-left rtl:text-right">
-            <div className="aspect-[16/10] bg-slate-800">{p.image_url ? <img src={p.image_url} alt="" className="h-full w-full object-cover" /> : <div className="flex h-full items-center justify-center text-slate-600">{L("No image", "بدون صورة")}</div>}</div>
+            <div className="aspect-[16/10] bg-slate-800">{p.image_url ? <img src={p.image_url} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" /> : <div className="flex h-full items-center justify-center text-slate-600">{L("No image", "بدون صورة")}</div>}</div>
             <div className="p-3"><b>{p.name}</b><small className="block text-slate-500">{p.sale_unit || "piece"}</small><div className="text-cyan-300">{Number(p.price).toFixed(2)} {currency}</div></div>
           </button>)}
         </div>
       </main>
 
       <aside className={`${panel} flex flex-col`}>
-        <div className="border-b border-slate-800 p-5">
-          <div className="flex justify-between"><h2 className="text-xl font-black">{L("Current Order", "الطلب الحالي")}</h2><button className="text-rose-400" onClick={() => K([])}>{L("Clear", "مسح")}</button></div>
-          {table && <small className="text-cyan-300">{L("Table", "الطاولة")}: {table.name}</small>}
-          {heldId && <small className="ml-2 text-amber-300">{L("Recalled held order", "طلب معلق مسترجع")}</small>}
-        </div>
+        <div className="border-b border-slate-800 p-5"><div className="flex justify-between"><h2 className="text-xl font-black">{L("Current Order", "الطلب الحالي")}</h2><button className="text-rose-400" onClick={() => K([])}>{L("Clear", "مسح")}</button></div>{table && <small className="text-cyan-300">{L("Table", "الطاولة")}: {table.name}</small>}{heldId && <small className="ml-2 text-amber-300">{L("Recalled held order", "طلب معلق مسترجع")}</small>}</div>
 
         <div className="flex-1 p-4">
           {!cart.length && <div className="py-16 text-center text-slate-600">{L("No items yet", "لا توجد أصناف بعد")}</div>}
           {cart.map((z: any) => <div key={z.id} className="mb-2 rounded-xl border border-slate-800 p-3">
             <div className="flex justify-between"><b>{z.name}</b><span>{(Number(z.price) * Number(z.quantity)).toFixed(2)}</span></div>
-            <div className="mt-2 flex items-center gap-2">
-              <button className="h-8 w-8 rounded bg-slate-800" onClick={() => decrement(z.id)}>−</button>
-              <b>{z.quantity}</b>
-              <button className="h-8 w-8 rounded bg-slate-800" onClick={() => K(a => a.map((v: any) => v.id === z.id ? { ...v, quantity: v.quantity + 1 } : v))}>+</button>
-              <button className="ml-auto text-xs font-bold text-rose-400" onClick={() => K(a => a.filter((v: any) => v.id !== z.id))}>{L("Cancel", "إلغاء")}</button>
-            </div>
+            <div className="mt-2 flex items-center gap-2"><button className="h-8 w-8 rounded bg-slate-800" onClick={() => decrement(z.id)}>−</button><b>{z.quantity}</b><button className="h-8 w-8 rounded bg-slate-800" onClick={() => K(a => a.map((v: any) => v.id === z.id ? { ...v, quantity: v.quantity + 1 } : v))}>+</button><button className="ml-auto text-xs font-bold text-rose-400" onClick={() => K(a => a.filter((v: any) => v.id !== z.id))}>{L("Cancel", "إلغاء")}</button></div>
             <textarea className={`${inp} mt-2 min-h-[52px] resize-y`} placeholder={L("Comment", "ملاحظة")} value={z.notes || ""} onChange={e => K(a => a.map((v: any) => v.id === z.id ? { ...v, notes: e.target.value } : v))} />
           </div>)}
         </div>
 
         <div className="border-t border-slate-800 p-5">
-          <div className="text-sm">
-            <div className="flex justify-between"><span>{L("Subtotal", "المجموع الفرعي")}</span><b>{current.subtotal.toFixed(2)}</b></div>
-            {disc > 0 && <div className="flex justify-between text-emerald-300"><span>{L("Discount", "الخصم")} {disc}%</span><b>-{current.discount.toFixed(2)}</b></div>}
-            <div className="flex justify-between"><span>{L("Tax", "الضريبة")}</span><b>{current.tax.toFixed(2)}</b></div>
-            <div className="mt-2 flex justify-between text-2xl font-black"><span>{L("Total", "الإجمالي")}</span><span>{current.total.toFixed(2)} {currency}</span></div>
-          </div>
-
+          <div className="text-sm"><div className="flex justify-between"><span>{L("Subtotal", "المجموع الفرعي")}</span><b>{current.subtotal.toFixed(2)}</b></div>{disc > 0 && <div className="flex justify-between text-emerald-300"><span>{L("Discount", "الخصم")} {disc}%</span><b>-{current.discount.toFixed(2)}</b></div>}<div className="flex justify-between"><span>{L("Tax", "الضريبة")}</span><b>{current.tax.toFixed(2)}</b></div><div className="mt-2 flex justify-between text-2xl font-black"><span>{L("Total", "الإجمالي")}</span><span>{current.total.toFixed(2)} {currency}</span></div></div>
           <button className={`${btn} mt-3 w-full`} disabled={!cart.length || !wh} onClick={() => { P(null); Z("payment"); }}>{L("Pay", "دفع")}</button>
-          <div className="mt-2 grid grid-cols-3 gap-2">
-            <button className={ghost} disabled={!cart.length} onClick={hold}>{L("Hold", "تعليق")}</button>
-            <button className={ghost} onClick={() => { setCustomDisc(String(disc || "")); Z("discount"); }}>{L("Discount", "خصم")}</button>
-            <button className={ghost} onClick={() => Z("customer")}>{L("Customer", "العميل")}</button>
-          </div>
+          <div className="mt-2 grid grid-cols-3 gap-2"><button className={ghost} disabled={!cart.length} onClick={hold}>{L("Hold", "تعليق")}</button><button className={ghost} onClick={() => { setCustomDisc(String(disc || "")); Z("discount"); }}>{L("Discount", "خصم")}</button><button className={ghost} onClick={() => Z("customer")}>{L("Customer", "العميل")}</button></div>
         </div>
       </aside>
     </div>
 
     {modal === "payment" && <Modal t={L("Choose Payment Method", "اختر طريقة الدفع")} x={() => { P(null); Z(""); }}>
-      {x.payment_methods.length === 0 ? <div className="rounded-2xl border border-dashed border-slate-700 p-8 text-center text-slate-400">{L("No payment methods found. Add them from Settings → Cashier Monitor.", "لا توجد طرق دفع. أضفها من الإعدادات ← مراقبة الكاشير.")}</div> : <div className="grid gap-2 sm:grid-cols-2 md:grid-cols-3">
-        {x.payment_methods.map((m: any) => <button key={m.id} className={`rounded-2xl border p-4 text-left rtl:text-right ${pay?.id === m.id ? "border-cyan-400 bg-cyan-400/10" : "border-slate-700 bg-slate-950"}`} onClick={() => P(m)}>
-          <b className="text-lg">{m.name}</b>
-          <div className="mt-2 text-xl font-black text-cyan-300">{totals(m).total.toFixed(2)} {currency}</div>
-        </button>)}
-      </div>}
-
-      {pay && <div className="mt-5 rounded-2xl border border-cyan-500/30 bg-cyan-500/5 p-4">
-        <div className="mb-3 flex items-center justify-between"><b>{pay.name}</b><b className="text-xl text-cyan-300">{totals(pay).total.toFixed(2)} {currency}</b></div>
-        <div className="space-y-2 border-y border-slate-800 py-3">
-          {cart.map((z: any) => <div key={z.id} className="flex items-center justify-between gap-3 text-sm"><span>{z.name} × {z.quantity}</span><span>{unitPrice(z, pay).toFixed(2)} {currency}</span></div>)}
-        </div>
-        <button className={`${btn} mt-4 w-full`} disabled={paying} onClick={() => checkout(pay)}>{paying ? L("Processing...", "جارٍ الدفع...") : L("Pay & Print", "دفع وطباعة")}</button>
-      </div>}
+      {x.payment_methods.length === 0 ? <div className="rounded-2xl border border-dashed border-slate-700 p-8 text-center text-slate-400">{L("No payment methods found. Add them from Settings → Cashier Monitor.", "لا توجد طرق دفع. أضفها من الإعدادات ← مراقبة الكاشير.")}</div> : <div className="grid gap-2 sm:grid-cols-2 md:grid-cols-3">{x.payment_methods.map((m: any) => <button key={m.id} className={`rounded-2xl border p-4 text-left rtl:text-right ${pay?.id === m.id ? "border-cyan-400 bg-cyan-400/10" : "border-slate-700 bg-slate-950"}`} onClick={() => P(m)}><b className="text-lg">{m.name}</b><div className="mt-2 text-xl font-black text-cyan-300">{totals(m).total.toFixed(2)} {currency}</div></button>)}</div>}
+      {pay && <div className="mt-5 rounded-2xl border border-cyan-500/30 bg-cyan-500/5 p-4"><div className="mb-3 flex items-center justify-between"><b>{pay.name}</b><b className="text-xl text-cyan-300">{totals(pay).total.toFixed(2)} {currency}</b></div><div className="space-y-2 border-y border-slate-800 py-3">{cart.map((z: any) => <div key={z.id} className="flex items-center justify-between gap-3 text-sm"><span>{z.name} × {z.quantity}</span><span>{unitPrice(z, pay).toFixed(2)} {currency}</span></div>)}</div><button className={`${btn} mt-4 w-full`} disabled={paying} onClick={() => checkout(pay)}>{paying ? L("Processing...", "جارٍ الدفع...") : L("Pay & Print", "دفع وطباعة")}</button></div>}
     </Modal>}
 
-    {modal === "discount" && <Modal t={L("Apply Discount", "تطبيق الخصم")} x={() => Z("")}>
-      <p className="mb-4 text-sm text-slate-400">{L("Choose a preset or enter a custom percentage. The invoice recalculates immediately.", "اختر نسبة جاهزة أو أدخل نسبة مخصصة، ويتم إعادة حساب الفاتورة مباشرة.")}</p>
-      <div className="grid grid-cols-3 gap-2">{[5, 10, 15, 20, 30].map(n => <button key={n} className={disc === n ? btn : ghost} onClick={() => { D(n); Z(""); }}>{n}%</button>)}<button className={ghost} onClick={() => { D(0); Z(""); }}>{L("No Discount", "بدون خصم")}</button></div>
-      <div className="mt-4 rounded-2xl border border-slate-800 p-4"><label className="text-xs font-black uppercase text-slate-400">{L("Custom Discount %", "خصم مخصص %")}</label><div className="mt-2 flex gap-2"><input className={inp} type="number" min="0" max="100" step="0.01" placeholder="12.5" value={customDisc} onChange={e => setCustomDisc(e.target.value)} /><button className={btn} onClick={() => { D(Math.max(0, Math.min(100, Number(customDisc || 0)))); Z(""); }}>{L("Apply", "تطبيق")}</button></div></div>
-    </Modal>}
+    {modal === "discount" && <Modal t={L("Apply Discount", "تطبيق الخصم")} x={() => Z("")}><p className="mb-4 text-sm text-slate-400">{L("Choose a preset or enter a custom percentage. The invoice recalculates immediately.", "اختر نسبة جاهزة أو أدخل نسبة مخصصة، ويتم إعادة حساب الفاتورة مباشرة.")}</p><div className="grid grid-cols-3 gap-2">{[5,10,15,20,30].map(n => <button key={n} className={disc === n ? btn : ghost} onClick={() => { D(n); Z(""); }}>{n}%</button>)}<button className={ghost} onClick={() => { D(0); Z(""); }}>{L("No Discount", "بدون خصم")}</button></div><div className="mt-4 rounded-2xl border border-slate-800 p-4"><label className="text-xs font-black uppercase text-slate-400">{L("Custom Discount %", "خصم مخصص %")}</label><div className="mt-2 flex gap-2"><input className={inp} type="number" min="0" max="100" step="0.01" placeholder="12.5" value={customDisc} onChange={e => setCustomDisc(e.target.value)} /><button className={btn} onClick={() => { D(Math.max(0, Math.min(100, Number(customDisc || 0)))); Z(""); }}>{L("Apply", "تطبيق")}</button></div></div></Modal>}
 
     {modal === "customer" && <Modal t={L("Customer Details", "تفاصيل العميل")} x={() => Z("")}><div className="space-y-3"><input className={inp} placeholder={L("Customer name", "اسم العميل")} value={customer.name} onChange={e => U({ ...customer, name: e.target.value })} /><input className={inp} placeholder={L("Phone number", "رقم الهاتف")} value={customer.phone} onChange={e => U({ ...customer, phone: e.target.value })} /><input className={inp} placeholder={L("Email (optional)", "البريد الإلكتروني (اختياري)")} value={customer.email} onChange={e => U({ ...customer, email: e.target.value })} /><textarea className={inp} placeholder={L("Notes (optional)", "ملاحظات (اختياري)")} value={customer.notes} onChange={e => U({ ...customer, notes: e.target.value })} /><button className={btn} onClick={() => Z("")}>{L("Use Customer", "اعتماد العميل")}</button></div></Modal>}
 
