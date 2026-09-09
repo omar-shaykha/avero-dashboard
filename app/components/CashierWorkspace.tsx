@@ -33,8 +33,8 @@ export default function CashierWorkspace() {
   const [modal, Z] = useState("");
   const [customer, U] = useState({ name: "", phone: "", email: "", notes: "" });
   const [heldId, H] = useState<string | null>(null);
-  const [payForm, setPayForm] = useState<any>({ name: "", adjustment_percent: 0, adjustment_type: "markup" });
   const [tableForm, setTableForm] = useState<any>({ name: "", area: "Main", seats: 2 });
+  const [paying, setPaying] = useState(false);
 
   async function load() {
     const [a, b] = await Promise.all([
@@ -60,19 +60,29 @@ export default function CashierWorkspace() {
   ), [d.products, cat, q, x.best_sellers]);
 
   const pricesIncludeTax = !!d.settings?.prices_include_tax;
-  const rows = cart.map((z: any) => {
-    const listed = Number(z.price) * Number(z.quantity || 0);
-    const rate = z.tax_enabled ? Number(z.tax_rate || 0) : 0;
-    const net = pricesIncludeTax && rate > 0 ? listed / (1 + rate / 100) : listed;
-    return { listed, rate, net };
-  });
-  const subtotal = rows.reduce((a: number, z: any) => a + z.net, 0);
-  const discount = subtotal * Math.max(0, Math.min(100, disc)) / 100;
-  const ratio = subtotal ? discount / subtotal : 0;
-  const tax = rows.reduce((a: number, z: any) => a + (z.rate > 0 ? z.net * (1 - ratio) * z.rate / 100 : 0), 0);
-  const base = Math.max(0, subtotal - discount + tax);
-  const adj = pay ? base * Number(pay.adjustment_percent || 0) / 100 * (pay.adjustment_type === "discount" ? -1 : 1) : 0;
-  const total = Math.max(0, base + adj);
+
+  function unitPrice(item: any, method?: any) {
+    const pct = Math.max(0, Number(method?.adjustment_percent || 0));
+    return Math.round((Number(item.price || 0) * (1 + pct / 100)) * 100) / 100;
+  }
+
+  function totals(method?: any) {
+    const rows = cart.map((z: any) => {
+      const unit = unitPrice(z, method);
+      const listed = unit * Number(z.quantity || 0);
+      const rate = z.tax_enabled ? Number(z.tax_rate || 0) : 0;
+      const net = pricesIncludeTax && rate > 0 ? listed / (1 + rate / 100) : listed;
+      return { unit, listed, rate, net };
+    });
+    const subtotal = rows.reduce((a: number, z: any) => a + z.net, 0);
+    const discount = subtotal * Math.max(0, Math.min(100, disc)) / 100;
+    const ratio = subtotal ? discount / subtotal : 0;
+    const tax = rows.reduce((a: number, z: any) => a + (z.rate > 0 ? z.net * (1 - ratio) * z.rate / 100 : 0), 0);
+    const total = Math.max(0, subtotal - discount + tax);
+    return { rows, subtotal, discount, tax, total };
+  }
+
+  const current = totals();
 
   function add(p: any) {
     K(a => {
@@ -106,12 +116,15 @@ export default function CashierWorkspace() {
     const doc = frame.contentDocument || frame.contentWindow?.document;
     if (!doc) { frame.remove(); return; }
 
-    const itemRows = items.map((z: any) => `
+    const itemRows = items.map((z: any) => {
+      const u = Number(z.receipt_price ?? z.price || 0);
+      return `
       <div class="item">
-        <div class="row"><b>${esc(z.name)}</b><b>${(Number(z.price) * Number(z.quantity)).toFixed(2)}</b></div>
-        <div class="muted">${Number(z.quantity)} × ${Number(z.price).toFixed(2)} ${esc(currency)}</div>
+        <div class="row"><b>${esc(z.name)}</b><b>${(u * Number(z.quantity)).toFixed(2)}</b></div>
+        <div class="muted">${Number(z.quantity)} × ${u.toFixed(2)} ${esc(currency)}</div>
         ${z.notes ? `<div class="note">${esc(z.notes)}</div>` : ""}
-      </div>`).join("");
+      </div>`;
+    }).join("");
 
     doc.open();
     doc.write(`<!doctype html>
@@ -145,10 +158,10 @@ export default function CashierWorkspace() {
         <div class="sep"></div>
         ${itemRows}
         <div class="sep"></div>
-        <div class="row"><span>${esc(L("Subtotal", "المجموع الفرعي"))}</span><span>${Number(result?.subtotal ?? subtotal).toFixed(2)}</span></div>
-        ${Number(result?.discount ?? discount) > 0 ? `<div class="row"><span>${esc(L("Discount", "الخصم"))}</span><span>-${Number(result?.discount ?? discount).toFixed(2)}</span></div>` : ""}
-        <div class="row"><span>${esc(L("Tax", "الضريبة"))}</span><span>${Number(result?.tax ?? tax).toFixed(2)}</span></div>
-        <div class="row total"><span>${esc(L("Total", "الإجمالي"))}</span><span>${Number(result?.total ?? total).toFixed(2)} ${esc(currency)}</span></div>
+        <div class="row"><span>${esc(L("Subtotal", "المجموع الفرعي"))}</span><span>${Number(result?.subtotal || 0).toFixed(2)}</span></div>
+        ${Number(result?.discount || 0) > 0 ? `<div class="row"><span>${esc(L("Discount", "الخصم"))}</span><span>-${Number(result?.discount || 0).toFixed(2)}</span></div>` : ""}
+        <div class="row"><span>${esc(L("Tax", "الضريبة"))}</span><span>${Number(result?.tax || 0).toFixed(2)}</span></div>
+        <div class="row total"><span>${esc(L("Total", "الإجمالي"))}</span><span>${Number(result?.total || 0).toFixed(2)} ${esc(currency)}</span></div>
         <div class="sep"></div>
         <div>${esc(L("Payment", "الدفع"))}: ${esc(method?.name || method?.code || "Cash")}</div>
         <div class="center" style="margin-top:10px">${esc(L("Thank you", "شكراً لكم"))}</div>
@@ -187,33 +200,43 @@ export default function CashierWorkspace() {
     return j;
   }
 
-  async function checkout() {
-    if (!cart.length) return;
-    if (!wh) return alert(L("Select a warehouse first", "اختر مستودعاً أولاً"));
-    if (!shift) return alert(L("Open a cashier shift before payment", "افتح وردية الكاشير قبل الدفع"));
+  async function ensureShift() {
+    if (shift) return shift;
+    if (!wh) { alert(L("Create or select a warehouse", "أنشئ أو اختر مستودعاً")); return null; }
+    const j = await api("open_shift", { warehouse_id: wh, opening_cash: 0 });
+    return j?.record || null;
+  }
 
-    const method = pay || x.payment_methods[0] || { code: "cash", name: "Cash", adjustment_percent: 0, adjustment_type: "markup" };
-    const receiptItems = cart.map((z: any) => ({ ...z }));
+  async function checkout(method: any) {
+    if (!cart.length || paying) return;
+    if (!method) return alert(L("Choose a payment method", "اختر طريقة دفع"));
+    if (!wh) return alert(L("Select a warehouse first", "اختر مستودعاً أولاً"));
+
+    setPaying(true);
+    const activeShift = await ensureShift();
+    if (!activeShift) { setPaying(false); return; }
+
+    const calc = totals(method);
+    const receiptItems = cart.map((z: any) => ({ ...z, receipt_price: unitPrice(z, method) }));
     const j = await api("checkout", {
-      shift_id: shift.id,
+      shift_id: activeShift.id,
       warehouse_id: wh,
       service_type: service,
-      discount,
+      discount: calc.discount,
       discount_percent: disc,
       customer,
       held_order_id: heldId,
       lines: cart.map((z: any) => ({ product_id: z.id, quantity: z.quantity, discount: 0, notes: z.notes || "" })),
       payments: [{
         payment_method: method.code || method.name,
-        base_amount: base,
-        adjustment_percent: Number(method.adjustment_percent || 0),
-        adjustment_type: method.adjustment_type || "markup",
-        amount: total
+        base_amount: calc.total,
+        amount: calc.total
       }]
     });
 
     if (j) {
       await extra("attach_order", { order_id: j.result.order_id, table_id: table?.id || null, table_name: table?.name || null });
+      Z("");
       printReceipt(j.result, receiptItems, method);
       K([]);
       D(0);
@@ -221,8 +244,9 @@ export default function CashierWorkspace() {
       H(null);
       T(null);
       P(null);
-      load();
+      await load();
     }
+    setPaying(false);
   }
 
   async function hold() {
@@ -231,7 +255,7 @@ export default function CashierWorkspace() {
       shift_id: shift?.id || null,
       warehouse_id: wh,
       service_type: service,
-      discount,
+      discount: current.discount,
       discount_percent: disc,
       customer,
       lines: cart.map((z: any) => ({ product_id: z.id, quantity: z.quantity, discount: 0, notes: z.notes || "" }))
@@ -242,18 +266,6 @@ export default function CashierWorkspace() {
   async function openShift() {
     if (!wh) return alert(L("Create or select a warehouse", "أنشئ أو اختر مستودعاً"));
     await api("open_shift", { warehouse_id: wh, opening_cash: 0 });
-    load();
-  }
-
-  async function addPayment() {
-    if (!String(payForm.name || "").trim()) return alert(L("Payment method name is required", "اسم طريقة الدفع مطلوب"));
-    const r = await fetch("/api/commerce-admin", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ kind: "payment_method", data: payForm })
-    });
-    if (!r.ok) return alert((await r.json()).error);
-    setPayForm({ name: "", adjustment_percent: 0, adjustment_type: "markup" });
     load();
   }
 
@@ -294,7 +306,6 @@ export default function CashierWorkspace() {
       {!shift && <button className={btn} onClick={openShift}>{L("Open Shift", "فتح وردية")}</button>}
       <button className={ghost} onClick={() => Z("track")}>{L("Track Invoice", "تتبع الفاتورة")}</button>
       <button className={ghost} onClick={() => Z("tables")}>{L("Dining Map", "خريطة الطاولات")}</button>
-      <button className={ghost} onClick={() => Z("payments")}>{L("Payment Methods", "طرق الدفع")}</button>
       <button className={ghost} onClick={() => Z("holds")}>{L("Held Orders", "الطلبات المعلقة")} ({held.length})</button>
     </div>
 
@@ -329,7 +340,7 @@ export default function CashierWorkspace() {
         <div className="flex-1 p-4">
           {!cart.length && <div className="py-16 text-center text-slate-600">{L("No items yet", "لا توجد أصناف بعد")}</div>}
           {cart.map((z: any) => <div key={z.id} className="mb-2 rounded-xl border border-slate-800 p-3">
-            <div className="flex justify-between"><b>{z.name}</b><span>{(z.price * z.quantity).toFixed(2)}</span></div>
+            <div className="flex justify-between"><b>{z.name}</b><span>{(Number(z.price) * Number(z.quantity)).toFixed(2)}</span></div>
             <div className="mt-2 flex items-center gap-2">
               <button className="h-8 w-8 rounded bg-slate-800" onClick={() => decrement(z.id)}>−</button>
               <b>{z.quantity}</b>
@@ -342,22 +353,13 @@ export default function CashierWorkspace() {
 
         <div className="border-t border-slate-800 p-5">
           <div className="text-sm">
-            <div className="flex justify-between"><span>{L("Subtotal", "المجموع الفرعي")}</span><b>{subtotal.toFixed(2)}</b></div>
-            {disc > 0 && <div className="flex justify-between text-emerald-300"><span>{L("Discount", "الخصم")} {disc}%</span><b>-{discount.toFixed(2)}</b></div>}
-            <div className="flex justify-between"><span>{L("Tax", "الضريبة")}</span><b>{tax.toFixed(2)}</b></div>
-            {adj !== 0 && <div className="flex justify-between text-amber-300"><span>{pay?.name} {L("adjustment", "تعديل")}</span><b>{adj > 0 ? "+" : ""}{adj.toFixed(2)}</b></div>}
-            <div className="mt-2 flex justify-between text-2xl font-black"><span>{L("Total", "الإجمالي")}</span><span>{total.toFixed(2)} {currency}</span></div>
+            <div className="flex justify-between"><span>{L("Subtotal", "المجموع الفرعي")}</span><b>{current.subtotal.toFixed(2)}</b></div>
+            {disc > 0 && <div className="flex justify-between text-emerald-300"><span>{L("Discount", "الخصم")} {disc}%</span><b>-{current.discount.toFixed(2)}</b></div>}
+            <div className="flex justify-between"><span>{L("Tax", "الضريبة")}</span><b>{current.tax.toFixed(2)}</b></div>
+            <div className="mt-2 flex justify-between text-2xl font-black"><span>{L("Total", "الإجمالي")}</span><span>{current.total.toFixed(2)} {currency}</span></div>
           </div>
 
-          <div className="mt-3 grid grid-cols-2 gap-2">
-            <select className={inp} value={pay?.id || ""} onChange={e => P(x.payment_methods.find((m: any) => m.id === e.target.value) || null)}>
-              <option value="">{L("Payment Method", "طريقة الدفع")}</option>
-              {x.payment_methods.map((m: any) => <option key={m.id} value={m.id}>{m.name}{m.adjustment_percent ? ` (${m.adjustment_type === "discount" ? "-" : "+"}${m.adjustment_percent}%)` : ""}</option>)}
-            </select>
-            <button className={btn} disabled={!cart.length || !shift} onClick={checkout}>{L("Pay & Print", "دفع وطباعة")}</button>
-          </div>
-
-          {!shift && cart.length > 0 && <div className="mt-2 text-center text-xs text-amber-300">{L("Open a shift before taking payment.", "افتح وردية قبل استلام الدفع.")}</div>}
+          <button className={`${btn} mt-3 w-full`} disabled={!cart.length || !wh} onClick={() => { P(null); Z("payment"); }}>{L("Pay", "دفع")}</button>
           <div className="mt-2 grid grid-cols-3 gap-2">
             <button className={ghost} disabled={!cart.length} onClick={hold}>{L("Hold", "تعليق")}</button>
             <button className={ghost} onClick={() => { setCustomDisc(String(disc || "")); Z("discount"); }}>{L("Discount", "خصم")}</button>
@@ -367,6 +369,23 @@ export default function CashierWorkspace() {
       </aside>
     </div>
 
+    {modal === "payment" && <Modal t={L("Choose Payment Method", "اختر طريقة الدفع")} x={() => { P(null); Z(""); }}>
+      {x.payment_methods.length === 0 ? <div className="rounded-2xl border border-dashed border-slate-700 p-8 text-center text-slate-400">{L("No payment methods found. Add them from Settings → Cashier Monitor.", "لا توجد طرق دفع. أضفها من الإعدادات ← مراقبة الكاشير.")}</div> : <div className="grid gap-2 sm:grid-cols-2 md:grid-cols-3">
+        {x.payment_methods.map((m: any) => <button key={m.id} className={`rounded-2xl border p-4 text-left rtl:text-right ${pay?.id === m.id ? "border-cyan-400 bg-cyan-400/10" : "border-slate-700 bg-slate-950"}`} onClick={() => P(m)}>
+          <b className="text-lg">{m.name}</b>
+          <div className="mt-2 text-xl font-black text-cyan-300">{totals(m).total.toFixed(2)} {currency}</div>
+        </button>)}
+      </div>}
+
+      {pay && <div className="mt-5 rounded-2xl border border-cyan-500/30 bg-cyan-500/5 p-4">
+        <div className="mb-3 flex items-center justify-between"><b>{pay.name}</b><b className="text-xl text-cyan-300">{totals(pay).total.toFixed(2)} {currency}</b></div>
+        <div className="space-y-2 border-y border-slate-800 py-3">
+          {cart.map((z: any) => <div key={z.id} className="flex items-center justify-between gap-3 text-sm"><span>{z.name} × {z.quantity}</span><span>{unitPrice(z, pay).toFixed(2)} {currency}</span></div>)}
+        </div>
+        <button className={`${btn} mt-4 w-full`} disabled={paying} onClick={() => checkout(pay)}>{paying ? L("Processing...", "جارٍ الدفع...") : L("Pay & Print", "دفع وطباعة")}</button>
+      </div>}
+    </Modal>}
+
     {modal === "discount" && <Modal t={L("Apply Discount", "تطبيق الخصم")} x={() => Z("")}>
       <p className="mb-4 text-sm text-slate-400">{L("Choose a preset or enter a custom percentage. The invoice recalculates immediately.", "اختر نسبة جاهزة أو أدخل نسبة مخصصة، ويتم إعادة حساب الفاتورة مباشرة.")}</p>
       <div className="grid grid-cols-3 gap-2">{[5, 10, 15, 20, 30].map(n => <button key={n} className={disc === n ? btn : ghost} onClick={() => { D(n); Z(""); }}>{n}%</button>)}<button className={ghost} onClick={() => { D(0); Z(""); }}>{L("No Discount", "بدون خصم")}</button></div>
@@ -374,8 +393,6 @@ export default function CashierWorkspace() {
     </Modal>}
 
     {modal === "customer" && <Modal t={L("Customer Details", "تفاصيل العميل")} x={() => Z("")}><div className="space-y-3"><input className={inp} placeholder={L("Customer name", "اسم العميل")} value={customer.name} onChange={e => U({ ...customer, name: e.target.value })} /><input className={inp} placeholder={L("Phone number", "رقم الهاتف")} value={customer.phone} onChange={e => U({ ...customer, phone: e.target.value })} /><input className={inp} placeholder={L("Email (optional)", "البريد الإلكتروني (اختياري)")} value={customer.email} onChange={e => U({ ...customer, email: e.target.value })} /><textarea className={inp} placeholder={L("Notes (optional)", "ملاحظات (اختياري)")} value={customer.notes} onChange={e => U({ ...customer, notes: e.target.value })} /><button className={btn} onClick={() => Z("")}>{L("Use Customer", "اعتماد العميل")}</button></div></Modal>}
-
-    {modal === "payments" && <Modal t={L("Payment Methods", "طرق الدفع")} x={() => Z("")}><div className="grid gap-2 md:grid-cols-[1fr_120px_150px_auto]"><input className={inp} placeholder={L("Method name", "اسم الطريقة")} value={payForm.name} onChange={e => setPayForm({ ...payForm, name: e.target.value })} /><input className={inp} type="number" min="0" max="100" value={payForm.adjustment_percent} onChange={e => setPayForm({ ...payForm, adjustment_percent: Number(e.target.value) })} /><select className={inp} value={payForm.adjustment_type} onChange={e => setPayForm({ ...payForm, adjustment_type: e.target.value })}><option value="markup">{L("Markup %", "زيادة %")}</option><option value="discount">{L("Discount %", "خصم %")}</option></select><button className={btn} onClick={addPayment}>+ {L("Add", "إضافة")}</button></div><div className="mt-4">{x.payment_methods.map((m: any) => <div key={m.id} className="border-b border-slate-800 py-3"><b>{m.name}</b><small className="ml-3 text-slate-400">{m.adjustment_percent ? `${m.adjustment_type} ${m.adjustment_percent}%` : L("No adjustment", "بدون تعديل")}</small></div>)}</div></Modal>}
 
     {modal === "tables" && <Modal t={L("Dining Map", "خريطة الطاولات")} x={() => Z("")}><div className="grid gap-2 md:grid-cols-[1fr_1fr_100px_auto]"><input className={inp} placeholder={L("Table name", "اسم الطاولة")} value={tableForm.name} onChange={e => setTableForm({ ...tableForm, name: e.target.value })} /><input className={inp} placeholder={L("Area", "المنطقة")} value={tableForm.area} onChange={e => setTableForm({ ...tableForm, area: e.target.value })} /><input className={inp} type="number" min="1" value={tableForm.seats} onChange={e => setTableForm({ ...tableForm, seats: Number(e.target.value) })} /><button className={btn} onClick={addTable}>+ {L("Table", "طاولة")}</button></div><div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-3">{x.tables.map((t: any) => <div key={t.id} className={`rounded-2xl border p-4 ${table?.id === t.id ? "border-cyan-400" : "border-slate-700"}`}><b>{t.name}</b><small className="block text-slate-500">{t.area || L("Main", "الرئيسية")} · {t.seats} {L("seats", "مقاعد")}</small><div className="mt-2 flex gap-1"><button className="text-cyan-300" onClick={() => { T(t); Z(""); }}>{L("Select", "اختيار")}</button><button className="ml-auto text-xs" onClick={async () => { await extra("table_status", { table_id: t.id, status: t.status === "closed" ? "open" : "closed" }); load(); }}>{t.status === "closed" ? L("Open", "فتح") : L("Close", "إغلاق")}</button></div></div>)}</div></Modal>}
 
