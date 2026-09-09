@@ -18,7 +18,7 @@ export default function CashierMonitorSettingsPage(){
   const [busy,setBusy]=useState(false),[q,setQ]=useState("");
 
   async function load(){
-    const [a,b]=await Promise.all([fetch("/api/commerce-admin",{cache:"no-store"}),fetch("/api/cashier-config",{cache:"no-store"})]);
+    const [a,b]=await Promise.all([fetch("/api/cashier-extras",{cache:"no-store"}),fetch("/api/cashier-config",{cache:"no-store"})]);
     if(a.ok){const j=await a.json();setMethods(j.payment_methods||[]);}
     if(b.ok)setCfg(await b.json());
   }
