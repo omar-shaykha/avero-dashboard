@@ -3,6 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import { createClient as createServerClient } from "@/lib/supabase/server";
 
 const VALID_PLATFORMS = ["facebook", "instagram", "tiktok", "snapchat"];
+const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-3.6-flash";
 
 function admin() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -67,15 +68,19 @@ function parseJsonObject(text: string) {
 async function geminiJson(prompt: string) {
   const key = process.env.GEMINI_API_KEY;
   if (!key) throw new Error("AI key is not configured yet");
-  const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(key)}`, {
+  const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(GEMINI_MODEL)}:generateContent?key=${encodeURIComponent(key)}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       contents: [{ parts: [{ text: prompt }] }],
-      generationConfig: { temperature: 0.68, responseMimeType: "application/json" },
+      generationConfig: { responseMimeType: "application/json" },
     }),
   });
-  if (!response.ok) throw new Error(`AI provider failed: ${response.status}`);
+  if (!response.ok) {
+    const details = await response.text().catch(() => "");
+    console.error("Foxy command Gemini request failed", { model: GEMINI_MODEL, status: response.status, details: details.slice(0, 800) });
+    throw new Error("AI generation is temporarily unavailable");
+  }
   const json = await response.json();
   const text = json?.candidates?.[0]?.content?.parts?.map((part: { text?: string }) => part.text || "").join("").trim();
   if (!text) throw new Error("AI returned empty content");
@@ -121,7 +126,8 @@ export async function POST(req: NextRequest) {
     try {
       generated = await geminiJson(prompt);
     } catch (error) {
-      warning = error instanceof Error ? error.message : "AI fallback used";
+      console.error("Foxy command fallback", error);
+      warning = "AI generation was temporarily unavailable, so Foxy created a safe fallback draft.";
       generated = fallbackDraft({ brandName, message, platforms: selectedPlatforms, hasLogo });
     }
 
@@ -145,10 +151,11 @@ export async function POST(req: NextRequest) {
         `Video: ${safeString(generated.video_idea)}`,
         `Story: ${safeString(generated.story_idea)}`,
         `Carousel: ${safeString(generated.carousel_idea)}`,
-        warning ? `Note: ${warning}` : "",
+        warning ? `System note: ${warning}` : "",
       ].filter(Boolean).join("\n"),
       metrics: {
         source: "command_chat",
+        ai_model: GEMINI_MODEL,
         boss_agent: "Foxy",
         worker_key: "content_planner",
         worker_name: worker?.worker_name || "Pulse",
@@ -175,8 +182,8 @@ export async function POST(req: NextRequest) {
       agent_key: "ai_marketing",
       action: "command_chat_generate_post",
       status: "approval_required",
-      input: { message, platforms: selectedPlatforms, worker_key: "content_planner", worker_name: worker?.worker_name || "Pulse" },
-      output: { content_id: item.id, campaign_name: item.campaign_name, status: item.status },
+      input: { message, platforms: selectedPlatforms, worker_key: "content_planner", worker_name: worker?.worker_name || "Pulse", model: GEMINI_MODEL },
+      output: { content_id: item.id, campaign_name: item.campaign_name, status: item.status, model: GEMINI_MODEL },
       completed_at: now,
     });
 
@@ -186,6 +193,7 @@ export async function POST(req: NextRequest) {
       message: `جهزتلك بوست جديد: ${item.campaign_name}. فوت على Foxy وشوف كرت الموافقة، وإذا عجبك كبس Publish Now.`,
       item,
       warning,
+      model: GEMINI_MODEL,
     });
   } catch (error) {
     console.error("Marketing chat command error", error);
