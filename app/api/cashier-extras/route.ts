@@ -1,7 +1,22 @@
 // @ts-nocheck
 import{NextResponse}from'next/server';import{createClient}from'@supabase/supabase-js';import{getAuthorizationContext,isKingAdmin,isTenantAdmin,hasPermission}from'@/lib/auth/authorization';
 const db=()=>createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!,process.env.SUPABASE_SECRET_KEY!,{auth:{persistSession:false}});const can=(a:any,p:string)=>isKingAdmin(a)||isTenantAdmin(a)||hasPermission(a,p);async function C(){let a=await getAuthorizationContext();return a?.profile?.company_id?{a,c:a.profile.company_id,s:db()}:null}
-export async function GET(){let x=await C();if(!x)return NextResponse.json({error:'Unauthorized'},{status:401});let[p,t,me,best]=await Promise.all([x.s.from('sales_payment_methods').select('*').eq('company_id',x.c).eq('active',true).order('sort_order'),x.s.from('sales_dining_tables').select('*').eq('company_id',x.c).order('sort_order'),x.s.from('user_profiles').select('full_name,username,nickname').eq('user_id',x.a.user.id).eq('company_id',x.c).maybeSingle(),x.s.from('sales_order_lines').select('product_id,quantity,sales_orders!inner(company_id,status)').eq('sales_orders.company_id',x.c).eq('sales_orders.status','completed')]);let m=new Map();for(let z of best.data||[])m.set(z.product_id,(m.get(z.product_id)||0)+Number(z.quantity||0));return NextResponse.json({payment_methods:p.data||[],tables:t.data||[],cashier_name:me.data?.full_name||me.data?.username||me.data?.nickname||'Cashier',best_sellers:[...m.entries()].sort((a:any,b:any)=>b[1]-a[1]).slice(0,24).map(([product_id,qty])=>({product_id,qty}))})}
+export async function GET(){
+ let x=await C();if(!x)return NextResponse.json({error:'Unauthorized'},{status:401});
+ let[p,t,me,settings,manual,best]=await Promise.all([
+  x.s.from('sales_payment_methods').select('*').eq('company_id',x.c).eq('active',true).order('sort_order'),
+  x.s.from('sales_dining_tables').select('*').eq('company_id',x.c).order('sort_order'),
+  x.s.from('user_profiles').select('full_name,username,nickname').eq('user_id',x.a.user.id).eq('company_id',x.c).maybeSingle(),
+  x.s.from('sales_settings').select('best_seller_mode').eq('company_id',x.c).maybeSingle(),
+  x.s.from('sales_products').select('id').eq('company_id',x.c).eq('active',true).eq('show_on_cashier',true).eq('best_seller_manual',true).not('product_type','in','("raw_material","sub_recipe")'),
+  x.s.from('sales_order_lines').select('product_id,quantity,sales_orders!inner(company_id,status)').eq('sales_orders.company_id',x.c).eq('sales_orders.status','completed')
+ ]);
+ const mode=settings.data?.best_seller_mode==='manual'?'manual':'auto';
+ let bestSellers:any[]=[];
+ if(mode==='manual')bestSellers=(manual.data||[]).map((z:any)=>({product_id:z.id,qty:null}));
+ else{let m=new Map();for(let z of best.data||[])m.set(z.product_id,(m.get(z.product_id)||0)+Number(z.quantity||0));bestSellers=[...m.entries()].sort((a:any,b:any)=>b[1]-a[1]).slice(0,24).map(([product_id,qty])=>({product_id,qty}));}
+ return NextResponse.json({payment_methods:p.data||[],tables:t.data||[],cashier_name:me.data?.full_name||me.data?.username||me.data?.nickname||'Cashier',best_seller_mode:mode,best_sellers:bestSellers})
+}
 export async function POST(req:Request){let x=await C();if(!x)return NextResponse.json({error:'Unauthorized'},{status:401});let b=await req.json(),d=b.data||{};if(!can(x.a,'sales.cashier')&&!can(x.a,'sales.manage'))return NextResponse.json({error:'Forbidden'},{status:403});
  if(b.kind==='tracking'){let allowed=['new','preparing','ready','delivered','completed','cancelled'];if(!allowed.includes(d.status))return NextResponse.json({error:'Invalid status'},{status:400});let r=await x.s.from('sales_orders').update({tracking_status:d.status}).eq('id',d.order_id).eq('company_id',x.c).select('id,tracking_status').single();return r.error?NextResponse.json({error:r.error.message},{status:400}):NextResponse.json({record:r.data})}
  if(b.kind==='table_status'){let allowed=['open','closed','occupied'];if(!allowed.includes(d.status))return NextResponse.json({error:'Invalid table status'},{status:400});let r=await x.s.from('sales_dining_tables').update({status:d.status,updated_at:new Date().toISOString()}).eq('id',d.table_id).eq('company_id',x.c).select().single();return r.error?NextResponse.json({error:r.error.message},{status:400}):NextResponse.json({record:r.data})}
