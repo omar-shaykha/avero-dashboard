@@ -26,8 +26,8 @@ export async function GET(){
   if(!can(x.a,'sales.view')&&!can(x.a,'sales.cashier'))return NextResponse.json({error:'Forbidden'},{status:403});
   const showCost=can(x.a,'sales.cost.view')||can(x.a,'inventory.cost.view');
   const [products,categories,orders,settings,warehouses,items,recipes,shifts]=await Promise.all([
-    x.s.from('sales_products').select('*,sales_categories(name),sales_product_modifiers(*)').eq('company_id',x.c).eq('active',true).order('sort_order'),
-    x.s.from('sales_categories').select('*').eq('company_id',x.c).eq('active',true).order('sort_order'),
+    x.s.from('sales_products').select('*,sales_categories(name),sales_product_modifiers(*)').eq('company_id',x.c).eq('active',true).neq('product_type','raw_material').neq('product_type','sub_recipe').order('sort_order'),
+    x.s.from('sales_categories').select('*').eq('company_id',x.c).eq('active',true).eq('show_on_cashier',true).order('sort_order'),
     x.s.from('sales_orders').select('*,sales_order_lines(*),sales_payments(*)').eq('company_id',x.c).order('created_at',{ascending:false}).limit(150),
     x.s.from('sales_settings').select('*').eq('company_id',x.c).maybeSingle(),
     x.s.from('inventory_warehouses').select('id,name').eq('company_id',x.c).eq('active',true),
@@ -50,7 +50,7 @@ export async function POST(req:Request){
   if(b.kind==='category'){
     if(!can(x.a,'sales.manage'))return NextResponse.json({error:'Forbidden'},{status:403});
     if(!String(d.name||'').trim())return NextResponse.json({error:'Category name is required'},{status:400});
-    const r=await x.s.from('sales_categories').insert({company_id:x.c,name:String(d.name).trim(),code:d.code||null,description:d.description||null,sort_order:Number(d.sort_order||0)}).select().single();
+    const r=await x.s.from('sales_categories').insert({company_id:x.c,name:String(d.name).trim(),code:d.code||null,description:d.description||null,sort_order:Number(d.sort_order||0),show_on_cashier:true}).select().single();
     return r.error?NextResponse.json({error:r.error.message},{status:400}):NextResponse.json({record:r.data});
   }
   if(b.kind==='product'){
@@ -110,7 +110,14 @@ export async function POST(req:Request){
   if(b.kind==='checkout'){
     if(!can(x.a,'sales.cashier'))return NextResponse.json({error:'Forbidden'},{status:403});if(!d.warehouse_id||!await owned(x.s,'inventory_warehouses',d.warehouse_id,x.c))return NextResponse.json({error:'Invalid warehouse'},{status:400});if(!d.shift_id)return NextResponse.json({error:'Open a shift before checkout'},{status:400});const sh=await x.s.from('sales_shifts').select('id,warehouse_id').eq('id',d.shift_id).eq('company_id',x.c).eq('user_id',x.a.user.id).eq('status','open').maybeSingle();if(!sh.data)return NextResponse.json({error:'Shift is not open for this cashier'},{status:400});if(sh.data.warehouse_id&&sh.data.warehouse_id!==d.warehouse_id)return NextResponse.json({error:'Sale warehouse must match the open shift warehouse'},{status:400});
     const discount=Number(d.discount||0);if(!Number.isFinite(discount)||discount<0)return NextResponse.json({error:'Invalid discount'},{status:400});if(discount>0){const settings=await x.s.from('sales_settings').select('allow_discount').eq('company_id',x.c).maybeSingle();if(settings.data?.allow_discount===false)return NextResponse.json({error:'Discounts are disabled in Cashier settings'},{status:403});if(!can(x.a,'sales.discount'))return NextResponse.json({error:'Discount permission required'},{status:403});}
-    const r=await x.s.rpc('sales_checkout',{p_company_id:x.c,p_cashier:x.a.user.id,p_shift_id:d.shift_id,p_warehouse_id:d.warehouse_id,p_service_type:d.service_type||'retail',p_table_no:d.table_no||null,p_discount:discount,p_lines:d.lines||[],p_payments:d.payments||[],p_notes:d.notes||null});if(r.error)return NextResponse.json({error:r.error.message},{status:400});
+    const requestedPayment=(Array.isArray(d.payments)?d.payments:[])[0];
+    if(!requestedPayment?.payment_method)return NextResponse.json({error:'Payment method is required'},{status:400});
+    const pm=await x.s.from('sales_payment_methods').select('code,name,adjustment_percent,adjustment_type').eq('company_id',x.c).eq('active',true).eq('code',String(requestedPayment.payment_method).toLowerCase()).maybeSingle();
+    if(!pm.data)return NextResponse.json({error:'Invalid or inactive payment method'},{status:400});
+    const pct=Math.max(0,Number(pm.data.adjustment_percent||0));const sign=pm.data.adjustment_type==='discount'?-1:1;const multiplier=Math.max(0.01,1+(sign*pct/100));
+    const pricedLines=(Array.isArray(d.lines)?d.lines:[]).map((line:any)=>({...line,price_multiplier:multiplier}));
+    const safePayments=[{payment_method:pm.data.code,base_amount:Number(requestedPayment.base_amount??requestedPayment.amount??0),amount:Number(requestedPayment.amount??requestedPayment.base_amount??0),adjustment_percent:0,adjustment_type:'markup'}];
+    const r=await x.s.rpc('sales_checkout',{p_company_id:x.c,p_cashier:x.a.user.id,p_shift_id:d.shift_id,p_warehouse_id:d.warehouse_id,p_service_type:d.service_type||'retail',p_table_no:d.table_no||null,p_discount:discount,p_lines:pricedLines,p_payments:safePayments,p_notes:d.notes||null});if(r.error)return NextResponse.json({error:r.error.message},{status:400});
     const oid=r.data?.order_id;
     if(oid){
       const customerId=await upsertCustomer(x,d.customer);
