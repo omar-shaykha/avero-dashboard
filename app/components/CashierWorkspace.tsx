@@ -117,7 +117,7 @@ export default function CashierWorkspace() {
     if (!doc) { frame.remove(); return; }
 
     const itemRows = items.map((z: any) => {
-      const u = Number(z.receipt_price ?? z.price || 0);
+      const u = Number(z.receipt_price ?? z.price ?? 0);
       return `
       <div class="item">
         <div class="row"><b>${esc(z.name)}</b><b>${(u * Number(z.quantity)).toFixed(2)}</b></div>
