@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import AddItemsWorkspace from "@/app/components/AddItemsWorkspace";
+import CommerceAdminWorkspace from "@/app/components/CommerceAdminWorkspace";
 import CashierWorkspace from "@/app/components/CashierWorkspace";
 
 type Area = "cashier" | "add-items";
@@ -18,5 +18,5 @@ export default function CoreOperationsWorkspace({ initialArea = "cashier" }: { i
     setArea(normalizeArea(initialArea));
   }, [initialArea]);
 
-  return area === "add-items" ? <AddItemsWorkspace /> : <CashierWorkspace />;
+  return area === "add-items" ? <CommerceAdminWorkspace mode="products" /> : <CashierWorkspace />;
 }
