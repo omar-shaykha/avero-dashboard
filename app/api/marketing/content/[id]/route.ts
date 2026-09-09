@@ -27,7 +27,7 @@ async function ensureMediaUrl(s: SupabaseClient, item: Record<string, any>, comp
   const image = await sharp(Buffer.from(makeSvg({ title: item.campaign_name || "AVERO OS", subtitle: item.metrics?.visual_idea || item.caption || "One command turns work into results.", brand: brandKit?.brand_name || "AVERO OS" }))).jpeg({ quality: 88, mozjpeg: true }).toBuffer();
   const path = `${companyId}/${item.id}-${Date.now()}.jpg`;
   const uploaded = await s.storage.from("marketing-media").upload(path, image, { contentType: "image/jpeg", upsert: true });
-  if (uploaded.error) throw new Error("Could not upload generated media");
+  if (uploaded.error) throw uploaded.error;
   const { data } = s.storage.from("marketing-media").getPublicUrl(path);
   const mediaUrl = data.publicUrl;
   const { data: updated, error } = await s.from("marketing_content_queue").update({ media_url: mediaUrl, updated_at: new Date().toISOString(), metrics: { ...(item.metrics || {}), generated_media: "avero_template_jpeg", generated_media_at: new Date().toISOString() } }).eq("id", item.id).eq("company_id", companyId).select("*").maybeSingle();
@@ -60,26 +60,42 @@ async function graphPost(path: string, body: Record<string, string>) {
   return json;
 }
 
-async function directMetaPublish(item: Record<string, any>, platforms: string[], mediaUrl: string | null) {
-  const pageId = process.env.META_FACEBOOK_PAGE_ID || "1345056728687428";
-  const igId = process.env.META_INSTAGRAM_ACCOUNT_ID || "17841442751901559";
-  const pageToken = process.env.META_FACEBOOK_PAGE_ACCESS_TOKEN;
-  const igToken = process.env.META_INSTAGRAM_ACCESS_TOKEN || pageToken;
+async function getDirectCredential(s: SupabaseClient, companyId: string, platform: string) {
+  const { data: connection } = await s.from("company_social_connections")
+    .select("external_account_id,direct_publishing_enabled")
+    .eq("company_id", companyId)
+    .eq("platform", platform)
+    .maybeSingle();
+  let token: string | null = null;
+  if (connection?.direct_publishing_enabled) {
+    const { data } = await s.rpc("marketing_get_social_token", { p_company_id: companyId, p_platform: platform });
+    token = typeof data === "string" && data.trim() ? data : null;
+  }
+  return { id: connection?.external_account_id || null, token };
+}
+
+async function directMetaPublish(s: SupabaseClient, companyId: string, item: Record<string, any>, platforms: string[], mediaUrl: string | null) {
+  const fb = await getDirectCredential(s, companyId, "facebook");
+  const ig = await getDirectCredential(s, companyId, "instagram");
+  const pageId = fb.id || process.env.META_FACEBOOK_PAGE_ID || null;
+  const igId = ig.id || process.env.META_INSTAGRAM_ACCOUNT_ID || null;
+  const pageToken = fb.token || process.env.META_FACEBOOK_PAGE_ACCESS_TOKEN || null;
+  const igToken = ig.token || pageToken || process.env.META_INSTAGRAM_ACCESS_TOKEN || null;
   const results: Array<{ platform: string; status: string; id?: string; note?: string }> = [];
   const caption = captionWithTags(item);
 
   if (platforms.includes("facebook")) {
-    if (!pageToken) results.push({ platform: "facebook", status: "needs_token", note: "Missing META_FACEBOOK_PAGE_ACCESS_TOKEN on Vercel." });
+    if (!pageId || !pageToken) results.push({ platform: "facebook", status: "needs_connection", note: "Connect Facebook Direct Publishing in Foxy Channels." });
     else {
-      const fb = mediaUrl
+      const published = mediaUrl
         ? await graphPost(`${pageId}/photos`, { url: mediaUrl, caption, access_token: pageToken })
         : await graphPost(`${pageId}/feed`, { message: caption, access_token: pageToken });
-      results.push({ platform: "facebook", status: "published", id: String(fb.post_id || fb.id || "facebook-post") });
+      results.push({ platform: "facebook", status: "published", id: String(published.post_id || published.id || "facebook-post") });
     }
   }
 
   if (platforms.includes("instagram")) {
-    if (!igToken) results.push({ platform: "instagram", status: "needs_token", note: "Missing META_INSTAGRAM_ACCESS_TOKEN or META_FACEBOOK_PAGE_ACCESS_TOKEN on Vercel." });
+    if (!igId || !igToken) results.push({ platform: "instagram", status: "needs_connection", note: "Connect Instagram Direct Publishing in Foxy Channels." });
     else if (!mediaUrl) results.push({ platform: "instagram", status: "needs_media", note: "Instagram requires a public image/video URL." });
     else {
       const container = await graphPost(`${igId}/media`, { image_url: mediaUrl, caption: caption.slice(0, 2200), access_token: igToken });
@@ -91,7 +107,6 @@ async function directMetaPublish(item: Record<string, any>, platforms: string[],
   for (const platform of platforms.filter((p) => !["facebook", "instagram"].includes(p))) {
     results.push({ platform, status: "needs_connector", note: `${platform} direct publishing is not connected yet.` });
   }
-
   return results;
 }
 
@@ -149,7 +164,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       }
 
       try {
-        const results = await directMetaPublish(finalItem, requestedPlatforms, mediaUrl);
+        const results = await directMetaPublish(s, companyId, finalItem, requestedPlatforms, mediaUrl);
         const complete = results.length > 0 && results.every((r) => r.status === "published");
         const somePublished = results.some((r) => r.status === "published");
         const nextStatus = somePublished ? "published" : "failed";
@@ -164,7 +179,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
         }).eq("id", id).eq("company_id", companyId).select("*").maybeSingle();
         if (saved) finalItem = saved;
         finalStatus = nextStatus;
-        finalMessage = complete ? "تم النشر فعلياً من داخل AVERO." : somePublished ? "تم النشر على بعض المنصات، والباقي يحتاج ربط مباشر." : "النشر المباشر يحتاج Access Token على Vercel.";
+        finalMessage = complete ? "تم النشر فعلياً من داخل AVERO." : somePublished ? "تم النشر على بعض المنصات، والباقي يحتاج ربط مباشر." : "اربط Facebook / Instagram من Foxy Direct Publishing وبعدين جرّب Publish.";
       } catch (err) {
         const reason = err instanceof Error ? err.message : "Direct publisher failed";
         const { data: failed } = await s.from("marketing_content_queue").update({ status: "failed", error_message: `Direct Publisher failed: ${reason}`, updated_at: new Date().toISOString(), metrics: { ...(finalItem.metrics || {}), publisher: "vercel_direct_meta", direct_error: reason } }).eq("id", id).eq("company_id", companyId).select("*").maybeSingle();
