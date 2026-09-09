@@ -84,9 +84,13 @@ export async function GET() {
 
   const orders = [...(heldOrders.data || []), ...(completedOrders.data || [])]
     .sort((a: any, b: any) => String(b.created_at || "").localeCompare(String(a.created_at || "")));
+  const safeProducts=(products.data||[]).map((p:any)=>({
+    ...p,
+    image_url:typeof p.image_url==="string"&&p.image_url.startsWith("data:image/")?null:p.image_url
+  }));
 
   return NextResponse.json({
-    products: products.data || [],
+    products: safeProducts,
     categories: categories.data || [],
     orders,
     settings: settings.data || null,
