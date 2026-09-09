@@ -120,6 +120,7 @@ export default function Sidebar({ access }: SidebarProps) {
           </button>
           {settingsOpen && !collapsed && <div className={`mt-2 space-y-1 border-slate-800 ${subBorder}`}>
             <SubLink href="/settings" label={rtl ? "إعدادات الشركة" : "Company Settings"} active={pathname === "/settings"} />
+            <SubLink href="/settings/cashier" label={rtl ? "مراقبة الكاشير" : "Cashier Monitor"} active={pathname?.startsWith("/settings/cashier")} />
             <SubLink href="/settings/pos" label={rtl ? "نقاط البيع والطباعة والفاتورة" : "POS, Printing & Invoice"} active={pathname?.startsWith("/settings/pos")} />
             <SubLink href="/settings/zatca" label={rtl ? "هيئة الزكاة والضريبة" : "ZATCA"} active={pathname?.startsWith("/settings/zatca")} />
           </div>}
