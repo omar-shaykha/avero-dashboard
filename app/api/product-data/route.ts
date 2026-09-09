@@ -33,14 +33,19 @@ export async function GET(){
   const firstError=[products,categories,warehouses,suppliers,recipes,sections].map((r:any)=>r.error).find(Boolean);
   if(firstError)return NextResponse.json({error:firstError.message},{status:400});
   const rows=products.data||[];
+  const legacyImageCount=rows.filter((p:any)=>typeof p.image_url==="string"&&p.image_url.startsWith("data:image/")).length;
+  const safeRows=rows.map((p:any)=>({
+    ...p,
+    image_url:typeof p.image_url==="string"&&p.image_url.startsWith("data:image/")?null:p.image_url
+  }));
   return NextResponse.json({
-    products:rows,
+    products:safeRows,
     categories:categories.data||[],
     warehouses:warehouses.data||[],
     suppliers:suppliers.data||[],
     recipes:recipes.data||[],
     sections:sections.data||[],
-    legacy_image_count:rows.filter((p:any)=>typeof p.image_url==="string"&&p.image_url.startsWith("data:image/")).length
+    legacy_image_count:legacyImageCount
   });
 }
 
