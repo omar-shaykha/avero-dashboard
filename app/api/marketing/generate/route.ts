@@ -2,6 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 import { canAccess, getAuthorizationContext, isKingAdmin } from "@/lib/auth/authorization";
 
 const VALID_PLATFORMS = ["facebook", "instagram", "tiktok", "snapchat"];
+const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-3.6-flash";
 
 function db() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -13,17 +14,18 @@ function db() {
 async function generate(prompt: string) {
   const key = process.env.GEMINI_API_KEY;
   if (!key) throw new Error("Missing Gemini configuration");
-  const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(key)}`, {
+  const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(GEMINI_MODEL)}:generateContent?key=${encodeURIComponent(key)}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       contents: [{ parts: [{ text: prompt }] }],
-      generationConfig: { temperature: 0.72, responseMimeType: "application/json" },
+      generationConfig: { responseMimeType: "application/json" },
     }),
   });
   if (!response.ok) {
     const details = await response.text().catch(() => "");
-    throw new Error(`AI provider request failed (${response.status}) ${details.slice(0, 240)}`);
+    console.error("Foxy Gemini request failed", { model: GEMINI_MODEL, status: response.status, details: details.slice(0, 800) });
+    throw new Error("AI generation is temporarily unavailable");
   }
   const json = await response.json();
   const text = json?.candidates?.[0]?.content?.parts?.map((part: { text?: string }) => part.text || "").join("").trim();
@@ -133,7 +135,7 @@ export async function POST(request: Request) {
       agent_key: "ai_marketing",
       action: "generate_campaign",
       status: "running",
-      input: { platforms, objective, audience, content_type: contentType, budget: body.budget || null, brief, brand_kit_used: Boolean(brandKit), logo_used: hasLogo },
+      input: { platforms, objective, audience, content_type: contentType, budget: body.budget || null, brief, brand_kit_used: Boolean(brandKit), logo_used: hasLogo, model: GEMINI_MODEL },
     }).select("id").single();
 
     let outputText = "";
@@ -144,7 +146,8 @@ export async function POST(request: Request) {
       outputText = await generate(prompt);
       generated = parseJsonObject(outputText);
     } catch (error) {
-      providerWarning = error instanceof Error ? error.message : "AI provider failed";
+      console.error("Foxy generation fallback", error);
+      providerWarning = "AI generation was temporarily unavailable, so Foxy created a safe fallback draft.";
       generated = fallbackContent({
         brandName,
         slogan: safeString(brandKit?.slogan),
@@ -178,10 +181,11 @@ export async function POST(request: Request) {
         `Video: ${safeString(generated.video_idea)}`,
         `Story: ${safeString(generated.story_idea)}`,
         `Carousel: ${safeString(generated.carousel_idea)}`,
-        providerWarning ? `Provider warning: ${providerWarning.slice(0, 500)}` : "",
+        providerWarning ? `System note: ${providerWarning}` : "",
       ].filter(Boolean).join("\n"),
       metrics: {
         source: "dashboard_generate",
+        ai_model: GEMINI_MODEL,
         brand_kit_used: Boolean(brandKit),
         logo_available: hasLogo,
         provider_warning: providerWarning,
@@ -203,14 +207,14 @@ export async function POST(request: Request) {
 
     if (runInsert.data?.id) {
       await s.from("ai_agent_runs").update({
-        status: providerWarning ? "approval_required" : "approval_required",
+        status: "approval_required",
         error_message: providerWarning,
-        output: { content_id: item.id, generated, caption: item.caption, status: item.status, provider_warning: providerWarning },
+        output: { content_id: item.id, generated, caption: item.caption, status: item.status, provider_warning: providerWarning, model: GEMINI_MODEL },
         completed_at: now,
       }).eq("id", runInsert.data.id);
     }
 
-    return Response.json({ item, generated, run_id: runInsert.data?.id || null, warning: providerWarning });
+    return Response.json({ item, generated, run_id: runInsert.data?.id || null, warning: providerWarning, model: GEMINI_MODEL });
   } catch (error) {
     console.error("Marketing generation hard error", error);
     const message = error instanceof Error ? error.message : "Internal server error";
