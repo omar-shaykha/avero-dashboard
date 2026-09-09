@@ -20,24 +20,42 @@ export async function GET(){
   if(!x)return NextResponse.json({error:"Unauthorized"},{status:401});
   if(!can(x.a,"sales.view")&&!can(x.a,"sales.manage"))return NextResponse.json({error:"Forbidden"},{status:403});
 
-  const [products,categories,warehouses,suppliers,recipes,sections]=await Promise.all([
+  // Keep this endpoint deliberately simple. Embedded PostgREST relations can make the
+  // whole Add Items page fail if a relation changes, so fetch master rows separately
+  // and join the tiny lookup sets in memory.
+  const [products,categories,warehouses,suppliers,recipes,sections,inventoryItems]=await Promise.all([
     x.s.from("sales_products")
-      .select("id,category_id,section_id,inventory_item_id,preferred_supplier_id,recipe_id,sub_recipe_id,product_type,inventory_policy,accounting_class,sku,barcode,name,description,image_url,image_path,sale_unit,price,tax_enabled,tax_rate,track_inventory,show_on_cashier,purchasable,sort_order,sales_categories(name),inventory_items(id,name,sku,average_cost,item_type,purchasable)")
+      .select("id,category_id,section_id,inventory_item_id,preferred_supplier_id,recipe_id,sub_recipe_id,product_type,inventory_policy,accounting_class,sku,barcode,name,description,image_url,image_path,sale_unit,price,tax_enabled,tax_rate,track_inventory,show_on_cashier,purchasable,sort_order,created_at")
       .eq("company_id",x.c).eq("active",true).order("created_at",{ascending:false}),
     x.s.from("sales_categories").select("id,name,code,description,sort_order,show_on_cashier").eq("company_id",x.c).eq("active",true).order("sort_order").order("name"),
     x.s.from("inventory_warehouses").select("id,name,code").eq("company_id",x.c).eq("active",true).order("name"),
     x.s.from("suppliers").select("id,name,supplier_code").eq("company_id",x.c).eq("status","active").order("name"),
     x.s.from("production_recipes").select("id,name,recipe_code,recipe_type,status,output_item_id").eq("company_id",x.c).eq("status","active").order("name"),
-    x.s.from("sales_sections").select("id,name,code,printer_target,sort_order").eq("company_id",x.c).eq("active",true).order("sort_order").order("name")
+    x.s.from("sales_sections").select("id,name,code,printer_target,sort_order").eq("company_id",x.c).eq("active",true).order("sort_order").order("name"),
+    x.s.from("inventory_items").select("id,name,sku,average_cost,item_type,purchasable").eq("company_id",x.c).eq("active",true)
   ]);
-  const firstError=[products,categories,warehouses,suppliers,recipes,sections].map((r:any)=>r.error).find(Boolean);
-  if(firstError)return NextResponse.json({error:firstError.message},{status:400});
-  const rows=products.data||[];
-  const legacyImageCount=rows.filter((p:any)=>typeof p.image_url==="string"&&p.image_url.startsWith("data:image/")).length;
-  const safeRows=rows.map((p:any)=>({
+
+  const named:any[]=[
+    ["products",products],["categories",categories],["warehouses",warehouses],
+    ["suppliers",suppliers],["recipes",recipes],["sections",sections],["inventory_items",inventoryItems]
+  ];
+  const failed=named.find(([,r])=>r.error);
+  if(failed){
+    console.error("product-data load failed",failed[0],failed[1].error?.message);
+    return NextResponse.json({error:`${failed[0]}: ${failed[1].error?.message||"load failed"}`},{status:400});
+  }
+
+  const catMap=new Map((categories.data||[]).map((c:any)=>[c.id,c]));
+  const itemMap=new Map((inventoryItems.data||[]).map((i:any)=>[i.id,i]));
+  const rawRows=products.data||[];
+  const legacyImageCount=rawRows.filter((p:any)=>typeof p.image_url==="string"&&p.image_url.startsWith("data:image/")).length;
+  const safeRows=rawRows.map((p:any)=>({
     ...p,
-    image_url:typeof p.image_url==="string"&&p.image_url.startsWith("data:image/")?null:p.image_url
+    image_url:typeof p.image_url==="string"&&p.image_url.startsWith("data:image/")?null:p.image_url,
+    sales_categories:p.category_id?catMap.get(p.category_id)||null:null,
+    inventory_items:p.inventory_item_id?itemMap.get(p.inventory_item_id)||null:null
   }));
+
   return NextResponse.json({
     products:safeRows,
     categories:categories.data||[],
