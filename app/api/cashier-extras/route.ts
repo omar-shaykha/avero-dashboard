@@ -15,7 +15,7 @@ export async function GET(){
     x.s.from("sales_dining_tables").select("id,name,area,seats,status,sort_order").eq("company_id",x.c).order("sort_order"),
     x.s.from("user_profiles").select("full_name,username,nickname").eq("user_id",x.a.user.id).eq("company_id",x.c).maybeSingle(),
     x.s.from("sales_settings").select("best_seller_mode").eq("company_id",x.c).maybeSingle(),
-    x.s.from("sales_products").select("id").eq("company_id",x.c).eq("active",true).eq("show_on_cashier",true).eq("best_seller_manual",true).not("product_type","in",'(\"raw_material\",\"sub_recipe\")'),
+    x.s.from("sales_products").select("id").eq("company_id",x.c).eq("active",true).eq("show_on_cashier",true).eq("best_seller_manual",true).neq("product_type","raw_material").neq("product_type","sub_recipe"),
     x.s.rpc("sales_best_sellers",{p_company_id:x.c,p_limit:24})
   ]);
   const firstError=[payments,tables,me,settings,manual,best].map((r:any)=>r.error).find(Boolean);
