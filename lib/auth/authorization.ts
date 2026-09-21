@@ -1,4 +1,4 @@
-import { createClient } from "@supabase/supabase-js";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient as createServerClient } from "@/lib/supabase/server";
 
 export type FeatureKey = "ai_sales" | "crm" | "analytics" | "ai_marketing" | "ai_hr" | "ai_support" | "ai_inventory" | "ai_customer_care" | "ai_analytics" | "ai_warehouse";
@@ -15,7 +15,7 @@ const LEGACY_PERMISSION_ALIASES:Record<string,string>={
   view_ai_warehouse:"warehouse.view",manage_ai_warehouse:"warehouse.manage"
 };
 function normalizePermissionKey(key:string){return LEGACY_PERMISSION_ALIASES[key]||key}
-function getAdminClient(){const url=process.env.NEXT_PUBLIC_SUPABASE_URL,key=process.env.SUPABASE_SECRET_KEY;if(!url||!key)throw new Error("Missing Supabase configuration");return createClient(url,key)}
+function getAdminClient(){return createAdminClient()}
 export async function getAuthorizationContext():Promise<AuthorizationContext|null>{
  const authClient=await createServerClient();const{data:{user}}=await authClient.auth.getUser();if(!user)return null;
  const supabase=getAdminClient();
