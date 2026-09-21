@@ -25,7 +25,7 @@ export async function GET(){
   const x=await C(); if(!x)return NextResponse.json({error:'Unauthorized'},{status:401});
   if(!can(x.a,'sales.view')&&!can(x.a,'sales.cashier'))return NextResponse.json({error:'Forbidden'},{status:403});
   const showCost=can(x.a,'sales.cost.view')||can(x.a,'inventory.cost.view');
-  const [products,categories,orders,settings,warehouses,items,recipes,shifts]=await Promise.all([
+  const [products,categories,orders,settings,warehouses,items,recipes,shifts,refunds]=await Promise.all([
     x.s.from('sales_products').select('*,sales_categories(name),sales_product_modifiers(*)').eq('company_id',x.c).eq('active',true).neq('product_type','raw_material').neq('product_type','sub_recipe').order('sort_order'),
     x.s.from('sales_categories').select('*').eq('company_id',x.c).eq('active',true).eq('show_on_cashier',true).order('sort_order'),
     x.s.from('sales_orders').select('*,sales_order_lines(*),sales_payments(*)').eq('company_id',x.c).order('created_at',{ascending:false}).limit(150),
@@ -33,9 +33,10 @@ export async function GET(){
     x.s.from('inventory_warehouses').select('id,name').eq('company_id',x.c).eq('active',true),
     x.s.from('inventory_items').select(showCost?'id,name,sku,average_cost':'id,name,sku').eq('company_id',x.c).eq('active',true),
     x.s.from('production_recipes').select('id,name,recipe_code,output_item_id,yield_qty,status').eq('company_id',x.c).eq('status','active'),
-    x.s.from('sales_shifts').select('*').eq('company_id',x.c).eq('user_id',x.a.user.id).order('created_at',{ascending:false}).limit(30)
+    x.s.from('sales_shifts').select('*').eq('company_id',x.c).eq('user_id',x.a.user.id).order('created_at',{ascending:false}).limit(30),
+    x.s.from('sales_refunds').select('*').eq('company_id',x.c).order('created_at',{ascending:false}).limit(150)
   ]);
-  return NextResponse.json({products:products.data||[],categories:categories.data||[],orders:orders.data||[],settings:settings.data||null,warehouses:warehouses.data||[],items:items.data||[],recipes:recipes.data||[],shifts:shifts.data||[]});
+  return NextResponse.json({products:products.data||[],categories:categories.data||[],orders:orders.data||[],settings:settings.data||null,warehouses:warehouses.data||[],items:items.data||[],recipes:recipes.data||[],shifts:shifts.data||[],refunds:refunds.data||[]});
 }
 
 export async function POST(req:Request){
@@ -106,6 +107,15 @@ export async function POST(req:Request){
   }
   if(b.kind==='cancel_hold'){
     if(!can(x.a,'sales.cashier'))return NextResponse.json({error:'Forbidden'},{status:403});const h=await x.s.from('sales_orders').select('id').eq('id',d.order_id).eq('company_id',x.c).eq('status','held').maybeSingle();if(!h.data)return NextResponse.json({error:'Held order not found'},{status:404});await x.s.from('sales_order_lines').delete().eq('order_id',d.order_id).eq('company_id',x.c);await x.s.from('sales_orders').delete().eq('id',d.order_id).eq('company_id',x.c);return NextResponse.json({ok:true});
+  }
+  if(b.kind==='refund'){
+    if(!can(x.a,'sales.manage')&&!can(x.a,'sales.refund'))return NextResponse.json({error:'Refund permission required'},{status:403});
+    if(!d.order_id)return NextResponse.json({error:'Order is required'},{status:400});
+    const ownedOrder=await x.s.from('sales_orders').select('id,status').eq('id',d.order_id).eq('company_id',x.c).maybeSingle();
+    if(!ownedOrder.data)return NextResponse.json({error:'Order not found'},{status:404});
+    if(ownedOrder.data.status!=='completed')return NextResponse.json({error:'Only completed sales can be refunded'},{status:400});
+    const r=await x.s.rpc('sales_refund_order',{p_company_id:x.c,p_order_id:d.order_id,p_user_id:x.a.user.id,p_reason:String(d.reason||'').trim()||null});
+    return r.error?NextResponse.json({error:r.error.message},{status:400}):NextResponse.json({result:r.data});
   }
   if(b.kind==='checkout'){
     if(!can(x.a,'sales.cashier'))return NextResponse.json({error:'Forbidden'},{status:403});if(!d.warehouse_id||!await owned(x.s,'inventory_warehouses',d.warehouse_id,x.c))return NextResponse.json({error:'Invalid warehouse'},{status:400});if(!d.shift_id)return NextResponse.json({error:'Open a shift before checkout'},{status:400});const sh=await x.s.from('sales_shifts').select('id,warehouse_id').eq('id',d.shift_id).eq('company_id',x.c).eq('user_id',x.a.user.id).eq('status','open').maybeSingle();if(!sh.data)return NextResponse.json({error:'Shift is not open for this cashier'},{status:400});if(sh.data.warehouse_id&&sh.data.warehouse_id!==d.warehouse_id)return NextResponse.json({error:'Sale warehouse must match the open shift warehouse'},{status:400});
