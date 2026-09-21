@@ -1,0 +1,72 @@
+name: Build AVERO Mobile
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "capacitor.config.ts"
+      - "mobile-shell/**"
+      - "package.json"
+      - ".github/workflows/build-mobile.yml"
+
+jobs:
+  android:
+    name: Android Debug APK
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - name: Install dependencies
+        run: npm install
+      - name: Generate Android project
+        run: |
+          rm -rf android
+          npx cap add android
+          npx cap sync android
+      - name: Build APK
+        working-directory: android
+        run: ./gradlew assembleDebug
+      - name: Upload Android APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: AVERO-Android-Debug
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+
+  ios:
+    name: iOS Unsigned Simulator Build
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - name: Install dependencies
+        run: npm install
+      - name: Generate iOS project
+        run: |
+          rm -rf ios
+          npx cap add ios
+          npx cap sync ios
+      - name: Build iOS simulator app
+        run: |
+          xcodebuild             -project ios/App/App.xcodeproj             -scheme App             -sdk iphonesimulator             -configuration Debug             -derivedDataPath ios/build             CODE_SIGNING_ALLOWED=NO             build
+      - name: Package simulator build
+        run: |
+          cd ios/build/Build/Products/Debug-iphonesimulator
+          ditto -c -k --sequesterRsrc --keepParent App.app AVERO-iOS-Simulator.zip
+      - name: Upload iOS simulator build
+        uses: actions/upload-artifact@v4
+        with:
+          name: AVERO-iOS-Simulator
+          path: ios/build/Build/Products/Debug-iphonesimulator/AVERO-iOS-Simulator.zip
+          if-no-files-found: error
