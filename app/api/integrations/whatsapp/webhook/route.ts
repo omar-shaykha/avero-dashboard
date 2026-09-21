@@ -172,6 +172,8 @@ export async function POST(request: Request) {
       next_action: leadPatch.next_action ? String(leadPatch.next_action).slice(0, 500) : lead?.next_action || null,
       probability: clampProbability(leadPatch.probability) ?? lead?.probability ?? 0,
       last_contact_at: new Date().toISOString(),
+      source_agent_key: "ai_sales",
+      source_agent_name: "Leo",
     };
 
     if (lead) {
