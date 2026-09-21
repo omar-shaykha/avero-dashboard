@@ -112,7 +112,10 @@ export default function FoxyMarketingLive() {
         method: "POST",
       });
       const mediaJson = await mediaResponse.json().catch(() => ({}));
-      if (!mediaResponse.ok) throw new Error(mediaJson.error || "Could not create the post image");
+      if (!mediaResponse.ok) {
+        setItems((current) => current.map((item) => item.id === contentId ? { ...item, media_url: null } : item));
+        throw new Error(mediaJson.error || "Foxy Image AI is unavailable. Connect an image provider first.");
+      }
 
       if (mediaJson?.item) {
         setItems((current) => [mediaJson.item, ...current.filter((item) => item.id !== mediaJson.item.id)]);
@@ -308,11 +311,11 @@ export default function FoxyMarketingLive() {
                       ) : (
                         <button
                           onClick={publishNow}
-                          disabled={publishing}
+                          disabled={publishing || !preview.media_url}
                           className="mt-5 flex w-full items-center justify-center gap-2 rounded-2xl bg-cyan-400 px-4 py-3.5 text-sm font-black text-slate-950 transition hover:bg-cyan-300 disabled:cursor-not-allowed disabled:opacity-50"
                         >
                           {publishing ? <Loader2 size={17} className="animate-spin" /> : <Send size={17} />}
-                          {publishing ? "Publishing..." : "Publish Now"}
+                          {publishing ? "Publishing..." : !preview.media_url ? "Image required before publishing" : "Publish Now"}
                         </button>
                       )}
                     </div>
