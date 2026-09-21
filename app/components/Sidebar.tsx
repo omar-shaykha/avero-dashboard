@@ -164,7 +164,9 @@ export default function Sidebar({ access }: SidebarProps) {
         <SubLink href="/settings/pos" label={rtl ? "نقاط البيع والطباعة والفاتورة" : "POS, Printing & Invoice"} active={pathname?.startsWith("/settings/pos")} />
         <SubLink href="/settings/zatca" label={rtl ? "هيئة الزكاة والضريبة" : "ZATCA"} active={pathname?.startsWith("/settings/zatca")} />
       </div>}
-    </div> : null, setAgentsOpen(true); } else setAgentsOpen((value) => !value); }} className={`flex w-full items-center gap-3 rounded-xl px-4 py-3 ${pathname?.startsWith("/ai-") ? "bg-cyan-500/10 text-cyan-300" : "text-slate-300 hover:bg-slate-900"}`}>
+    </div> : null,
+    agents: agents.length ? <div>
+      <button onClick={() => { if (collapsed) { setCollapsed(false); setAgentsOpen(true); } else setAgentsOpen((value) => !value); }} className={`flex w-full items-center gap-3 rounded-xl px-4 py-3 ${pathname?.startsWith("/ai-") ? "bg-cyan-500/10 text-cyan-300" : "text-slate-300 hover:bg-slate-900"}`}>
         <Bot size={18} />
         <span className={`flex-1 text-start text-sm font-medium ${collapsed ? "hidden" : "block"}`}>{L("AI AGENT", "AI AGENT")}</span>
         {!collapsed && (agentsOpen ? <ChevronDown size={15} /> : arrow)}
