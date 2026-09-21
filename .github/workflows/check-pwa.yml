@@ -1,0 +1,22 @@
+name: Check AVERO PWA
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "app/manifest.ts"
+      - "public/sw.js"
+      - ".github/workflows/check-pwa.yml"
+
+jobs:
+  check-pwa:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check production app
+        run: |
+          set -e
+          curl -fsSIL https://avero-dashboard-avero5.vercel.app >/dev/null
+          curl -fsS https://avero-dashboard-avero5.vercel.app/manifest.webmanifest >/tmp/manifest.json
+          curl -fsS https://avero-dashboard-avero5.vercel.app/sw.js >/tmp/sw.js
+          node -e 'const fs=require("fs"); const m=JSON.parse(fs.readFileSync("/tmp/manifest.json","utf8")); for (const k of ["name","short_name","start_url","display","icons"]) if(!m[k]) throw new Error("Missing manifest field: "+k); console.log("PWA manifest OK:", m.name, m.display);'
