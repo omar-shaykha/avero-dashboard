@@ -100,7 +100,21 @@ export default function FoxyMarketingLive() {
       });
       const json = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(json.error || "Could not create preview");
-      setNote(json.warning || "Preview ready. Review it, then press Publish Now.");
+      const contentId = json?.item?.id;
+      if (!contentId) throw new Error("Foxy created the post but could not prepare its visual.");
+
+      setNote("Foxy wrote the post. Now creating a custom AI visual...");
+      const mediaResponse = await fetch(`/api/marketing/content/${contentId}/media`, {
+        method: "POST",
+      });
+      const mediaJson = await mediaResponse.json().catch(() => ({}));
+      if (!mediaResponse.ok) throw new Error(mediaJson.error || "Could not create the post image");
+
+      setNote(
+        mediaJson.fallback
+          ? "Preview ready. Foxy used the safe fallback visual because AI image generation was unavailable."
+          : "Preview ready. Foxy created a custom visual for this exact post."
+      );
       await load();
     } catch (error) {
       setNote(error instanceof Error ? error.message : "Could not create preview");
@@ -218,11 +232,11 @@ export default function FoxyMarketingLive() {
                   className="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl bg-violet-500 px-4 py-3.5 text-sm font-black transition hover:bg-violet-400 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {generating ? <Loader2 size={17} className="animate-spin" /> : <Sparkles size={17} />}
-                  {generating ? "Foxy is creating..." : "Generate Preview"}
+                  {generating ? "Foxy is creating post + image..." : "Generate Preview"}
                 </button>
 
                 <p className="mt-3 text-center text-[11px] leading-5 text-slate-600">
-                  Nothing is published when you generate a preview.
+                  Foxy writes the post and creates a matching branded image. Nothing is published yet.
                 </p>
               </div>
 
@@ -245,7 +259,7 @@ export default function FoxyMarketingLive() {
                         <div className="grid h-full place-items-center text-center text-slate-600">
                           <div>
                             <ImageIcon className="mx-auto mb-2" size={34} />
-                            <p className="text-xs">Image will be created automatically when needed.</p>
+                            <p className="text-xs">Foxy is preparing a custom image for this post.</p>
                           </div>
                         </div>
                       )}
