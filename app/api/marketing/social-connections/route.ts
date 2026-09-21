@@ -48,6 +48,8 @@ export async function GET() {
         connection_status: "pending",
         health_status: "not_connected",
         direct_publishing_enabled: false,
+        publisher_ready: false,
+        publisher_provider: null,
         source: null,
         page_url: null,
         permissions: [],
@@ -57,6 +59,8 @@ export async function GET() {
       return {
         ...row,
         source: row.metadata?.source || null,
+        publisher_ready: Boolean(row.direct_publishing_enabled || (row.connection_status === "connected" && row.metadata?.source === "make" && row.metadata?.publisher_webhook_url)),
+        publisher_provider: row.direct_publishing_enabled ? "direct_meta" : (row.metadata?.source === "make" && row.metadata?.publisher_webhook_url ? "make" : null),
         metadata: undefined,
       };
     });
