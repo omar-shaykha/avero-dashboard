@@ -24,10 +24,40 @@ function clampProbability(value: unknown) {
 }
 
 async function generateJson(prompt: string) {
+  const cfToken = process.env.CLOUDFLARE_API_TOKEN;
+  const cfAccount = process.env.CLOUDFLARE_ACCOUNT_ID;
+  if (cfToken && cfAccount) {
+    try {
+      const response = await fetch(
+        "https://api.cloudflare.com/client/v4/accounts/" + encodeURIComponent(cfAccount) + "/ai/run/@cf/zai-org/glm-4.7-flash",
+        {
+          method: "POST",
+          headers: { Authorization: "Bearer " + cfToken, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            messages: [
+              { role: "system", content: "Return exactly one valid JSON object and nothing else." },
+              { role: "user", content: prompt }
+            ],
+            temperature: 0.3,
+            max_tokens: 1800
+          }),
+          signal: AbortSignal.timeout(45000),
+        }
+      );
+      if (!response.ok) throw new Error("Cloudflare failed: " + response.status + " " + (await response.text()).slice(0, 300));
+      const json = await response.json();
+      const raw = String(json?.result?.response || json?.result?.text || "").trim();
+      if (!raw) throw new Error("Cloudflare returned no content");
+      return JSON.parse(raw);
+    } catch (error) {
+      console.error("Leo Cloudflare generation fallback", error);
+    }
+  }
+
   const key = process.env.GEMINI_API_KEY;
-  if (!key) throw new Error("Missing Gemini configuration");
+  if (!key) throw new Error("No Leo text AI provider is configured");
   const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(key)}`,
+    "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=" + encodeURIComponent(key),
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -35,9 +65,10 @@ async function generateJson(prompt: string) {
         contents: [{ parts: [{ text: prompt }] }],
         generationConfig: { temperature: 0.35, responseMimeType: "application/json" },
       }),
+      signal: AbortSignal.timeout(45000),
     }
   );
-  if (!response.ok) throw new Error(`Gemini failed: ${response.status}`);
+  if (!response.ok) throw new Error("Gemini failed: " + response.status);
   const json = await response.json();
   const text = json?.candidates?.[0]?.content?.parts?.map((part: { text?: string }) => part.text || "").join("").trim();
   if (!text) throw new Error("Gemini returned no content");
