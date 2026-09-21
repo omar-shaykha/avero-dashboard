@@ -46,7 +46,7 @@ export default async function CrmOffice(){
  const foxyViews=(pubs||[]).reduce((n:any,x:any)=>n+Number(x.views||0),0);
  return <div className="min-h-screen bg-slate-950 text-white"><Sidebar access={access}/><div className="ml-64 min-h-screen"><DashboardHeader userEmail={access.user.email||""}/><main className="p-6">
   <div className="mx-auto max-w-7xl">
-   <div className="flex flex-wrap items-end justify-between gap-4"><div><p className="text-xs font-black uppercase tracking-[.28em] text-cyan-300">AVERO AI OFFICE</p><h1 className="mt-2 text-4xl font-black">CRM Office</h1><p className="mt-2 max-w-2xl text-sm leading-6 text-slate-400">Your AI employees live here. Only hired and activated agents get a desk and their own CRM.</p></div><Link href="/crm/sales" className="rounded-xl border border-slate-700 bg-slate-900 px-4 py-3 text-sm font-black text-cyan-300">Open Main CRM →</Link></div>
+   <div><p className="text-xs font-black uppercase tracking-[.28em] text-cyan-300">AVERO AI OFFICE</p><h1 className="mt-2 text-4xl font-black">CRM Office</h1><p className="mt-2 max-w-2xl text-sm leading-6 text-slate-400">Your AI employees live here. Only hired and activated agents get a desk and their own CRM.</p></div>
    <div className="mt-7 rounded-[32px] border border-slate-800 bg-[radial-gradient(circle_at_top,rgba(34,211,238,.08),transparent_35%),linear-gradient(180deg,#0f172a,#020617)] p-5 md:p-7">
     <div className="mb-5 flex items-center justify-between"><div><h2 className="text-lg font-black">Active Office</h2><p className="text-xs text-slate-500">2 AI employees currently hired</p></div><span className="rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-black text-emerald-300">2 ACTIVE</span></div>
     <div className="grid gap-5 lg:grid-cols-2">
