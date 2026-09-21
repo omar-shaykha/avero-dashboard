@@ -44,7 +44,7 @@ export default function CashierMonitorSettingsPage(){
   return <div className="min-h-screen bg-slate-950 text-white">
     <Sidebar/>
     <div className="ml-64 flex min-h-screen flex-col"><DashboardHeader/><main className="flex-1 px-6 py-7"><div className="mx-auto max-w-6xl space-y-6">
-      <div><div className="text-xs font-black uppercase tracking-[.2em] text-cyan-400">AVERO SETTINGS</div><h1 className="mt-2 text-3xl font-black">{L("Cashier Monitor","مراقبة الكاشير")}</h1><p className="mt-2 text-sm text-slate-400">{L("Control payment methods, category buttons, cashier items and Best Sellers from one place.","تحكم بطرق الدفع وتصنيفات شاشة الكاشير والأصناف وBest Sellers من مكان واحد.")}</p></div>
+      <div><div className="text-xs font-black uppercase tracking-[.2em] text-cyan-400">AVERO SETTINGS</div><h1 className="mt-2 text-3xl font-black">{L("Cashier Settings","إعدادات الكاشير")}</h1><p className="mt-2 text-sm text-slate-400">{L("Manage payment methods, cashier categories, visible items, Best Sellers and operational sections from one place.","إدارة طرق الدفع وتصنيفات الكاشير والأصناف الظاهرة والأكثر مبيعاً والأقسام التشغيلية من مكان واحد.")}</p></div>
 
       <section className={card}>
         <div className="mb-4"><h2 className="text-xl font-black">{form.id?L("Edit Payment Method","تعديل طريقة الدفع"):L("Add Payment Method","إضافة طريقة دفع")}</h2><p className="mt-1 text-sm text-slate-400">{L("Optional price increase is built into the item selling price for that payment method and is not shown as a separate surcharge.","زيادة السعر اختيارية وتدخل داخل سعر الصنف لهذه الطريقة ولا تظهر كبند زيادة منفصل.")}</p></div>
