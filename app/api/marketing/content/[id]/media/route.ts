@@ -49,7 +49,7 @@ async function generateVisual(prompt: string) {
   if (!key) throw new Error("Missing Gemini image configuration");
 
   const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1/models/${encodeURIComponent(IMAGE_MODEL)}:generateContent`,
+    "https://generativelanguage.googleapis.com/v1beta/interactions",
     {
       method: "POST",
       headers: {
@@ -57,15 +57,13 @@ async function generateVisual(prompt: string) {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: {
-          responseModalities: ["IMAGE"],
-          responseFormat: {
-            image: {
-              aspectRatio: "1:1",
-              imageSize: "1K",
-            },
-          },
+        model: IMAGE_MODEL,
+        input: [{ type: "text", text: prompt }],
+        response_format: {
+          type: "image",
+          mime_type: "image/jpeg",
+          aspect_ratio: "1:1",
+          image_size: "1K",
         },
       }),
       signal: AbortSignal.timeout(90000),
@@ -74,17 +72,16 @@ async function generateVisual(prompt: string) {
 
   if (!response.ok) {
     const details = await response.text().catch(() => "");
-    throw new Error(`Gemini image generation failed ${response.status}: ${details.slice(0, 300)}`);
+    throw new Error(`Gemini image generation failed ${response.status}: ${details.slice(0, 400)}`);
   }
 
   const json = await response.json();
-  const parts = json?.candidates?.[0]?.content?.parts || [];
-  const imagePart = parts.find((part: any) => part?.inlineData?.data);
-  if (!imagePart?.inlineData?.data) throw new Error("Gemini returned no image");
+  const data = json?.output_image?.data;
+  if (!data) throw new Error("Gemini returned no image");
 
   return {
-    buffer: Buffer.from(imagePart.inlineData.data, "base64"),
-    mimeType: String(imagePart.inlineData.mimeType || "image/png"),
+    buffer: Buffer.from(data, "base64"),
+    mimeType: String(json?.output_image?.mime_type || "image/jpeg"),
   };
 }
 
