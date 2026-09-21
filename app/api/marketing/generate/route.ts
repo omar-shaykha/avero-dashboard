@@ -12,19 +12,50 @@ function db() {
 }
 
 async function generate(prompt: string) {
+  const cfToken = process.env.CLOUDFLARE_API_TOKEN;
+  const cfAccount = process.env.CLOUDFLARE_ACCOUNT_ID;
+  if (cfToken && cfAccount) {
+    try {
+      const response = await fetch(
+        "https://api.cloudflare.com/client/v4/accounts/" + encodeURIComponent(cfAccount) + "/ai/run/@cf/zai-org/glm-4.7-flash",
+        {
+          method: "POST",
+          headers: { Authorization: "Bearer " + cfToken, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            messages: [
+              { role: "system", content: "Return exactly one valid JSON object and nothing else." },
+              { role: "user", content: prompt }
+            ],
+            temperature: 0.35,
+            max_tokens: 2200
+          }),
+          signal: AbortSignal.timeout(45000),
+        }
+      );
+      if (!response.ok) throw new Error("Cloudflare text failed " + response.status + ": " + (await response.text()).slice(0, 400));
+      const json = await response.json();
+      const text = String(json?.result?.response || json?.result?.text || "").trim();
+      if (!text) throw new Error("Cloudflare returned no content");
+      return text;
+    } catch (error) {
+      console.error("Foxy Cloudflare text fallback", error);
+    }
+  }
+
   const key = process.env.GEMINI_API_KEY;
-  if (!key) throw new Error("Missing Gemini configuration");
-  const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(GEMINI_MODEL)}:generateContent?key=${encodeURIComponent(key)}`, {
+  if (!key) throw new Error("No Foxy text AI provider is configured");
+  const response = await fetch("https://generativelanguage.googleapis.com/v1beta/models/" + encodeURIComponent(GEMINI_MODEL) + ":generateContent?key=" + encodeURIComponent(key), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       contents: [{ parts: [{ text: prompt }] }],
       generationConfig: { responseMimeType: "application/json" },
     }),
+    signal: AbortSignal.timeout(45000),
   });
   if (!response.ok) {
     const details = await response.text().catch(() => "");
-    console.error("Foxy Gemini request failed", { model: GEMINI_MODEL, status: response.status, details: details.slice(0, 800) });
+    console.error("Foxy Gemini request failed", { model: "cloudflare_glm_4_7_flash_with_gemini_fallback", status: response.status, details: details.slice(0, 800) });
     throw new Error("AI generation is temporarily unavailable");
   }
   const json = await response.json();
