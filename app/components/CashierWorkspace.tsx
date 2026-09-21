@@ -20,7 +20,7 @@ export default function CashierWorkspace() {
   const ar = language === "ar";
   const L = (e: string, a: string) => ar ? a : e;
 
-  const [d, S] = useState<any>({ products: [], categories: [], orders: [], warehouses: [], shifts: [], settings: null });
+  const [d, S] = useState<any>({ products: [], categories: [], orders: [], warehouses: [], shifts: [], refunds: [], settings: null });
   const [x, X] = useState<any>({ payment_methods: [], tables: [], best_sellers: [], cashier_name: L("Cashier", "كاشير") });
   const [cart, K] = useState<any[]>([]);
   const [cat, C] = useState("all");
@@ -197,6 +197,31 @@ export default function CashierWorkspace() {
     load();
   }
 
+  async function closeShift() {
+    if (!shift) return;
+    const raw = window.prompt(L("Enter counted closing cash", "أدخل النقد الفعلي عند إغلاق الوردية"), String(shift.expected_cash ?? shift.opening_cash ?? 0));
+    if (raw === null) return;
+    const closing = Number(raw);
+    if (!Number.isFinite(closing) || closing < 0) return alert(L("Invalid cash amount", "قيمة النقد غير صحيحة"));
+    const j = await api("close_shift", { shift_id: shift.id, closing_cash: closing });
+    if (j) {
+      alert(L("Shift closed. Variance: ", "تم إغلاق الوردية. الفرق: ") + Number(j.variance || 0).toFixed(2) + " " + currency);
+      await load();
+    }
+  }
+
+  async function refundOrder(order: any) {
+    if (!order || order.status !== "completed") return;
+    const reason = window.prompt(L("Refund reason", "سبب الاسترجاع"), "");
+    if (reason === null) return;
+    if (!window.confirm(L("Refund the full invoice and restore stock?", "استرجاع كامل الفاتورة وإعادة المخزون؟"))) return;
+    const j = await api("refund", { order_id: order.id, reason });
+    if (j) {
+      alert(L("Refund completed: ", "تم الاسترجاع: ") + (j.result?.refund_no || ""));
+      await load();
+    }
+  }
+
   async function addTable() {
     if (!String(tableForm.name || "").trim()) return alert(L("Table name is required", "اسم الطاولة مطلوب"));
     const r = await fetch("/api/commerce-admin", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ kind: "dining_table", data: tableForm }) });
@@ -222,7 +247,7 @@ export default function CashierWorkspace() {
     <header className="flex flex-wrap items-center justify-between gap-3"><div><h1 className="text-3xl font-black">{L("Cashier", "الكاشير")}</h1><p className="text-sm text-slate-400">{L("Cashier", "الكاشير")}: <b className="text-cyan-300">{x.cashier_name}</b> · {L("Shift", "الوردية")} {shift ? L("OPEN", "مفتوحة") : L("CLOSED", "مغلقة")}</p></div></header>
 
     <div className="flex flex-wrap gap-2">
-      {!shift && <button className={btn} onClick={openShift}>{L("Open Shift", "فتح وردية")}</button>}
+      {!shift ? <button className={btn} onClick={openShift}>{L("Open Shift", "فتح وردية")}</button> : <button className={ghost} onClick={closeShift}>{L("Close Shift", "إغلاق الوردية")}</button>}
       <button className={ghost} onClick={() => Z("track")}>{L("Track Invoice", "تتبع الفاتورة")}</button>
       <button className={ghost} onClick={() => Z("tables")}>{L("Dining Map", "خريطة الطاولات")}</button>
       <button className={ghost} onClick={() => Z("holds")}>{L("Held Orders", "الطلبات المعلقة")} ({held.length})</button>
@@ -280,7 +305,7 @@ export default function CashierWorkspace() {
 
     {modal === "tables" && <Modal t={L("Dining Map", "خريطة الطاولات")} x={() => Z("")}><div className="grid gap-2 md:grid-cols-[1fr_1fr_100px_auto]"><input className={inp} placeholder={L("Table name", "اسم الطاولة")} value={tableForm.name} onChange={e => setTableForm({ ...tableForm, name: e.target.value })} /><input className={inp} placeholder={L("Area", "المنطقة")} value={tableForm.area} onChange={e => setTableForm({ ...tableForm, area: e.target.value })} /><input className={inp} type="number" min="1" value={tableForm.seats} onChange={e => setTableForm({ ...tableForm, seats: Number(e.target.value) })} /><button className={btn} onClick={addTable}>+ {L("Table", "طاولة")}</button></div><div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-3">{x.tables.map((t: any) => <div key={t.id} className={`rounded-2xl border p-4 ${table?.id === t.id ? "border-cyan-400" : "border-slate-700"}`}><b>{t.name}</b><small className="block text-slate-500">{t.area || L("Main", "الرئيسية")} · {t.seats} {L("seats", "مقاعد")}</small><div className="mt-2 flex gap-1"><button className="text-cyan-300" onClick={() => { T(t); Z(""); }}>{L("Select", "اختيار")}</button><button className="ml-auto text-xs" onClick={async () => { await extra("table_status", { table_id: t.id, status: t.status === "closed" ? "open" : "closed" }); load(); }}>{t.status === "closed" ? L("Open", "فتح") : L("Close", "إغلاق")}</button></div></div>)}</div></Modal>}
 
-    {modal === "track" && <Modal t={L("Invoice Tracking", "تتبع الفواتير")} x={() => Z("")}><div className="space-y-2">{d.orders.filter((o: any) => o.status === "completed").slice(0, 50).map((o: any) => <div key={o.id} className="grid grid-cols-[1fr_160px] items-center border-b border-slate-800 py-3"><span><b>{o.order_no}</b><small className="block text-slate-500">{o.cashier_name || L("Cashier", "كاشير")} · {Number(o.total).toFixed(2)} {currency}</small></span><select className={inp} value={o.tracking_status || "new"} onChange={async e => { await extra("tracking", { order_id: o.id, status: e.target.value }); load(); }}><option value="new">{L("New", "جديدة")}</option><option value="preparing">{L("Preparing", "قيد التحضير")}</option><option value="ready">{L("Ready", "جاهزة")}</option><option value="delivered">{L("Delivered", "تم التسليم")}</option><option value="completed">{L("Completed", "مكتملة")}</option><option value="cancelled">{L("Cancelled", "ملغاة")}</option></select></div>)}</div></Modal>}
+    {modal === "track" && <Modal t={L("Invoice Tracking", "تتبع الفواتير")} x={() => Z("")}><div className="space-y-2">{d.orders.filter((o: any) => ["completed","refunded"].includes(o.status)).slice(0, 50).map((o: any) => <div key={o.id} className="grid gap-2 border-b border-slate-800 py-3 md:grid-cols-[1fr_160px_auto] md:items-center"><span><b>{o.order_no}</b><small className="block text-slate-500">{o.cashier_name || L("Cashier", "كاشير")} · {Number(o.total).toFixed(2)} {currency} · {o.status}</small></span><select disabled={o.status==="refunded"} className={inp} value={o.tracking_status || "new"} onChange={async e => { await extra("tracking", { order_id: o.id, status: e.target.value }); load(); }}><option value="new">{L("New", "جديدة")}</option><option value="preparing">{L("Preparing", "قيد التحضير")}</option><option value="ready">{L("Ready", "جاهزة")}</option><option value="delivered">{L("Delivered", "تم التسليم")}</option><option value="completed">{L("Completed", "مكتملة")}</option><option value="cancelled">{L("Cancelled", "ملغاة")}</option></select>{o.status==="completed"?<button className="rounded-xl border border-rose-700 px-3 py-2 text-xs font-black text-rose-300" onClick={()=>refundOrder(o)}>{L("Full Refund", "استرجاع كامل")}</button>:<span className="text-xs font-black text-amber-300">{L("REFUNDED", "مُسترجعة")}</span>}</div>)}</div></Modal>}
 
     {modal === "holds" && <Modal t={L("Held Orders", "الطلبات المعلقة")} x={() => Z("")}><div>{held.map((o: any) => <div key={o.id} className="flex items-center justify-between border-b border-slate-800 py-3"><span><b>{o.order_no}</b><small className="block text-slate-500">{Number(o.total).toFixed(2)} {currency}</small></span><button className={btn} onClick={() => recall(o)}>{L("Recall", "استرجاع")}</button></div>)}</div></Modal>}
   </div>;
