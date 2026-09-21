@@ -1,14 +1,6 @@
-import { createClient } from "@supabase/supabase-js";
 import sharp from "sharp";
-
-const GRAPH_VERSION = process.env.META_GRAPH_VERSION || "v24.0";
-
-function db() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.SUPABASE_SECRET_KEY;
-  if (!url || !key) throw new Error("Missing Supabase configuration");
-  return createClient(url, key);
-}
+import { createAdminClient } from "@/lib/supabase/admin";
+import { publishMarketingContent } from "@/lib/marketing/publisher";
 
 function authorized(request: Request) {
   const secret = process.env.CRON_SECRET;
@@ -32,88 +24,93 @@ async function media(s: any, item: any, companyId: string) {
   return url;
 }
 
-async function post(path: string, body: Record<string, string>) {
-  const res = await fetch(`https://graph.facebook.com/${GRAPH_VERSION}/${path}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams(body),
-  });
-  const json = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(json?.error?.message || `Meta ${res.status}`);
-  return json;
-}
-
-async function credential(s: any, companyId: string, platform: string) {
-  const { data: connection } = await s.from("company_social_connections")
-    .select("external_account_id,direct_publishing_enabled")
-    .eq("company_id", companyId)
-    .eq("platform", platform)
-    .maybeSingle();
-  let token: string | null = null;
-  if (connection?.direct_publishing_enabled) {
-    const { data } = await s.rpc("marketing_get_social_token", { p_company_id: companyId, p_platform: platform });
-    token = typeof data === "string" && data.trim() ? data : null;
-  }
-  return { id: connection?.external_account_id || null, token };
-}
-
 export async function GET(request: Request) {
   if (!authorized(request)) return Response.json({ error: "Unauthorized" }, { status: 401 });
-  const s = db();
+  const s = createAdminClient();
   const now = new Date().toISOString();
+
   try {
-    const { data: rows } = await s.from("marketing_content_queue").select("*").eq("status", "scheduled").lte("scheduled_for", now).order("scheduled_for", { ascending: true }).limit(20);
+    const { data: rows, error: rowsError } = await s.from("marketing_content_queue")
+      .select("*")
+      .eq("status", "scheduled")
+      .lte("scheduled_for", now)
+      .order("scheduled_for", { ascending: true })
+      .limit(20);
+
+    if (rowsError) throw rowsError;
+
     let published = 0;
+    let failed = 0;
+
     for (const item of rows || []) {
-      const { data: setting } = await s.from("marketing_schedule_settings").select("mode,enabled").eq("company_id", item.company_id).maybeSingle();
+      const { data: setting } = await s.from("marketing_schedule_settings")
+        .select("mode,enabled")
+        .eq("company_id", item.company_id)
+        .maybeSingle();
+
       if (!setting?.enabled || setting.mode !== "automatic") continue;
+
       await s.from("marketing_content_queue").update({ status: "publishing", updated_at: now }).eq("id", item.id);
+
       try {
         const platforms = Array.isArray(item.platforms) ? item.platforms : [item.channel].filter(Boolean);
-        const caption = [item.caption, ...(item.hashtags || []).map((x: string) => `#${String(x).replace(/^#/, "")}`)].filter(Boolean).join("\n\n");
-        const results: any[] = [];
         let mediaUrl = item.media_url || null;
         if (platforms.includes("instagram") && !mediaUrl) mediaUrl = await media(s, item, item.company_id);
 
-        const fb = await credential(s, item.company_id, "facebook");
-        const ig = await credential(s, item.company_id, "instagram");
+        const results = await publishMarketingContent(s, item.company_id, item, platforms, mediaUrl);
+        const complete = results.length > 0 && results.every((result) => result.status === "published");
+        const somePublished = results.some((result) => result.status === "published");
+        const status = somePublished ? "published" : "failed";
+        const errorMessage = complete
+          ? null
+          : results.map((result) => `${result.platform}: ${result.status}${result.note ? ` - ${result.note}` : ""}`).join(" | ");
 
-        if (platforms.includes("facebook")) {
-          if (!fb.id || !fb.token) throw new Error("Facebook Direct Publishing is not connected for this company.");
-          const x = mediaUrl
-            ? await post(`${fb.id}/photos`, { url: mediaUrl, caption, access_token: fb.token })
-            : await post(`${fb.id}/feed`, { message: caption, access_token: fb.token });
-          results.push({ platform: "facebook", id: x.post_id || x.id });
-        }
-
-        if (platforms.includes("instagram")) {
-          const token = ig.token || fb.token;
-          if (!ig.id || !token || !mediaUrl) throw new Error("Instagram Direct Publishing is not connected for this company.");
-          const container = await post(`${ig.id}/media`, { image_url: mediaUrl, caption: caption.slice(0, 2200), access_token: token });
-          const p = await post(`${ig.id}/media_publish`, { creation_id: String(container.id), access_token: token });
-          results.push({ platform: "instagram", id: p.id });
-        }
-
-        const unsupported = platforms.filter((p: string) => !["facebook", "instagram"].includes(p));
         await s.from("marketing_content_queue").update({
-          status: "published",
-          published_at: new Date().toISOString(),
-          external_post_id: results.map((x) => `${x.platform}:${x.id}`).join(",") || null,
-          error_message: unsupported.length ? `Not auto-connected yet: ${unsupported.join(", ")}` : null,
-          metrics: { ...(item.metrics || {}), publisher: "foxy_auto_vercel", publishing_result: results },
+          status,
+          published_at: somePublished ? new Date().toISOString() : null,
+          external_post_id: results.filter((result) => result.id).map((result) => `${result.platform}:${result.id}`).join(",") || null,
+          error_message: errorMessage,
+          metrics: { ...(item.metrics || {}), publisher: "foxy_auto_router", publishing_result: results },
           updated_at: new Date().toISOString(),
         }).eq("id", item.id);
-        await s.from("ai_agent_runs").insert({ company_id: item.company_id, agent_key: "ai_marketing", action: "automatic_publish", status: "completed", input: { content_id: item.id, scheduled_for: item.scheduled_for }, output: { results }, completed_at: new Date().toISOString() });
-        published++;
-      } catch (e) {
-        const reason = e instanceof Error ? e.message : "Auto publish failed";
-        await s.from("marketing_content_queue").update({ status: "failed", error_message: reason, updated_at: new Date().toISOString() }).eq("id", item.id);
-        await s.from("ai_agent_runs").insert({ company_id: item.company_id, agent_key: "ai_marketing", action: "automatic_publish", status: "failed", input: { content_id: item.id }, error_message: reason, completed_at: new Date().toISOString() });
+
+        await s.from("ai_agent_runs").insert({
+          company_id: item.company_id,
+          agent_key: "ai_marketing",
+          action: "automatic_publish",
+          status: somePublished ? "completed" : "failed",
+          input: { content_id: item.id, scheduled_for: item.scheduled_for, platforms },
+          output: { results },
+          error_message: errorMessage,
+          completed_at: new Date().toISOString(),
+        });
+
+        if (somePublished) published++;
+        else failed++;
+      } catch (error) {
+        const reason = error instanceof Error ? error.message : "Auto publish failed";
+        await s.from("marketing_content_queue").update({
+          status: "failed",
+          error_message: reason,
+          updated_at: new Date().toISOString(),
+        }).eq("id", item.id);
+
+        await s.from("ai_agent_runs").insert({
+          company_id: item.company_id,
+          agent_key: "ai_marketing",
+          action: "automatic_publish",
+          status: "failed",
+          input: { content_id: item.id },
+          error_message: reason,
+          completed_at: new Date().toISOString(),
+        });
+        failed++;
       }
     }
-    return Response.json({ ok: true, due: rows?.length || 0, published });
-  } catch (e) {
-    console.error(e);
+
+    return Response.json({ ok: true, due: rows?.length || 0, published, failed });
+  } catch (error) {
+    console.error("Foxy automatic publishing error", error);
     return Response.json({ error: "Automatic publishing failed" }, { status: 500 });
   }
 }
