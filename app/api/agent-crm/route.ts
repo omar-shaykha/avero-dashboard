@@ -14,7 +14,7 @@ const AGENTS = [
 ] as const;
 
 function allowed(a:any){return isKingAdmin(a)||isTenantAdmin(a)||hasPermission(a,"crm.view")||hasPermission(a,"analytics.view");}
-async function count(q:any){const r=await q.select("*",{count:"exact",head:true});return r.count||0;}
+async function count(s:any,table:string,companyId:string){const r=await s.from(table).select("*",{count:"exact",head:true}).eq("company_id",companyId);return r.count||0;}
 
 export async function GET(req:Request){
   const a=await getAuthorizationContext(); if(!a)return NextResponse.json({error:"Unauthorized"},{status:401});
@@ -31,13 +31,13 @@ export async function GET(req:Request){
   const [leadRows,marketingRows,hrCandidates,hrJobs,attendance,inventoryItems,stockMoves,customers,conversations]=await Promise.all([
     s.from("leads").select("status,estimated_value,next_follow_up_at,probability").eq("company_id",companyId),
     s.from("marketing_content_queue").select("status,created_at").eq("company_id",companyId),
-    count(s.from("hr_candidates").eq("company_id",companyId)),
-    count(s.from("hr_jobs").eq("company_id",companyId)),
-    count(s.from("attendance_logs").eq("company_id",companyId)),
-    count(s.from("inventory_items").eq("company_id",companyId)),
-    count(s.from("inventory_stock_movements").eq("company_id",companyId)),
-    count(s.from("customers").eq("company_id",companyId)),
-    count(s.from("conversations").eq("company_id",companyId)),
+    count(s,"hr_candidates",companyId),
+    count(s,"hr_jobs",companyId),
+    count(s,"attendance_logs",companyId),
+    count(s,"inventory_items",companyId),
+    count(s,"inventory_stock_movements",companyId),
+    count(s,"customers",companyId),
+    count(s,"conversations",companyId),
   ]);
 
   const leads=leadRows.data||[], marketing=marketingRows.data||[];
