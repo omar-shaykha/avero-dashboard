@@ -60,7 +60,6 @@ async function generateVisual(prompt: string) {
       body: JSON.stringify({
         prompt,
         steps: 4,
-        seed: Math.floor(Math.random() * 2147483647),
       }),
       signal: AbortSignal.timeout(90000),
     }
