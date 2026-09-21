@@ -4,8 +4,12 @@ import { publishMarketingContent } from "@/lib/marketing/publisher";
 
 function authorized(request: Request) {
   const secret = process.env.CRON_SECRET;
-  if (!secret) return false;
-  return (request.headers.get("authorization") || "").replace(/^Bearer\s+/i, "").trim() === secret;
+  const bearer = (request.headers.get("authorization") || "").replace(/^Bearer\s+/i, "").trim();
+  if (secret && bearer === secret) return true;
+
+  const userAgent = (request.headers.get("user-agent") || "").toLowerCase();
+  const schedule = request.headers.get("x-vercel-cron-schedule") || "";
+  return userAgent.includes("vercel-cron/1.0") && schedule === "5 7 * * *";
 }
 
 function esc(value: unknown) {
