@@ -1,6 +1,10 @@
 {
   "crons": [
     {
+      "path": "/api/marketing/daily-content",
+      "schedule": "0 5 * * *"
+    },
+    {
       "path": "/api/marketing/auto-publish",
       "schedule": "*/10 * * * *"
     }
