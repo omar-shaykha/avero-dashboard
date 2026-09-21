@@ -18,13 +18,58 @@ function esc(value: unknown) {
 
 async function media(s: any, item: any, companyId: string) {
   if (item.media_url) return item.media_url;
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1080"><defs><radialGradient id="g" cx="25%" cy="15%" r="80%"><stop offset="0" stop-color="#123A55"/><stop offset=".48" stop-color="#061427"/><stop offset="1" stop-color="#020617"/></radialGradient></defs><rect width="1080" height="1080" fill="url(#g)"/><circle cx="870" cy="160" r="250" fill="#22D3EE" opacity=".12"/><rect x="80" y="80" width="920" height="920" rx="58" fill="none" stroke="#22D3EE" stroke-opacity=".32" stroke-width="2"/><text x="125" y="150" fill="#67E8F9" font-family="Arial,sans-serif" font-size="24" font-weight="900" letter-spacing="6">AVERO OS</text><text x="125" y="420" fill="#F8FAFC" font-family="Arial,sans-serif" font-size="92" font-weight="900">AVERO OS</text><text x="125" y="505" fill="#CBD5E1" font-family="Arial,sans-serif" font-size="36" font-weight="700">Business Operations Platform</text><rect x="125" y="650" width="830" height="145" rx="34" fill="#031525" stroke="#22D3EE" stroke-opacity=".36"/><text x="170" y="713" fill="#E0F2FE" font-family="Arial,sans-serif" font-size="28" font-weight="900">SALES · CRM · POS · INVENTORY</text><text x="170" y="756" fill="#67E8F9" font-family="Arial,sans-serif" font-size="22" font-weight="800">AI AGENTS · OPERATIONS · AUTOMATION</text><text x="125" y="930" fill="#22D3EE" font-family="Arial,sans-serif" font-size="24" font-weight="900" letter-spacing="5">RUN YOUR BUSINESS FROM ONE SYSTEM</text></svg>`;
-  const buf = await sharp(Buffer.from(svg)).jpeg({ quality: 88 }).toBuffer();
-  const path = `${companyId}/${item.id}-auto.jpg`;
-  const up = await s.storage.from("marketing-media").upload(path, buf, { contentType: "image/jpeg", upsert: true });
+
+  const { data: brand } = await s.from("company_marketing_brand_kits")
+    .select("brand_name,logo_data_url,primary_color,secondary_color,accent_color,visual_style,target_audience")
+    .eq("company_id", companyId)
+    .maybeSingle();
+
+  const key = process.env.GEMINI_API_KEY;
+  let image: Buffer;
+  let provider = "gemini_3_1_flash_image";
+
+  try {
+    if (!key) throw new Error("Missing Gemini image key");
+    const prompt = [
+      `Create a premium 1:1 social-media advertising visual for ${brand?.brand_name || "AVERO OS"}.`,
+      `The visual must specifically match this post: ${item.caption || item.campaign_name || ""}`,
+      `Visual direction: ${item.metrics?.visual_idea || item.creative_brief || ""}`,
+      `Brand style: ${brand?.visual_style || "dark premium SaaS, futuristic business technology, cyan and electric-blue accents"}.`,
+      `Brand colors: ${brand?.primary_color || "#0B2A45"}, ${brand?.secondary_color || "#00C8FF"}, ${brand?.accent_color || "#22D3EE"}.`,
+      "Professional art-directed campaign image, cinematic depth, polished lighting, strong business-tech visual metaphor.",
+      "Do not render captions, paragraphs, hashtags, fake dashboards, logos, gibberish or placeholder text inside the image.",
+      "Leave some clean space at the top-left for brand identity.",
+    ].join("\n");
+
+    const r = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-3.1-flash-image:generateContent`, {
+      method: "POST",
+      headers: {"x-goog-api-key": key, "Content-Type": "application/json"},
+      body: JSON.stringify({
+        contents:[{parts:[{text:prompt}]}],
+        generationConfig:{responseModalities:["IMAGE"],responseFormat:{image:{aspectRatio:"1:1",imageSize:"1K"}}}
+      }),
+      signal: AbortSignal.timeout(90000),
+    });
+    if (!r.ok) throw new Error(`Gemini image failed ${r.status}`);
+    const j = await r.json();
+    const part = (j?.candidates?.[0]?.content?.parts || []).find((p:any)=>p?.inlineData?.data);
+    if (!part?.inlineData?.data) throw new Error("No generated image returned");
+    image = await sharp(Buffer.from(part.inlineData.data,"base64")).resize(1080,1080,{fit:"cover"}).jpeg({quality:92,mozjpeg:true}).toBuffer();
+  } catch (e) {
+    provider = "avero_template_fallback";
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1080"><defs><radialGradient id="g" cx="25%" cy="15%" r="80%"><stop offset="0" stop-color="#123A55"/><stop offset=".48" stop-color="#061427"/><stop offset="1" stop-color="#020617"/></radialGradient></defs><rect width="1080" height="1080" fill="url(#g)"/><circle cx="870" cy="160" r="250" fill="#22D3EE" opacity=".12"/><text x="125" y="420" fill="#F8FAFC" font-family="Arial" font-size="92" font-weight="900">AVERO OS</text><text x="125" y="505" fill="#CBD5E1" font-family="Arial" font-size="36" font-weight="700">Business Operations Platform</text></svg>`;
+    image = await sharp(Buffer.from(svg)).jpeg({quality:90}).toBuffer();
+  }
+
+  const path = `${companyId}/${item.id}-auto-${Date.now()}.jpg`;
+  const up = await s.storage.from("marketing-media").upload(path,image,{contentType:"image/jpeg",upsert:true});
   if (up.error) throw up.error;
   const url = s.storage.from("marketing-media").getPublicUrl(path).data.publicUrl;
-  await s.from("marketing_content_queue").update({ media_url: url, updated_at: new Date().toISOString() }).eq("id", item.id);
+  await s.from("marketing_content_queue").update({
+    media_url:url,
+    metrics:{...(item.metrics||{}),generated_media:provider,generated_media_at:new Date().toISOString()},
+    updated_at:new Date().toISOString()
+  }).eq("id",item.id);
   return url;
 }
 
