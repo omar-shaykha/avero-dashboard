@@ -6,15 +6,15 @@ import { usePathname } from "next/navigation";
 import AveroBrand from "./AveroBrand";
 import { useLanguage } from "./LanguageProvider";
 import type { AuthorizationContext } from "@/lib/auth/authorization";
-import { AppWindow, BarChart3, Bot, Building2, ChevronDown, ChevronRight, CreditCard, GripVertical, Menu, Megaphone, PanelLeftClose, PanelLeftOpen, Settings, Store, UsersRound, X } from "lucide-react";
+import { AppWindow, BarChart3, Bot, Building2, ChevronDown, ChevronRight, GripVertical, Menu, Megaphone, PanelLeftClose, PanelLeftOpen, Settings, Store, UsersRound, X } from "lucide-react";
 
 interface SidebarProps { userEmail?: string; userName?: string; access?: AuthorizationContext | null; }
 type NavIcon = ComponentType<{ size?: number; className?: string }>;
 type NavItem = { label: string; href: string; show: boolean; icon?: NavIcon };
 type PosArea = "cashier" | "add-items";
-type NavSectionKey = "monitoring" | "pos" | "apps" | "settings" | "subscriptions" | "agents" | "crm" | "clients";
+type NavSectionKey = "monitoring" | "pos" | "apps" | "settings" | "agents" | "crm" | "clients";
 
-const DEFAULT_ORDER: NavSectionKey[] = ["monitoring","pos","apps","settings","subscriptions","agents","crm","clients"];
+const DEFAULT_ORDER: NavSectionKey[] = ["monitoring","pos","agents","crm","clients","settings","apps"];
 
 function normalizeOrder(value: unknown): NavSectionKey[] {
   const input = Array.isArray(value) ? value.map(String) : [];
@@ -164,10 +164,7 @@ export default function Sidebar({ access }: SidebarProps) {
         <SubLink href="/settings/pos" label={rtl ? "نقاط البيع والطباعة والفاتورة" : "POS, Printing & Invoice"} active={pathname?.startsWith("/settings/pos")} />
         <SubLink href="/settings/zatca" label={rtl ? "هيئة الزكاة والضريبة" : "ZATCA"} active={pathname?.startsWith("/settings/zatca")} />
       </div>}
-    </div> : null,
-    subscriptions: <Main href="/subscriptions" label={collapsed ? "" : rtl ? "الاشتراكات" : "Subscriptions"} icon={CreditCard} active={pathname?.startsWith("/subscriptions")} />,
-    agents: agents.length ? <div>
-      <button onClick={() => { if (collapsed) { setCollapsed(false); setAgentsOpen(true); } else setAgentsOpen((value) => !value); }} className={`flex w-full items-center gap-3 rounded-xl px-4 py-3 ${pathname?.startsWith("/ai-") ? "bg-cyan-500/10 text-cyan-300" : "text-slate-300 hover:bg-slate-900"}`}>
+    </div> : null, setAgentsOpen(true); } else setAgentsOpen((value) => !value); }} className={`flex w-full items-center gap-3 rounded-xl px-4 py-3 ${pathname?.startsWith("/ai-") ? "bg-cyan-500/10 text-cyan-300" : "text-slate-300 hover:bg-slate-900"}`}>
         <Bot size={18} />
         <span className={`flex-1 text-start text-sm font-medium ${collapsed ? "hidden" : "block"}`}>{L("AI AGENT", "AI AGENT")}</span>
         {!collapsed && (agentsOpen ? <ChevronDown size={15} /> : arrow)}
