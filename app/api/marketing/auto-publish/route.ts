@@ -26,10 +26,10 @@ async function media(s: any, item: any, companyId: string) {
 
   const key = process.env.GEMINI_API_KEY;
   let image: Buffer;
-  let provider = "gemini_3_1_flash_image";
+  let provider = "cloudflare_flux_1_schnell";
 
   try {
-    if (!key) throw new Error("Missing Gemini image key");
+    if (!key) throw new Error("Missing Cloudflare image key");
     const prompt = [
       `Create a premium 1:1 social-media advertising visual for ${brand?.brand_name || "AVERO OS"}.`,
       `The visual must specifically match this post: ${item.caption || item.campaign_name || ""}`,
@@ -58,7 +58,7 @@ async function media(s: any, item: any, companyId: string) {
     });
     if (!r.ok) {
       const details = await r.text().catch(() => "");
-      throw new Error(`Gemini image failed ${r.status}: ${details.slice(0, 300)}`);
+      throw new Error(`Cloudflare image failed ${r.status}: ${details.slice(0, 300)}`);
     }
     const j = await r.json();
     const data = j?.output_image?.data;
