@@ -9,6 +9,8 @@ type Connection = {
   account_name?: string | null;
   external_account_id?: string | null;
   direct_publishing_enabled?: boolean;
+  publisher_ready?: boolean;
+  publisher_provider?: string | null;
   source?: string | null;
   health_status?: string | null;
 };
@@ -74,7 +76,7 @@ export default function MarketingPublisherConnect() {
       <div>
         <p className="text-xs font-black uppercase tracking-[.24em] text-violet-300">FOXY DIRECT PUBLISHER</p>
         <h1 className="mt-2 text-3xl font-black text-white">Connect Facebook & Instagram</h1>
-        <p className="mt-2 max-w-2xl text-sm text-slate-400">AVERO verifies the Meta token first, then stores it encrypted in Supabase Vault. The token is never returned to the browser after saving.</p>
+        <p className="mt-2 max-w-2xl text-sm text-slate-400">AVERO can publish through a verified Make connection or Direct Meta. Direct tokens are stored securely in Supabase Vault and are never returned to the browser.</p>
       </div>
       <Link href="/ai-marketing" className="rounded-xl border border-slate-700 px-4 py-2 text-sm font-bold text-slate-200 hover:bg-slate-800">← Back to Foxy</Link>
     </div>
@@ -105,6 +107,7 @@ function Field({label,value,onChange,placeholder}:{label:string;value:string;onC
 }
 
 function StatusCard({icon,title,connection}:{icon:React.ReactNode;title:string;connection?:Connection}){
-  const ready=!!connection?.direct_publishing_enabled;
-  return <div className={`rounded-2xl border p-5 ${ready?"border-emerald-500/30 bg-emerald-500/10":"border-slate-800 bg-slate-900/60"}`}><div className="flex items-center justify-between"><div className="flex items-center gap-3 text-white">{icon}<b>{title}</b></div>{ready?<CheckCircle2 className="text-emerald-400" size={20}/>:<span className="rounded-full bg-slate-800 px-2 py-1 text-[10px] font-bold text-slate-400">NOT DIRECT</span>}</div><p className="mt-3 text-sm text-slate-300">{connection?.account_name || "No direct publisher credential"}</p><p className="mt-1 text-xs text-slate-500">{ready?"AVERO Direct Publishing ready":connection?.source?`Existing source: ${connection.source}`:"Not connected"}</p></div>;
+  const ready=!!(connection?.publisher_ready || connection?.direct_publishing_enabled);
+  const provider=connection?.publisher_provider==="make"?"Make Publisher":connection?.direct_publishing_enabled?"Direct Meta":"";
+  return <div className={`rounded-2xl border p-5 ${ready?"border-emerald-500/30 bg-emerald-500/10":"border-slate-800 bg-slate-900/60"}`}><div className="flex items-center justify-between"><div className="flex items-center gap-3 text-white">{icon}<b>{title}</b></div>{ready?<CheckCircle2 className="text-emerald-400" size={20}/>:<span className="rounded-full bg-slate-800 px-2 py-1 text-[10px] font-bold text-slate-400">NOT READY</span>}</div><p className="mt-3 text-sm text-slate-300">{connection?.account_name || "No publishing connection"}</p><p className="mt-1 text-xs text-slate-500">{ready?`Publishing ready · ${provider}`:connection?.source?`Existing source: ${connection.source}`:"Not connected"}</p></div>;
 }
