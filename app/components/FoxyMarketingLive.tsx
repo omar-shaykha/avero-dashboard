@@ -48,6 +48,7 @@ export default function FoxyMarketingLive() {
   const [generating, setGenerating] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [note, setNote] = useState("");
+  const [previewId, setPreviewId] = useState<string | null>(null);
 
   async function load() {
     try {
@@ -68,8 +69,10 @@ export default function FoxyMarketingLive() {
   }, []);
 
   const preview = useMemo(
-    () => items.find((item) => !["published", "publishing", "rejected"].includes(String(item.status || ""))) || items[0],
-    [items]
+    () => (previewId ? items.find((item) => item.id === previewId) : null)
+      || items.find((item) => !["published", "publishing", "rejected"].includes(String(item.status || "")))
+      || items[0],
+    [items, previewId]
   );
 
   function togglePlatform(platform: string) {
@@ -102,6 +105,7 @@ export default function FoxyMarketingLive() {
       if (!response.ok) throw new Error(json.error || "Could not create preview");
       const contentId = json?.item?.id;
       if (!contentId) throw new Error("Foxy created the post but could not prepare its visual.");
+      setPreviewId(contentId);
 
       setNote("Foxy wrote the post. Now creating a custom AI visual...");
       const mediaResponse = await fetch(`/api/marketing/content/${contentId}/media`, {
@@ -110,12 +114,16 @@ export default function FoxyMarketingLive() {
       const mediaJson = await mediaResponse.json().catch(() => ({}));
       if (!mediaResponse.ok) throw new Error(mediaJson.error || "Could not create the post image");
 
+      if (mediaJson?.item) {
+        setItems((current) => [mediaJson.item, ...current.filter((item) => item.id !== mediaJson.item.id)]);
+      } else {
+        await load();
+      }
       setNote(
         mediaJson.fallback
-          ? "Preview ready. Foxy used the safe fallback visual because AI image generation was unavailable."
-          : "Preview ready. Foxy created a custom visual for this exact post."
+          ? "Foxy could not reach the AI image model, so it used a fallback visual. Try Generate Preview again."
+          : "Preview ready. Foxy created a custom AI visual for this exact post."
       );
-      await load();
     } catch (error) {
       setNote(error instanceof Error ? error.message : "Could not create preview");
     } finally {
