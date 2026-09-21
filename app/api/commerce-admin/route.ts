@@ -1,9 +1,9 @@
 // @ts-nocheck
 import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { createAdminClient } from "@/lib/supabase/admin";
 import { getAuthorizationContext,isKingAdmin,isTenantAdmin,hasPermission } from '@/lib/auth/authorization';
 
-const db=()=>createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!,process.env.SUPABASE_SECRET_KEY!,{auth:{persistSession:false}});
+const db = () => createAdminClient();
 const can=(a:any,p:string)=>isKingAdmin(a)||isTenantAdmin(a)||hasPermission(a,p);
 async function C(){const a=await getAuthorizationContext();return a?.profile?.company_id?{a,c:a.profile.company_id,s:db()}:null}
 async function owned(s:any,table:string,id:string|undefined,c:string){if(!id)return false;const q=await s.from(table).select('id').eq('id',id).eq('company_id',c).maybeSingle();return !!q.data}
