@@ -1,22 +1,320 @@
 "use client";
-import{useEffect,useMemo,useState}from"react";import Sidebar from"./Sidebar";import DashboardHeader from"./DashboardHeader";import{CalendarDays,Check,Clock,FileText,Image as ImageIcon,Loader2,Play,Send,Video,History,Users,Settings2}from"lucide-react";
-type Item={id:string;campaign_name?:string|null;caption?:string|null;status?:string|null;platforms?:string[]|null;media_url?:string|null;external_post_id?:string|null;error_message?:string|null;created_at?:string|null;scheduled_for?:string|null;content_type?:string|null;approval_notes?:string|null;metrics?:Record<string,any>|null};type Run={id:string;status?:string|null;action?:string|null;created_at?:string|null};type Worker={worker_key:string;worker_name:string;role_title:string;status:string;last_run_at?:string|null};type Settings={mode:"approval"|"automatic";posts_per_day:number;images_per_day:number;videos_per_day:number;stories_per_day:number;posting_times:string[];timezone:string;enabled:boolean};
-const defaultSettings:Settings={mode:"approval",posts_per_day:1,images_per_day:1,videos_per_day:0,stories_per_day:1,posting_times:["10:00","18:00"],timezone:"Asia/Riyadh",enabled:true};
-export default function FoxyMarketingLive(){const[items,setItems]=useState<Item[]>([]),[runs,setRuns]=useState<Run[]>([]),[workers,setWorkers]=useState<Worker[]>([]),[settings,setSettings]=useState<Settings>(defaultSettings),[saving,setSaving]=useState(false),[busy,setBusy]=useState<string|null>(null),[note,setNote]=useState("");
-async function load(){try{const[q,a,s]=await Promise.all([fetch("/api/marketing/content",{cache:"no-store"}),fetch("/api/ai-departments/marketing",{cache:"no-store"}),fetch("/api/marketing/schedule",{cache:"no-store"})]);if(q.ok)setItems((await q.json()).items||[]);if(a.ok){const j=await a.json();setRuns(j.runs||[]);setWorkers(j.workers||[])}if(s.ok){const j=await s.json();if(j.settings)setSettings(j.settings)}}catch{}}
-useEffect(()=>{load();const t=setInterval(load,5000);return()=>clearInterval(t)},[]);
-const today=useMemo(()=>{const d=new Date().toDateString();return items.filter(i=>new Date(i.scheduled_for||i.created_at||0).toDateString()===d)},[items]);const latestRun=runs[0];const live=latestRun&&["running","publishing"].includes(String(latestRun.status));
-async function saveSettings(next=settings){setSaving(true);setNote("");try{const r=await fetch("/api/marketing/schedule",{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify(next)}),j=await r.json();if(!r.ok)throw new Error(j.error||"Save failed");setSettings(j.settings);setNote("Marketing schedule saved.")}catch(e){setNote(e instanceof Error?e.message:"Save failed")}finally{setSaving(false)}}
-async function action(item:Item,act:string){setBusy(item.id+act);setNote("");try{const r=await fetch(`/api/marketing/content/${item.id}`,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:act,platforms:item.platforms?.length?item.platforms:["facebook","instagram"]})}),j=await r.json();setNote(j.message||j.error||"Updated");await load()}finally{setBusy(null)}}
-function addTime(){setSettings(s=>({...s,posting_times:[...s.posting_times,"12:00"].slice(0,12)}))}function setTime(index:number,value:string){setSettings(s=>({...s,posting_times:s.posting_times.map((t,i)=>i===index?value:t)}))}function removeTime(index:number){setSettings(s=>({...s,posting_times:s.posting_times.filter((_,i)=>i!==index)}))}
-return <div className="min-h-screen bg-slate-950 text-white"><Sidebar/><div className="ml-64 min-h-screen"><DashboardHeader/><main className="p-4 md:p-7"><div className="mx-auto max-w-7xl space-y-5">
-<section className="rounded-3xl border border-violet-400/20 bg-slate-900/70 p-5"><div className="flex flex-wrap items-center justify-between gap-4"><div className="flex items-center gap-4"><div className={`grid h-14 w-14 place-items-center rounded-2xl bg-violet-500/10 text-4xl ${live?"animate-pulse":""}`}>🦊</div><div><p className="text-xs font-black uppercase tracking-[.22em] text-violet-300">Foxy · Marketing Department</p><h1 className="mt-1 text-2xl font-black">Marketing Operations</h1><p className="text-xs text-slate-400">Content planning · creative · approval · publishing schedule</p></div></div><span className={`rounded-full px-3 py-2 text-xs font-black ${live?"bg-emerald-500/10 text-emerald-300":"bg-slate-800 text-slate-400"}`}>{live?"WORKING LIVE":"IDLE"}</span></div></section>
-<section className="grid gap-3 lg:grid-cols-5"><TeamCard name="Foxy" role="Marketing Head" emoji="🦊" active={!!live}/>{workers.map(w=><TeamCard key={w.worker_key} name={w.worker_name} role={w.role_title} emoji={w.worker_key==="content_planner"?"💡":w.worker_key==="copywriter"?"✍️":w.worker_key==="creative_designer"?"🎨":"🚀"} active={w.status==="active"&&!!w.last_run_at&&Date.now()-new Date(w.last_run_at).getTime()<120000}/>)}</section>
-<section className="grid gap-4 xl:grid-cols-[1.35fr_.65fr]"><div className="rounded-3xl border border-slate-800 bg-slate-900/60 p-5"><div className="mb-4 flex items-center justify-between"><div><p className="text-xs font-black uppercase tracking-[.18em] text-violet-300">Today&apos;s board</p><h2 className="mt-1 text-xl font-black">What Foxy is publishing</h2></div><span className="rounded-full bg-slate-800 px-3 py-1 text-xs text-slate-400">{today.length} items</span></div><div className="grid max-h-[540px] gap-3 overflow-y-auto pr-1 md:grid-cols-2">{today.length?today.map(i=><ContentCard key={i.id} item={i} busy={!!busy} onAction={action}/>):<div className="col-span-full grid min-h-64 place-items-center rounded-2xl border border-dashed border-slate-800 text-sm text-slate-500">No content planned for today yet.</div>}</div></div>
-<div className="space-y-4"><div className="rounded-3xl border border-slate-800 bg-slate-900/60 p-5"><div className="flex items-center gap-2"><Settings2 size={18} className="text-violet-300"/><h2 className="font-black">Publishing mode</h2></div><div className="mt-4 grid grid-cols-2 gap-2"><button onClick={()=>setSettings(s=>({...s,mode:"approval"}))} className={`rounded-xl px-3 py-3 text-xs font-black ${settings.mode==="approval"?"bg-violet-500 text-white":"bg-slate-800 text-slate-400"}`}>By approval</button><button onClick={()=>setSettings(s=>({...s,mode:"automatic"}))} className={`rounded-xl px-3 py-3 text-xs font-black ${settings.mode==="automatic"?"bg-emerald-500 text-slate-950":"bg-slate-800 text-slate-400"}`}>Automatic</button></div><p className="mt-3 text-xs leading-5 text-slate-500">Approval keeps every item waiting for you. Automatic lets Foxy generate and publish scheduled content from the calendar without manual approval.</p></div>
-<div className="rounded-3xl border border-slate-800 bg-slate-900/60 p-5"><div className="flex items-center gap-2"><CalendarDays size={18} className="text-violet-300"/><h2 className="font-black">Daily content target</h2></div><div className="mt-4 grid grid-cols-2 gap-3"><Count label="Posts" icon={<FileText size={15}/>} value={settings.posts_per_day} onChange={v=>setSettings(s=>({...s,posts_per_day:v}))}/><Count label="Images" icon={<ImageIcon size={15}/>} value={settings.images_per_day} onChange={v=>setSettings(s=>({...s,images_per_day:v}))}/><Count label="Videos" icon={<Video size={15}/>} value={settings.videos_per_day} onChange={v=>setSettings(s=>({...s,videos_per_day:v}))}/><Count label="Stories" icon={<History size={15}/>} value={settings.stories_per_day} onChange={v=>setSettings(s=>({...s,stories_per_day:v}))}/></div><div className="mt-4"><div className="mb-2 flex items-center justify-between"><span className="flex items-center gap-2 text-xs font-bold text-slate-400"><Clock size={14}/>Posting times</span><button onClick={addTime} className="text-xs font-black text-violet-300">+ Add time</button></div><div className="space-y-2">{settings.posting_times.map((t,i)=><div key={i} className="flex gap-2"><input type="time" value={t} onChange={e=>setTime(i,e.target.value)} className="flex-1 rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm"/><button onClick={()=>removeTime(i)} className="rounded-xl bg-slate-800 px-3 text-xs text-slate-400">×</button></div>)}</div></div><button onClick={()=>saveSettings()} disabled={saving} className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-violet-500 px-4 py-3 text-sm font-black disabled:opacity-50">{saving?<Loader2 size={16} className="animate-spin"/>:<Check size={16}/>}Save schedule</button>{note&&<p className="mt-3 text-xs text-violet-200">{note}</p>}</div></div></section>
-<section className="rounded-3xl border border-slate-800 bg-slate-900/60 p-5"><div className="mb-4 flex items-center justify-between"><div><p className="text-xs font-black uppercase tracking-[.18em] text-violet-300">Content library</p><h2 className="mt-1 text-xl font-black">Posts · stories · images · videos</h2></div><Users size={19} className="text-slate-500"/></div><div className="grid max-h-[520px] gap-3 overflow-y-auto pr-1 md:grid-cols-2 xl:grid-cols-3">{items.map(i=><ContentCard key={i.id} item={i} busy={!!busy} onAction={action}/>)}</div></section>
-</div></main></div></div>}
-function TeamCard({name,role,emoji,active}:{name:string;role:string;emoji:string;active:boolean}){return <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-3"><div className="flex items-center gap-3"><div className={`grid h-10 w-10 place-items-center rounded-xl bg-slate-950 text-xl ${active?"animate-bounce":""}`}>{emoji}</div><div className="min-w-0"><p className="truncate text-sm font-black">{name}</p><p className="truncate text-[11px] text-slate-500">{role}</p></div><span className={`ml-auto h-2 w-2 rounded-full ${active?"bg-emerald-400":"bg-slate-600"}`}/></div></div>}
-function Count({label,icon,value,onChange}:{label:string;icon:React.ReactNode;value:number;onChange:(v:number)=>void}){return <label className="rounded-xl bg-slate-950 p-3"><span className="flex items-center gap-2 text-xs text-slate-400">{icon}{label}</span><input type="number" min={0} max={20} value={value} onChange={e=>onChange(Math.max(0,Math.min(20,Number(e.target.value)||0)))} className="mt-2 w-full bg-transparent text-xl font-black outline-none"/></label>}
-function ContentCard({item,busy,onAction}:{item:Item;busy:boolean;onAction:(i:Item,a:string)=>void}){const status=String(item.status||"draft");const type=String(item.content_type||"post");return <article className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-950/70"><div className="aspect-[16/10] bg-slate-900">{item.media_url?<img src={item.media_url} alt="Marketing creative" className="h-full w-full object-cover"/>:<div className="grid h-full place-items-center text-slate-700">{type.includes("video")?<Video/>:type.includes("story")?<History/>:<ImageIcon/>}</div>}</div><div className="p-4"><div className="flex items-start justify-between gap-2"><div className="min-w-0"><p className="truncate text-sm font-black">{item.campaign_name||"Marketing content"}</p><p className="mt-1 text-[10px] uppercase tracking-wide text-violet-300">{type} · {status}</p></div>{item.scheduled_for&&<span className="shrink-0 text-[10px] text-slate-500">{new Date(item.scheduled_for).toLocaleString([],{month:"short",day:"numeric",hour:"2-digit",minute:"2-digit"})}</span>}</div><p className="mt-3 line-clamp-3 text-xs leading-5 text-slate-400">{item.caption||item.approval_notes||"Creative is being prepared."}</p><div className="mt-3 flex flex-wrap gap-1">{(item.platforms||[]).map(p=><span key={p} className="rounded bg-slate-800 px-2 py-1 text-[9px] text-slate-400">{p}</span>)}</div>{!["published","publishing"].includes(status)&&<div className="mt-4 grid grid-cols-2 gap-2"><button disabled={busy} onClick={()=>onAction(item,"approve")} className="rounded-xl bg-slate-800 px-3 py-2 text-xs font-black">Approve</button><button disabled={busy} onClick={()=>onAction(item,"approve_publish")} className="flex items-center justify-center gap-1 rounded-xl bg-cyan-500 px-3 py-2 text-xs font-black text-slate-950"><Send size={13}/>Publish</button></div>}{status==="published"&&<div className="mt-4 flex items-center gap-2 text-xs font-bold text-emerald-300"><Check size={14}/>Published</div>}{item.error_message&&<p className="mt-2 text-[10px] leading-4 text-rose-400">{item.error_message}</p>}</div></article>}
+
+import { useEffect, useMemo, useState } from "react";
+import Sidebar from "./Sidebar";
+import DashboardHeader from "./DashboardHeader";
+import { CheckCircle2, Clock3, Image as ImageIcon, Loader2, Send, Sparkles } from "lucide-react";
+
+type Item = {
+  id: string;
+  campaign_name?: string | null;
+  caption?: string | null;
+  status?: string | null;
+  platforms?: string[] | null;
+  media_url?: string | null;
+  error_message?: string | null;
+  created_at?: string | null;
+  published_at?: string | null;
+  metrics?: Record<string, any> | null;
+};
+
+type Settings = {
+  mode: "approval" | "automatic";
+  posts_per_day: number;
+  images_per_day: number;
+  videos_per_day: number;
+  stories_per_day: number;
+  posting_times: string[];
+  timezone: string;
+  enabled: boolean;
+};
+
+const defaultSettings: Settings = {
+  mode: "automatic",
+  posts_per_day: 1,
+  images_per_day: 1,
+  videos_per_day: 0,
+  stories_per_day: 0,
+  posting_times: ["10:00"],
+  timezone: "Asia/Riyadh",
+  enabled: true,
+};
+
+export default function FoxyMarketingLive() {
+  const [items, setItems] = useState<Item[]>([]);
+  const [settings, setSettings] = useState<Settings>(defaultSettings);
+  const [platforms, setPlatforms] = useState<string[]>(["facebook", "instagram"]);
+  const [brief, setBrief] = useState("Create a simple AVERO OS awareness post for business owners. Keep it clean, premium and easy to understand.");
+  const [generating, setGenerating] = useState(false);
+  const [publishing, setPublishing] = useState(false);
+  const [note, setNote] = useState("");
+
+  async function load() {
+    try {
+      const [contentRes, scheduleRes] = await Promise.all([
+        fetch("/api/marketing/content", { cache: "no-store" }),
+        fetch("/api/marketing/schedule", { cache: "no-store" }),
+      ]);
+      if (contentRes.ok) setItems((await contentRes.json()).items || []);
+      if (scheduleRes.ok) {
+        const json = await scheduleRes.json();
+        if (json.settings) setSettings(json.settings);
+      }
+    } catch {}
+  }
+
+  useEffect(() => {
+    load();
+  }, []);
+
+  const preview = useMemo(
+    () => items.find((item) => !["published", "publishing", "rejected"].includes(String(item.status || ""))) || items[0],
+    [items]
+  );
+
+  function togglePlatform(platform: string) {
+    setPlatforms((current) =>
+      current.includes(platform)
+        ? current.length === 1
+          ? current
+          : current.filter((item) => item !== platform)
+        : [...current, platform]
+    );
+  }
+
+  async function generatePreview() {
+    setGenerating(true);
+    setNote("");
+    try {
+      const response = await fetch("/api/marketing/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          platforms,
+          objective: "First AVERO OS publishing test",
+          audience: "Business owners and operations managers",
+          content_type: "post",
+          creative_brief: brief,
+          currency: "SAR",
+        }),
+      });
+      const json = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(json.error || "Could not create preview");
+      setNote(json.warning || "Preview ready. Review it, then press Publish Now.");
+      await load();
+    } catch (error) {
+      setNote(error instanceof Error ? error.message : "Could not create preview");
+    } finally {
+      setGenerating(false);
+    }
+  }
+
+  async function publishNow() {
+    if (!preview) return;
+    setPublishing(true);
+    setNote("");
+    try {
+      const response = await fetch(`/api/marketing/content/${preview.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "approve_publish",
+          platforms: preview.platforms?.length ? preview.platforms : platforms,
+        }),
+      });
+      const json = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(json.error || "Publishing failed");
+      setNote(json.message || "Publish request completed.");
+      await load();
+    } catch (error) {
+      setNote(error instanceof Error ? error.message : "Publishing failed");
+    } finally {
+      setPublishing(false);
+    }
+  }
+
+  const status = settings.enabled ? "Foxy is active" : "Foxy is paused";
+  const scheduleTime = settings.posting_times?.[0] || "10:00";
+
+  return (
+    <div className="min-h-screen bg-slate-950 text-white">
+      <Sidebar />
+      <div className="ml-64 min-h-screen">
+        <DashboardHeader />
+
+        <main className="p-4 md:p-7">
+          <div className="mx-auto max-w-5xl space-y-5">
+            <section className="flex flex-col gap-4 rounded-3xl border border-violet-400/20 bg-slate-900/70 p-5 md:flex-row md:items-center md:justify-between">
+              <div className="flex items-center gap-4">
+                <div className="grid h-14 w-14 place-items-center rounded-2xl bg-violet-500/10 text-4xl">🦊</div>
+                <div>
+                  <p className="text-xs font-black uppercase tracking-[.2em] text-violet-300">Foxy Marketing</p>
+                  <h1 className="mt-1 text-2xl font-black">First Publishing Test</h1>
+                  <p className="mt-1 text-sm text-slate-400">Create one post, preview it, then publish it.</p>
+                </div>
+              </div>
+
+              <div className="rounded-2xl bg-slate-950/80 px-4 py-3 text-sm">
+                <div className="flex items-center gap-2 font-bold text-emerald-300">
+                  <span className="h-2 w-2 rounded-full bg-emerald-400" />
+                  {status}
+                </div>
+                <div className="mt-1 flex items-center gap-2 text-xs text-slate-500">
+                  <Clock3 size={13} />
+                  Auto schedule: {scheduleTime} · {settings.timezone || "Asia/Riyadh"}
+                </div>
+              </div>
+            </section>
+
+            {note && (
+              <div className="rounded-2xl border border-violet-500/25 bg-violet-500/10 px-4 py-3 text-sm text-violet-100">
+                {note}
+              </div>
+            )}
+
+            <section className="grid gap-5 lg:grid-cols-[.85fr_1.15fr]">
+              <div className="rounded-3xl border border-slate-800 bg-slate-900/60 p-5">
+                <div className="flex items-center gap-2">
+                  <Sparkles size={18} className="text-violet-300" />
+                  <div>
+                    <p className="text-xs font-black uppercase tracking-[.16em] text-violet-300">Step 1</p>
+                    <h2 className="text-lg font-black">Create the post</h2>
+                  </div>
+                </div>
+
+                <label className="mt-5 block text-xs font-bold text-slate-400">Publish to</label>
+                <div className="mt-2 grid grid-cols-2 gap-2">
+                  {["facebook", "instagram"].map((platform) => {
+                    const active = platforms.includes(platform);
+                    return (
+                      <button
+                        key={platform}
+                        onClick={() => togglePlatform(platform)}
+                        className={`rounded-xl border px-3 py-3 text-sm font-black transition ${
+                          active
+                            ? "border-cyan-400/50 bg-cyan-400/10 text-cyan-200"
+                            : "border-slate-800 bg-slate-950 text-slate-500"
+                        }`}
+                      >
+                        {active ? "✓ " : ""}
+                        {platform === "facebook" ? "Facebook" : "Instagram"}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <label className="mt-5 block text-xs font-bold text-slate-400">What should Foxy post?</label>
+                <textarea
+                  value={brief}
+                  onChange={(event) => setBrief(event.target.value)}
+                  rows={5}
+                  className="mt-2 w-full resize-none rounded-2xl border border-slate-800 bg-slate-950 px-4 py-3 text-sm leading-6 text-slate-200 outline-none focus:border-violet-400/50"
+                  placeholder="Write one simple idea for the post..."
+                />
+
+                <button
+                  onClick={generatePreview}
+                  disabled={generating || !brief.trim()}
+                  className="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl bg-violet-500 px-4 py-3.5 text-sm font-black transition hover:bg-violet-400 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {generating ? <Loader2 size={17} className="animate-spin" /> : <Sparkles size={17} />}
+                  {generating ? "Foxy is creating..." : "Generate Preview"}
+                </button>
+
+                <p className="mt-3 text-center text-[11px] leading-5 text-slate-600">
+                  Nothing is published when you generate a preview.
+                </p>
+              </div>
+
+              <div className="rounded-3xl border border-slate-800 bg-slate-900/60 p-5">
+                <div className="flex items-center gap-2">
+                  <ImageIcon size={18} className="text-cyan-300" />
+                  <div>
+                    <p className="text-xs font-black uppercase tracking-[.16em] text-cyan-300">Step 2</p>
+                    <h2 className="text-lg font-black">Preview & publish</h2>
+                  </div>
+                </div>
+
+                {preview ? (
+                  <div className="mt-5 overflow-hidden rounded-2xl border border-slate-800 bg-slate-950/70">
+                    <div
+                      className="aspect-square bg-slate-900 bg-cover bg-center"
+                      style={preview.media_url ? { backgroundImage: `url("${preview.media_url}")` } : undefined}
+                    >
+                      {!preview.media_url && (
+                        <div className="grid h-full place-items-center text-center text-slate-600">
+                          <div>
+                            <ImageIcon className="mx-auto mb-2" size={34} />
+                            <p className="text-xs">Image will be created automatically when needed.</p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="p-5">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="text-base font-black">{preview.campaign_name || "Foxy Post"}</p>
+                          <p className="mt-1 text-[10px] uppercase tracking-[.12em] text-slate-500">
+                            {String(preview.status || "preview").replaceAll("_", " ")}
+                          </p>
+                        </div>
+                        <div className="flex gap-1">
+                          {(preview.platforms || []).map((platform) => (
+                            <span key={platform} className="rounded-lg bg-slate-800 px-2 py-1 text-[10px] text-slate-400">
+                              {platform === "facebook" ? "FB" : platform === "instagram" ? "IG" : platform}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+
+                      <p className="mt-4 whitespace-pre-wrap text-sm leading-6 text-slate-300">
+                        {preview.caption || "Foxy is preparing the caption."}
+                      </p>
+
+                      {preview.error_message && (
+                        <p className="mt-4 rounded-xl bg-rose-500/10 px-3 py-2 text-xs leading-5 text-rose-300">
+                          {preview.error_message}
+                        </p>
+                      )}
+
+                      {String(preview.status) === "published" ? (
+                        <div className="mt-5 flex items-center justify-center gap-2 rounded-2xl bg-emerald-500/10 px-4 py-3.5 text-sm font-black text-emerald-300">
+                          <CheckCircle2 size={18} />
+                          Published successfully
+                        </div>
+                      ) : (
+                        <button
+                          onClick={publishNow}
+                          disabled={publishing}
+                          className="mt-5 flex w-full items-center justify-center gap-2 rounded-2xl bg-cyan-400 px-4 py-3.5 text-sm font-black text-slate-950 transition hover:bg-cyan-300 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          {publishing ? <Loader2 size={17} className="animate-spin" /> : <Send size={17} />}
+                          {publishing ? "Publishing..." : "Publish Now"}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="mt-5 grid min-h-[460px] place-items-center rounded-2xl border border-dashed border-slate-800 bg-slate-950/40 px-6 text-center">
+                    <div>
+                      <Sparkles className="mx-auto mb-3 text-slate-700" size={36} />
+                      <p className="font-bold text-slate-400">No preview yet</p>
+                      <p className="mt-2 text-xs leading-5 text-slate-600">
+                        Generate your first post from the left. It will appear here before anything is published.
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </section>
+
+            <section className="rounded-2xl border border-slate-800 bg-slate-900/40 px-4 py-3 text-xs text-slate-500">
+              <span className="font-bold text-slate-300">Simple mode:</span> Foxy handles the caption, visual preparation and publisher. Advanced marketing tools stay hidden for now.
+            </section>
+          </div>
+        </main>
+      </div>
+    </div>
+  );
+}
