@@ -2,7 +2,7 @@ import { canAccess, getAuthorizationContext, isKingAdmin } from "@/lib/auth/auth
 import { createAdminClient } from "@/lib/supabase/admin";
 import sharp from "sharp";
 
-const IMAGE_MODEL = process.env.GEMINI_IMAGE_MODEL || "gemini-3.1-flash-image";
+const IMAGE_MODEL = process.env.CLOUDFLARE_IMAGE_MODEL || "@cf/black-forest-labs/flux-1-schnell";
 
 function esc(value: unknown) {
   return String(value || "")
@@ -45,26 +45,22 @@ function decodeDataUrl(value: string | null | undefined) {
 }
 
 async function generateVisual(prompt: string) {
-  const key = process.env.GEMINI_API_KEY;
-  if (!key) throw new Error("Missing Gemini image configuration");
+  const token = process.env.CLOUDFLARE_API_TOKEN;
+  const accountId = process.env.CLOUDFLARE_ACCOUNT_ID;
+  if (!token || !accountId) throw new Error("Missing Cloudflare Workers AI configuration");
 
   const response = await fetch(
-    "https://generativelanguage.googleapis.com/v1beta/interactions",
+    `https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/run/${IMAGE_MODEL}`,
     {
       method: "POST",
       headers: {
-        "x-goog-api-key": key,
+        Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: IMAGE_MODEL,
-        input: [{ type: "text", text: prompt }],
-        response_format: {
-          type: "image",
-          mime_type: "image/jpeg",
-          aspect_ratio: "1:1",
-          image_size: "1K",
-        },
+        prompt,
+        steps: 4,
+        seed: Math.floor(Math.random() * 2147483647),
       }),
       signal: AbortSignal.timeout(90000),
     }
@@ -72,16 +68,16 @@ async function generateVisual(prompt: string) {
 
   if (!response.ok) {
     const details = await response.text().catch(() => "");
-    throw new Error(`Gemini image generation failed ${response.status}: ${details.slice(0, 400)}`);
+    throw new Error(`Cloudflare image generation failed ${response.status}: ${details.slice(0, 500)}`);
   }
 
   const json = await response.json();
-  const data = json?.output_image?.data;
-  if (!data) throw new Error("Gemini returned no image");
+  const data = json?.result?.image || json?.image;
+  if (!data) throw new Error("Cloudflare returned no image");
 
   return {
     buffer: Buffer.from(data, "base64"),
-    mimeType: String(json?.output_image?.mime_type || "image/jpeg"),
+    mimeType: "image/jpeg",
   };
 }
 
@@ -153,7 +149,7 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
     ].join("\n");
 
     let image: Buffer;
-    let provider = "gemini_3_1_flash_image";
+    let provider = "cloudflare_flux_1_schnell";
     let generationError: string | null = null;
 
     try {
@@ -188,7 +184,7 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
       });
 
       return Response.json({
-        error: "Foxy Image AI is not available right now. Connect a paid image provider or add Gemini image quota before publishing.",
+        error: "Foxy Image AI is not available right now. Check the Cloudflare Workers AI connection.",
         provider_error: generationError,
       }, { status: 503 });
     }
@@ -226,7 +222,7 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
       company_id: companyId,
       agent_key: "ai_marketing",
       action: "generate_media",
-      status: provider === "gemini_3_1_flash_image" ? "completed" : "completed_with_fallback",
+      status: provider === "cloudflare_flux_1_schnell" ? "completed" : "completed_with_fallback",
       input: { content_id: id, visual_idea: visualIdea },
       output: { media_url: mediaUrl, provider, generation_error: generationError },
       error_message: generationError,
@@ -238,7 +234,7 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
       media_url: mediaUrl,
       item: updated,
       provider,
-      fallback: provider !== "gemini_3_1_flash_image",
+      fallback: provider !== "cloudflare_flux_1_schnell",
     });
   } catch (error) {
     console.error("Marketing media generation error", error);
