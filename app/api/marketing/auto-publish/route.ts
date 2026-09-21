@@ -64,9 +64,8 @@ async function media(s: any, item: any, companyId: string) {
     const data = j?.output_image?.data;
     if (!data) throw new Error("No generated image returned");
     image = await sharp(Buffer.from(data,"base64")).resize(1080,1080,{fit:"cover"}).jpeg({quality:92,mozjpeg:true}).toBuffer();  } catch (e) {
-    provider = "avero_template_fallback";
-    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1080"><defs><radialGradient id="g" cx="25%" cy="15%" r="80%"><stop offset="0" stop-color="#123A55"/><stop offset=".48" stop-color="#061427"/><stop offset="1" stop-color="#020617"/></radialGradient></defs><rect width="1080" height="1080" fill="url(#g)"/><circle cx="870" cy="160" r="250" fill="#22D3EE" opacity=".12"/><text x="125" y="420" fill="#F8FAFC" font-family="Arial" font-size="92" font-weight="900">AVERO OS</text><text x="125" y="505" fill="#CBD5E1" font-family="Arial" font-size="36" font-weight="700">Business Operations Platform</text></svg>`;
-    image = await sharp(Buffer.from(svg)).jpeg({quality:90}).toBuffer();
+    const reason = e instanceof Error ? e.message : "AI image generation failed";
+    throw new Error(`Foxy image generation unavailable: ${reason}`);
   }
 
   const path = `${companyId}/${item.id}-auto-${Date.now()}.jpg`;
