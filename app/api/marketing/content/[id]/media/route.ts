@@ -161,9 +161,36 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
       image = await brandedImage(generated.buffer, brandKit?.logo_data_url);
     } catch (generationFailure) {
       generationError = generationFailure instanceof Error ? generationFailure.message : "AI image generation failed";
-      console.error("Foxy AI visual fallback", generationFailure);
-      provider = "avero_template_fallback";
-      image = await sharp(Buffer.from(fallbackSvg(brandName))).jpeg({ quality: 90, mozjpeg: true }).toBuffer();
+      console.error("Foxy AI visual generation failed", generationFailure);
+
+      await s.from("marketing_content_queue")
+        .update({
+          media_url: null,
+          metrics: {
+            ...(item.metrics || {}),
+            generated_media: "unavailable",
+            generated_media_at: new Date().toISOString(),
+            generated_media_error: generationError,
+          },
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", id)
+        .eq("company_id", companyId);
+
+      await s.from("ai_agent_runs").insert({
+        company_id: companyId,
+        agent_key: "ai_marketing",
+        action: "generate_media",
+        status: "failed",
+        input: { content_id: id, visual_idea: visualIdea },
+        error_message: generationError,
+        completed_at: new Date().toISOString(),
+      });
+
+      return Response.json({
+        error: "Foxy Image AI is not available right now. Connect a paid image provider or add Gemini image quota before publishing.",
+        provider_error: generationError,
+      }, { status: 503 });
     }
 
     const path = `${companyId}/${id}-foxy-${Date.now()}.jpg`;
