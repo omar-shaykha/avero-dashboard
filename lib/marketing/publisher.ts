@@ -70,7 +70,7 @@ async function publishViaMake(
       caption: item.caption || "",
       media_url: mediaUrl,
     }),
-    signal: AbortSignal.timeout(30000),
+    signal: AbortSignal.timeout(90000),
   });
   const json = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(json?.message || json?.error || `Make Publisher failed ${res.status}`);
