@@ -1,13 +1,10 @@
-import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { publishMarketingContent } from "@/lib/marketing/publisher";
 import { canAccess, getAuthorizationContext, isKingAdmin } from "@/lib/auth/authorization";
 import sharp from "sharp";
 
-function db() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.SUPABASE_SECRET_KEY;
-  if (!url || !key) throw new Error("Missing Supabase configuration");
-  return createClient(url, key);
-}
+function db() { return createAdminClient(); }
 
 function esc(value: unknown) {
   return String(value || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\"/g, "&quot;");
@@ -36,78 +33,11 @@ async function ensureMediaUrl(s: SupabaseClient, item: Record<string, any>, comp
 }
 
 const allowedActions = new Set(["approve", "schedule", "publish", "approve_publish", "reject", "draft", "duplicate"]);
-const GRAPH_VERSION = process.env.META_GRAPH_VERSION || "v24.0";
 
 function asPlatforms(value: unknown, fallback: string[]) {
   const raw = Array.isArray(value) ? value : String(value || "").split(",");
   const items = raw.map((item) => String(item).trim().toLowerCase()).filter(Boolean);
   return items.length ? items : fallback;
-}
-
-function captionWithTags(item: Record<string, any>) {
-  const tags = Array.isArray(item.hashtags) ? item.hashtags.map((tag: string) => `#${String(tag).replace(/^#/, "")}`).join(" ") : "";
-  return [item.caption || "", tags].filter(Boolean).join("\n\n").slice(0, 8000);
-}
-
-async function graphPost(path: string, body: Record<string, string>) {
-  const res = await fetch(`https://graph.facebook.com/${GRAPH_VERSION}/${path}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams(body),
-  });
-  const json = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(json?.error?.message || `Meta Graph failed ${res.status}`);
-  return json;
-}
-
-async function getDirectCredential(s: SupabaseClient, companyId: string, platform: string) {
-  const { data: connection } = await s.from("company_social_connections")
-    .select("external_account_id,direct_publishing_enabled")
-    .eq("company_id", companyId)
-    .eq("platform", platform)
-    .maybeSingle();
-  let token: string | null = null;
-  if (connection?.direct_publishing_enabled) {
-    const { data } = await s.rpc("marketing_get_social_token", { p_company_id: companyId, p_platform: platform });
-    token = typeof data === "string" && data.trim() ? data : null;
-  }
-  return { id: connection?.external_account_id || null, token };
-}
-
-async function directMetaPublish(s: SupabaseClient, companyId: string, item: Record<string, any>, platforms: string[], mediaUrl: string | null) {
-  const fb = await getDirectCredential(s, companyId, "facebook");
-  const ig = await getDirectCredential(s, companyId, "instagram");
-  const pageId = fb.id || process.env.META_FACEBOOK_PAGE_ID || null;
-  const igId = ig.id || process.env.META_INSTAGRAM_ACCOUNT_ID || null;
-  const pageToken = fb.token || process.env.META_FACEBOOK_PAGE_ACCESS_TOKEN || null;
-  const igToken = ig.token || pageToken || process.env.META_INSTAGRAM_ACCESS_TOKEN || null;
-  const results: Array<{ platform: string; status: string; id?: string; note?: string }> = [];
-  const caption = captionWithTags(item);
-
-  if (platforms.includes("facebook")) {
-    if (!pageId || !pageToken) results.push({ platform: "facebook", status: "needs_connection", note: "Connect Facebook Direct Publishing in Foxy Channels." });
-    else {
-      const published = mediaUrl
-        ? await graphPost(`${pageId}/photos`, { url: mediaUrl, caption, access_token: pageToken })
-        : await graphPost(`${pageId}/feed`, { message: caption, access_token: pageToken });
-      results.push({ platform: "facebook", status: "published", id: String(published.post_id || published.id || "facebook-post") });
-    }
-  }
-
-  if (platforms.includes("instagram")) {
-    if (!igId || !igToken) results.push({ platform: "instagram", status: "needs_connection", note: "Connect Instagram Direct Publishing in Foxy Channels." });
-    else if (!mediaUrl) results.push({ platform: "instagram", status: "needs_media", note: "Instagram requires a public image/video URL." });
-    else {
-      const container = await graphPost(`${igId}/media`, { image_url: mediaUrl, caption: caption.slice(0, 2200), access_token: igToken });
-      const published = await graphPost(`${igId}/media_publish`, { creation_id: String(container.id), access_token: igToken });
-      results.push({ platform: "instagram", status: "published", id: String(published.id || "instagram-post") });
-    }
-  }
-
-  for (const platform of platforms.filter((p) => !["facebook", "instagram"].includes(p))) {
-    results.push({ platform, status: "needs_connector", note: `${platform} direct publishing is not connected yet.` });
-  }
-  return results;
 }
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -164,7 +94,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       }
 
       try {
-        const results = await directMetaPublish(s, companyId, finalItem, requestedPlatforms, mediaUrl);
+        const results = await publishMarketingContent(s, companyId, finalItem, requestedPlatforms, mediaUrl);
         const complete = results.length > 0 && results.every((r) => r.status === "published");
         const somePublished = results.some((r) => r.status === "published");
         const nextStatus = somePublished ? "published" : "failed";
@@ -175,17 +105,17 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
           external_post_id: results.filter((r) => r.id).map((r) => `${r.platform}:${r.id}`).join(",") || null,
           error_message: nextError,
           updated_at: new Date().toISOString(),
-          metrics: { ...(finalItem.metrics || {}), publisher: "vercel_direct_meta", publishing_result: results, generated_media_before_publish: generatedMedia },
+          metrics: { ...(finalItem.metrics || {}), publisher: "avero_social_router", publishing_result: results, generated_media_before_publish: generatedMedia },
         }).eq("id", id).eq("company_id", companyId).select("*").maybeSingle();
         if (saved) finalItem = saved;
         finalStatus = nextStatus;
-        finalMessage = complete ? "تم النشر فعلياً من داخل AVERO." : somePublished ? "تم النشر على بعض المنصات، والباقي يحتاج ربط مباشر." : "اربط Facebook / Instagram من Foxy Direct Publishing وبعدين جرّب Publish.";
+        finalMessage = complete ? "تم النشر فعلياً من داخل AVERO." : somePublished ? "تم النشر على المنصات المتاحة، والباقي يحتاج Connector للنشر." : "تعذر النشر. شوف حالة الربط والسبب بالكرت.";
       } catch (err) {
-        const reason = err instanceof Error ? err.message : "Direct publisher failed";
-        const { data: failed } = await s.from("marketing_content_queue").update({ status: "failed", error_message: `Direct Publisher failed: ${reason}`, updated_at: new Date().toISOString(), metrics: { ...(finalItem.metrics || {}), publisher: "vercel_direct_meta", direct_error: reason } }).eq("id", id).eq("company_id", companyId).select("*").maybeSingle();
+        const reason = err instanceof Error ? err.message : "Publishing router failed";
+        const { data: failed } = await s.from("marketing_content_queue").update({ status: "failed", error_message: `Publishing failed: ${reason}`, updated_at: new Date().toISOString(), metrics: { ...(finalItem.metrics || {}), publisher: "avero_social_router", direct_error: reason } }).eq("id", id).eq("company_id", companyId).select("*").maybeSingle();
         if (failed) finalItem = failed;
         finalStatus = "failed";
-        finalMessage = "AVERO Direct Publisher فشل. شوف السبب بالكرت.";
+        finalMessage = "AVERO Publisher فشل. شوف السبب بالكرت.";
       }
     }
 
