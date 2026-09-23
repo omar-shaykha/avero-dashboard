@@ -32,6 +32,15 @@ export default function LoginPage() {
         setIsLoading(false);
         return;
       }
+      const accessResponse = await fetch("/api/auth/access", { cache: "no-store" });
+      if (!accessResponse.ok) {
+        if (accessResponse.status === 401) await supabase.auth.signOut();
+        setError(accessResponse.status === 401
+          ? (ar ? "حسابك غير مرتبط بعضوية شركة نشطة. تواصل مع مدير الشركة." : "No active company membership. Contact your company administrator.")
+          : (ar ? "تعذر التحقق من صلاحية الحساب. حاول مجددًا." : "Could not verify account access. Please try again."));
+        setIsLoading(false);
+        return;
+      }
       const profileResponse = await fetch("/api/profile", { cache: "no-store" });
       if (profileResponse.ok) {
         const profile = await profileResponse.json();

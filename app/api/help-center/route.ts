@@ -1,5 +1,6 @@
 import { createClient as createAdminClient } from "@supabase/supabase-js";
 import { createClient as createServerClient } from "@/lib/supabase/server";
+import { hasActiveCompanyMembership } from "@/lib/auth/membership";
 
 const MAX_MESSAGE_LENGTH = 4000;
 const FEATURE_ALIASES: Array<{ key: string; patterns: RegExp[] }> = [
@@ -32,11 +33,12 @@ async function context() {
   const admin = createAdminClient(url, key);
   const { data: profile, error } = await admin
     .from("user_profiles")
-    .select("company_id")
+    .select("company_id,role")
     .eq("user_id", user.id)
     .maybeSingle();
   if (error) throw error;
   if (!profile?.company_id) return null;
+  if (!await hasActiveCompanyMembership(admin, profile.company_id, user.id, profile.role)) return null;
 
   return { user, companyId: profile.company_id as string, admin };
 }

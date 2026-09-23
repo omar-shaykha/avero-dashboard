@@ -1,5 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient as createServerClient } from "@/lib/supabase/server";
+import { hasActiveCompanyMembership } from "@/lib/auth/membership";
 
 export type FeatureKey = "ai_sales" | "crm" | "analytics" | "ai_marketing" | "ai_hr" | "ai_support" | "ai_inventory" | "ai_customer_care" | "ai_analytics" | "ai_warehouse";
 export interface AuthorizationContext { user:{id:string;email?:string}; profile:{company_id:string|null;role:string|null;role_id:string|null}; permissions:string[]; features:string[]; }
@@ -20,6 +21,9 @@ export async function getAuthorizationContext():Promise<AuthorizationContext|nul
  const authClient=await createServerClient();const{data:{user}}=await authClient.auth.getUser();if(!user)return null;
  const supabase=getAdminClient();
  const{data:profile,error:profileError}=await supabase.from("user_profiles").select("company_id,role,role_id").eq("user_id",user.id).maybeSingle();if(profileError)throw profileError;
+ // Legacy profile ownership alone is no longer enough to access a company.
+ // Platform staff are verified separately by the existing king_admin role.
+ if(profile?.company_id&&!await hasActiveCompanyMembership(supabase,profile.company_id,user.id,profile.role))return null;
  const effective=new Map<string,boolean>();
  if(profile?.role_id){
    const{data:rolePermissions,error:rolePermissionsError}=await supabase.from("role_permissions").select("permissions(key)").eq("role_id",profile.role_id);if(rolePermissionsError)throw rolePermissionsError;
