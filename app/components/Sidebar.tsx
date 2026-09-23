@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import AveroBrand from "./AveroBrand";
 import { useLanguage } from "./LanguageProvider";
 import type { AuthorizationContext } from "@/lib/auth/authorization";
-import { AppWindow, BarChart3, Bot, Building2, ChevronDown, ChevronRight, GripVertical, Menu, Megaphone, PanelLeftClose, PanelLeftOpen, Settings, Store, UsersRound, X } from "lucide-react";
+import { AppWindow, BarChart3, Bot, Boxes, Building2, ChevronDown, ChevronRight, GripVertical, LayoutGrid, Menu, Megaphone, PanelLeftClose, PanelLeftOpen, Settings, Store, UsersRound, X } from "lucide-react";
 
 interface SidebarProps { userEmail?: string; userName?: string; access?: AuthorizationContext | null; }
 type NavIcon = ComponentType<{ size?: number; className?: string }>;
@@ -193,6 +193,8 @@ export default function Sidebar({ access }: SidebarProps) {
       </div>
 
       <nav className="flex-1 space-y-2 overflow-y-auto p-3">
+        <Main href="/workspace" label={collapsed ? "" : L("Control Center", "مركز التحكم")} icon={LayoutGrid} active={pathname === "/workspace"}/>
+        {canModule("inventory.view", "inventory.manage", "purchasing.view", "purchasing.manage", "production.view", "production.manage", "sales.cost.view", "inventory.cost.view") && <Main href="/operations" label={collapsed ? "" : L("Operations", "العمليات")} icon={Boxes} active={pathname?.startsWith("/operations")}/>}
         {navOrder.map((key) => {
           const content = sections[key];
           if (!content) return null;
