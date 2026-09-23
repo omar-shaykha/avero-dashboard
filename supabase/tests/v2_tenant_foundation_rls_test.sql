@@ -1,4 +1,3 @@
-ROLLBACK;
 begin;
 
 select plan(16);
