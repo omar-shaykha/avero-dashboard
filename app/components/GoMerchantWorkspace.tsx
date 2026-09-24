@@ -44,13 +44,11 @@ export default function GoMerchantWorkspace() {
 
   if (!data) return <div className="mt-8 rounded-2xl border border-slate-800 p-6 text-slate-300">{error || "عم نحمّل إعدادات المنيو..."}</div>;
   const published = data.products.filter((p) => p.active && p.show_on_go).length;
-  const publicUrl = data.store?.slug ? `/go/${data.store.slug}` : "";
   return <div className="mt-8 space-y-7" dir="rtl">
     {error && <p role="alert" className="rounded-xl border border-rose-600/50 bg-rose-500/10 p-4 text-rose-200">{error}</p>}
     <section className="rounded-2xl border border-slate-800 bg-slate-900 p-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div><h2 className="text-xl font-bold">منيو {data.company.name}</h2><p className="mt-2 text-sm text-slate-400">{data.store?.enabled ? "المنيو مفتوح للطلبات" : "المنيو غير منشور بعد"} · {published} صنف منشور</p></div>
-        {publicUrl && <Link href={publicUrl} target="_blank" className="rounded-xl border border-cyan-400 px-4 py-2 text-cyan-300">رابط الزبائن ↗</Link>}
       </div>
       <p className="mt-4 text-sm text-slate-400">تظهر الطلبات في هذه الصفحة وفي «الطلبات المعلّقة» بالكاشير. الدفع عند الاستلام؛ لا يتم خصم المخزون إلا عند إتمام البيع.</p>
     </section>

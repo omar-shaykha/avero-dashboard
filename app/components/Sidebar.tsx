@@ -93,10 +93,10 @@ export default function Sidebar({ access }: SidebarProps) {
   const has = (feature: string, permission: string) => isKingAdmin || !!(app("app_intelligence") && currentAccess?.features.includes(feature) && permitted(permission));
   const canModule = (...permissions: string[]) => isKingAdmin || isTenantAdmin || permissions.some((p) => permitted(p));
   const crmVisible = app("app_sell") && (isKingAdmin || !!(currentAccess?.features.includes("crm") && permitted("view_crm")));
-  const monitoringVisible = isKingAdmin || isTenantAdmin || permitted("analytics.view");
+  const monitoringVisible = isKingAdmin || (app("app_operations") && (isTenantAdmin || permitted("analytics.view")));
   const clientsVisible = isKingAdmin;
-  const appsVisible = isKingAdmin || permitted("apps.view");
-  const settingsVisible = isKingAdmin || isTenantAdmin || permitted("settings.view");
+  const appsVisible = isKingAdmin;
+  const settingsVisible = isKingAdmin;
   const agents: NavItem[] = [
     { label: "Leo — Sales", href: "/ai-sales", show: has("ai_sales", "view_ai_sales"), icon: Bot },
     { label: "Foxy — Marketing", href: "/ai-marketing", show: has("ai_marketing", "view_ai_marketing"), icon: Megaphone },

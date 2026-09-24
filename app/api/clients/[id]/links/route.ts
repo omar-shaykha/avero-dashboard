@@ -9,9 +9,9 @@ export async function GET(_:Request,{params}:{params:Promise<{id:string}>}){
   const db=createAdminClient();
   const [company,store]=await Promise.all([
     db.from("companies").select("id").eq("id",id).maybeSingle(),
-    db.from("go_stores").select("slug").eq("company_id",id).maybeSingle(),
+    db.from("go_stores").select("slug,enabled").eq("company_id",id).maybeSingle(),
   ]);
   if(company.error||store.error)return Response.json({error:"Unable to load links"},{status:500});
   if(!company.data)return Response.json({error:"Client not found"},{status:404});
-  return Response.json({slug:store.data?.slug||null},{headers:{"Cache-Control":"no-store"}});
+  return Response.json({slug:store.data?.slug||null,menu_enabled:Boolean(store.data?.enabled)},{headers:{"Cache-Control":"no-store"}});
 }

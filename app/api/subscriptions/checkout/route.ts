@@ -1,5 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
-import { getAuthorizationContext } from "@/lib/auth/authorization";
+import { getAuthorizationContext, hasAnyApp } from "@/lib/auth/authorization";
 
 const plans = {
   starter: { name: "Starter OS", setup_fee: 1500, monthly_fee: 499 },
@@ -21,6 +21,7 @@ export async function POST(request: Request) {
   try {
     const ctx = await getAuthorizationContext();
     if (!ctx) return Response.json({ error: "Unauthorized" }, { status: 401 });
+    if (!hasAnyApp(ctx)) return Response.json({error:"Forbidden"},{status:403});
 
     const body = await request.json();
     const planKey = String(body.plan_key || "").trim() as keyof typeof plans;

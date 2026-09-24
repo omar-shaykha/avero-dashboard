@@ -1,5 +1,10 @@
 import AgentOperatingRoom from "@/app/components/AgentOperatingRoom";
+import { redirect } from "next/navigation";
+import { getAuthorizationContext, hasFeature } from "@/lib/auth/authorization";
 
-export default function AiHrPage() {
+export default async function AiHrPage() {
+  const access=await getAuthorizationContext();
+  if(!access)redirect("/login");
+  if(!hasFeature(access,"ai_hr"))redirect("/workspace");
   return <AgentOperatingRoom agent="hr" />;
 }

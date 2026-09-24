@@ -38,10 +38,11 @@ export async function getAuthorizationContext():Promise<AuthorizationContext|nul
  return{user:{id:user.id,email:user.email},profile:{company_id:profile?.company_id??null,role:profile?.role??null,role_id:profile?.role_id??null},permissions,features}
 }
 export function isKingAdmin(context:AuthorizationContext|null){return context?.profile.role==="king_admin"}
-export function isSuperAdmin(context:AuthorizationContext|null){return context?.profile.role==="super_admin"}
-export function isTenantAdmin(context:AuthorizationContext|null){return context?.profile.role==="super_admin"||context?.profile.role==="admin"}
-export function hasPermission(context:AuthorizationContext|null,permissionKey:string){return Boolean(isKingAdmin(context)||context?.permissions.includes(normalizePermissionKey(permissionKey)))}
+export function isSuperAdmin(context:AuthorizationContext|null){return Boolean(hasAnyApp(context)&&context?.profile.role==="super_admin")}
+export function isTenantAdmin(context:AuthorizationContext|null){return Boolean(hasAnyApp(context)&&(context?.profile.role==="super_admin"||context?.profile.role==="admin"))}
+export function hasPermission(context:AuthorizationContext|null,permissionKey:string){return Boolean(isKingAdmin(context)||(hasAnyApp(context)&&context?.permissions.includes(normalizePermissionKey(permissionKey))))}
 export function hasFeature(context:AuthorizationContext|null,featureKey:FeatureKey){return Boolean(isKingAdmin(context)||(context?.features.includes(featureKey)&&(!featureKey.startsWith("ai_")||context.features.includes("app_intelligence"))&&(featureKey!=="crm"||context.features.includes("app_sell"))))}
 export function hasApp(context:AuthorizationContext|null,appKey:AppKey){return Boolean(isKingAdmin(context)||context?.features.includes(appKey))}
+export function hasAnyApp(context:AuthorizationContext|null){return Boolean(isKingAdmin(context)||context?.features.some(key=>key==="app_sell"||key==="app_operations"||key==="app_go"||key==="app_intelligence"))}
 export function canAccess(context:AuthorizationContext|null,featureKey:FeatureKey,permissionKey:string){return Boolean(isKingAdmin(context)||(hasFeature(context,featureKey)&&hasPermission(context,permissionKey)))}
 export function canManageCompanyUsers(context:AuthorizationContext|null){return Boolean(isKingAdmin(context)||isSuperAdmin(context)||hasPermission(context,"users.permissions.manage"))}
