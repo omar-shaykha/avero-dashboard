@@ -14,7 +14,7 @@ export default function WorkspaceHome({ companyName, businessType, branchCount, 
   const products = [
     { key: "operations" as const, title: "AVERO Operations", description: L("Inventory, purchasing, production and accounting", "المخزون والمشتريات والإنتاج والمحاسبة"), href: "/operations", icon: Boxes },
     { key: "sell" as const, title: "AVERO Sell", description: L("Cashier and product management", "الكاشير وإدارة الأصناف"), href: "/pos?area=cashier", icon: CreditCard },
-    { key: "go" as const, title: "AVERO GO", description: L("Customer pickup ordering is being prepared", "طلبات الاستلام للعملاء قيد التجهيز"), href: "", icon: ShoppingBag },
+    { key: "go" as const, title: "AVERO GO", description: L("Pickup menu and customer orders", "منيو الاستلام وطلبات العملاء"), href: "/go", icon: ShoppingBag },
     { key: "intelligence" as const, title: "AVERO Intelligence", description: L("Authorized AI assistance, starting with LEO", "مساعدات الذكاء المصرّح لها، بدءاً من LEO"), href: "/ai-sales", icon: BrainCircuit },
   ];
 

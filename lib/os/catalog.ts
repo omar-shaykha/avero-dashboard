@@ -27,8 +27,7 @@ export function availableOsApps(access: AuthorizationContext): Record<OsApp, boo
     control: Boolean(access.profile.company_id),
     operations: allowedOperationsAreas(access).length > 0,
     sell: canOpenSell(access),
-    // GO has no customer order workflow yet. Never route users to an empty or unsafe checkout.
-    go: false,
+    go: canOpenSell(access),
     intelligence: hasFeature(access, "ai_sales") && hasPermission(access, "sales.view"),
     admin: isKingAdmin(access),
   };
