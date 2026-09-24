@@ -1,11 +1,11 @@
 // @ts-nocheck
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { getAuthorizationContext,isKingAdmin,isTenantAdmin,hasPermission } from '@/lib/auth/authorization';
+import { hasApp, getAuthorizationContext,isKingAdmin,isTenantAdmin,hasPermission } from '@/lib/auth/authorization';
 const db=()=>createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!,process.env.SUPABASE_SECRET_KEY!,{auth:{persistSession:false}});
 const can=(a:any)=>isKingAdmin(a)||isTenantAdmin(a)||hasPermission(a,'sales.cost.view')||hasPermission(a,'inventory.cost.view');
 export async function GET(){
- const a=await getAuthorizationContext();if(!a?.profile?.company_id)return NextResponse.json({error:'Unauthorized'},{status:401});if(!can(a))return NextResponse.json({error:'Forbidden'},{status:403});
+ const a=await getAuthorizationContext();if(!a?.profile?.company_id || !hasApp(a,"app_operations"))return NextResponse.json({error:'Unauthorized'},{status:401});if(!can(a))return NextResponse.json({error:'Forbidden'},{status:403});
  const s=db(),c=a.profile.company_id;
  const [accounts,journals,lines]=await Promise.all([
   s.from('accounting_accounts').select('*').eq('company_id',c).eq('active',true).order('code'),

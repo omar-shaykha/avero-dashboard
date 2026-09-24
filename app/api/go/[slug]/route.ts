@@ -2,6 +2,15 @@ import { createAdminClient } from "@/lib/supabase/admin";
 
 type Context = { params: Promise<{ slug: string }> };
 const reply = (body: unknown, status = 200) => Response.json(body, { status, headers: { "Cache-Control": "no-store" } });
+async function subscribed(db: ReturnType<typeof createAdminClient>,companyId:string){
+  const {data,error}=await db.from("company_features").select("enabled,expires_at,features!inner(key)").eq("company_id",companyId).eq("enabled",true).in("features.key",["app_go","app_sell"]);
+  if(error)throw error;
+  const keys=new Set((data||[]).filter(row=>!row.expires_at||new Date(row.expires_at).getTime()>Date.now()).map(row=>{
+    const feature=Array.isArray(row.features)?row.features[0]:row.features;
+    return feature?.key;
+  }));
+  return keys.has("app_go")&&keys.has("app_sell");
+}
 
 export async function GET(_request: Request, { params }: Context) {
   const { slug } = await params;
@@ -12,6 +21,7 @@ export async function GET(_request: Request, { params }: Context) {
     .eq("slug", slug).eq("enabled", true).maybeSingle();
   if (store.error) return reply({ error: "Could not load menu" }, 500);
   if (!store.data?.pickup_branch_id || !store.data.pickup_address) return reply({ error: "Menu unavailable" }, 404);
+  if (!await subscribed(db,store.data.company_id)) return reply({error:"Menu unavailable"},404);
   const [company, branch, categories, products, settings] = await Promise.all([
     db.from("companies").select("name,status").eq("id", store.data.company_id).maybeSingle(),
     db.from("branches").select("name,status").eq("id", store.data.pickup_branch_id).eq("company_id", store.data.company_id).maybeSingle(),
@@ -46,7 +56,11 @@ export async function POST(request: Request, { params }: Context) {
     || !Array.isArray(items) || items.length < 1 || items.length > 20
     || items.some((item) => !item || typeof item.product_id !== "string" || !Number.isInteger(item.quantity)
       || item.quantity < 1 || item.quantity > 20)) return reply({ error: "Check your name, phone and order" }, 400);
-  const result = await createAdminClient().rpc("go_place_pickup_order", {
+  const db=createAdminClient();
+  const store=await db.from("go_stores").select("company_id").eq("slug",slug).eq("enabled",true).maybeSingle();
+  if(store.error)return reply({error:"Could not check menu"},500);
+  if(!store.data||!await subscribed(db,store.data.company_id))return reply({error:"Menu unavailable"},404);
+  const result = await db.rpc("go_place_pickup_order", {
     p_slug: slug, p_name: name, p_phone: phone, p_notes: notes,
     p_items: items.map((item) => ({ product_id: item.product_id, quantity: item.quantity })),
   });

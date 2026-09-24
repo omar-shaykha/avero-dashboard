@@ -1,5 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/admin";
-import { getAuthorizationContext, hasPermission, isKingAdmin, isTenantAdmin } from "@/lib/auth/authorization";
+import { getAuthorizationContext, hasApp, hasPermission, isKingAdmin, isTenantAdmin } from "@/lib/auth/authorization";
 
 const json = (value: unknown, status = 200) => Response.json(value, { status, headers: { "Cache-Control": "no-store" } });
 const canManage = (access: NonNullable<Awaited<ReturnType<typeof getAuthorizationContext>>>) =>
@@ -11,6 +11,7 @@ export async function GET() {
   const access = await getAuthorizationContext();
   const companyId = access?.profile.company_id;
   if (!access || !companyId) return json({ error: "Unauthorized" }, 401);
+  if (!hasApp(access,"app_go") || !hasApp(access,"app_sell")) return json({error:"Forbidden"},403);
   if (!canView(access)) return json({ error: "Forbidden" }, 403);
   const db = createAdminClient();
   const [store, company, branches, categories, products, orders] = await Promise.all([
@@ -31,6 +32,7 @@ export async function PATCH(request: Request) {
   const access = await getAuthorizationContext();
   const companyId = access?.profile.company_id;
   if (!access || !companyId) return json({ error: "Unauthorized" }, 401);
+  if (!hasApp(access,"app_go") || !hasApp(access,"app_sell")) return json({error:"Forbidden"},403);
   if (!canManage(access)) return json({ error: "Forbidden" }, 403);
   let body: Record<string, unknown>;
   try { body = await request.json(); } catch { return json({ error: "Invalid request" }, 400); }

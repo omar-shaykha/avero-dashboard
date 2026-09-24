@@ -31,6 +31,7 @@ export default async function OperationsPage({ searchParams }: { searchParams: P
   }
 
   const areas = allowedOperationsAreas(access);
+  if (!areas.length) redirect("/workspace");
   const requested = (await searchParams).area;
   const area = requested && areas.includes(requested as OperationsArea) ? requested as OperationsArea : areas[0];
   const current = area === "inventory" ? <InventoryWorkspace />

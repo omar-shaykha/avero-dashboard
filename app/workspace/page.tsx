@@ -15,12 +15,13 @@ export default async function WorkspacePage() {
   if (!companyId) redirect("/profile");
 
   const db = createAdminClient();
-  const [company, membership, branches] = await Promise.all([
+  const [company, membership, branches, store] = await Promise.all([
     db.from("companies").select("id,name,industry,activity_label").eq("id", companyId).maybeSingle(),
     db.from("company_memberships").select("id,status").eq("company_id", companyId).eq("user_id", access.user.id).maybeSingle(),
     db.from("branches").select("id,name").eq("company_id", companyId).eq("status", "active"),
+    db.from("go_stores").select("slug,enabled").eq("company_id", companyId).maybeSingle(),
   ]);
-  if (company.error || membership.error || branches.error) throw new Error("Could not load the company workspace");
+  if (company.error || membership.error || branches.error || store.error) throw new Error("Could not load the company workspace");
   // During the legacy-to-membership transition only AVERO's internal king
   // account can bypass company membership. Customer access must be active.
   if (!isKingAdmin(access) && membership.data?.status !== "active") {
@@ -32,7 +33,7 @@ export default async function WorkspacePage() {
     <Sidebar access={access} />
     <div className="min-h-screen md:ml-64">
       <DashboardHeader userEmail={access.user.email} />
-      <WorkspaceHome companyName={company.data.name} businessType={company.data.activity_label || company.data.industry || ""} branchCount={branches.data?.length || 0} apps={availableOsApps(access)} canViewSettings={isKingAdmin(access) || isTenantAdmin(access) || hasPermission(access, "settings.view")} canViewIntegrations={isKingAdmin(access) || hasPermission(access, "apps.view")} />
+      <WorkspaceHome companyName={company.data.name} businessType={company.data.activity_label || company.data.industry || ""} branchCount={branches.data?.length || 0} apps={availableOsApps(access)} menuSlug={store.data?.slug || null} menuPublished={Boolean(store.data?.enabled)} canViewSettings={isKingAdmin(access) || isTenantAdmin(access) || hasPermission(access, "settings.view")} canViewIntegrations={isKingAdmin(access) || hasPermission(access, "apps.view")} />
     </div>
   </div>;
 }

@@ -1,11 +1,11 @@
 // @ts-nocheck
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { getAuthorizationContext,isKingAdmin,isTenantAdmin,hasPermission } from "@/lib/auth/authorization";
+import { hasApp, getAuthorizationContext,isKingAdmin,isTenantAdmin,hasPermission } from "@/lib/auth/authorization";
 
 const db = () => createAdminClient();
 const can=(a:any,p:string)=>isKingAdmin(a)||isTenantAdmin(a)||hasPermission(a,p);
-async function C(){const a=await getAuthorizationContext();return a?.profile?.company_id?{a,c:a.profile.company_id,s:db()}:null;}
+async function C(){const a=await getAuthorizationContext();return (hasApp(a,"app_sell") && a?.profile?.company_id)?{a,c:a.profile.company_id,s:db()}:null;}
 
 export async function GET(){
   const x=await C();if(!x)return NextResponse.json({error:"Unauthorized"},{status:401});

@@ -5,9 +5,9 @@ import { ArrowUpRight, Boxes, BrainCircuit, Building2, CreditCard, LayoutGrid, S
 import { useLanguage } from "./LanguageProvider";
 import type { OsApp } from "@/lib/os/catalog";
 
-type Props = { companyName: string; businessType: string; branchCount: number; apps: Record<OsApp, boolean>; canViewSettings: boolean; canViewIntegrations: boolean };
+type Props = { companyName: string; businessType: string; branchCount: number; apps: Record<OsApp, boolean>; menuSlug: string|null; menuPublished:boolean; canViewSettings: boolean; canViewIntegrations: boolean };
 
-export default function WorkspaceHome({ companyName, businessType, branchCount, apps, canViewSettings, canViewIntegrations }: Props) {
+export default function WorkspaceHome({ companyName, businessType, branchCount, apps, menuSlug, menuPublished, canViewSettings, canViewIntegrations }: Props) {
   const { language } = useLanguage();
   const ar = language === "ar";
   const L = (en: string, arabic: string) => ar ? arabic : en;
@@ -15,7 +15,7 @@ export default function WorkspaceHome({ companyName, businessType, branchCount, 
     { key: "operations" as const, title: "AVERO Operations", description: L("Inventory, purchasing, production and accounting", "المخزون والمشتريات والإنتاج والمحاسبة"), href: "/operations", icon: Boxes },
     { key: "sell" as const, title: "AVERO Sell", description: L("Cashier and product management", "الكاشير وإدارة الأصناف"), href: "/pos?area=cashier", icon: CreditCard },
     { key: "go" as const, title: "AVERO GO", description: L("Pickup menu and customer orders", "منيو الاستلام وطلبات العملاء"), href: "/go", icon: ShoppingBag },
-    { key: "intelligence" as const, title: "AVERO Intelligence", description: L("Authorized AI assistance, starting with LEO", "مساعدات الذكاء المصرّح لها، بدءاً من LEO"), href: "/ai-sales", icon: BrainCircuit },
+    { key: "intelligence" as const, title: "AVERO Intelligence", description: L("Your subscribed AI agents", "وكلاء الذكاء المشترك بهم"), href: "/ai-agents", icon: BrainCircuit },
   ];
 
   return <main className="mx-auto max-w-7xl space-y-8 px-5 py-8 md:px-8">
@@ -28,6 +28,7 @@ export default function WorkspaceHome({ companyName, businessType, branchCount, 
         <span className="rounded-full border border-slate-700 px-4 py-2">{L("Active branches", "الفروع النشطة")}: {branchCount}</span>
       </div>
     </header>
+    <section className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5"><h2 className="text-lg font-bold">{L("Your links", "روابط شركتك")}</h2><p className="mt-1 text-sm text-slate-400">{L("Share the login link with staff and the menu link with customers.", "شارك رابط الدخول مع الموظفين ورابط المنيو مع الزبائن.")}</p><div className="mt-4 flex flex-wrap gap-3"><button onClick={()=>navigator.clipboard.writeText(`${window.location.origin}/login`)} className="rounded-xl border border-cyan-500/40 px-4 py-2 text-sm text-cyan-300">{L("Copy staff login", "نسخ دخول الموظفين")}</button>{apps.go&&menuSlug&&<button onClick={()=>navigator.clipboard.writeText(`${window.location.origin}/go/${menuSlug}`)} className="rounded-xl border border-cyan-500/40 px-4 py-2 text-sm text-cyan-300">{L("Copy customer menu", "نسخ رابط منيو الزبائن")}</button>}{apps.go&&menuSlug&&!menuPublished&&<span className="self-center text-xs text-amber-300">{L("Menu is not published yet", "المنيو غير منشور بعد")}</span>}</div></section>
 
     <section aria-labelledby="control-title">
       <h2 id="control-title" className="mb-4 text-xl font-bold">{L("Control Center", "مركز التحكم")}</h2>

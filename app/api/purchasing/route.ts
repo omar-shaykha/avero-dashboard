@@ -4,7 +4,7 @@ import {createClient} from "@supabase/supabase-js";
 import {getAuthorizationContext,isKingAdmin,isTenantAdmin,hasPermission} from "@/lib/auth/authorization";
 
 const admin=()=>createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!,process.env.SUPABASE_SECRET_KEY!,{auth:{persistSession:false}});
-async function ctx(){const a=await getAuthorizationContext();return a?.profile?.company_id?{a,c:a.profile.company_id,s:admin()}:null}
+async function ctx(){const a=await getAuthorizationContext();return ((hasApp(a,"app_operations")||hasApp(a,"app_sell")) && a?.profile?.company_id)?{a,c:a.profile.company_id,s:admin()}:null}
 const can=(a:any,p:string)=>isKingAdmin(a)||isTenantAdmin(a)||hasPermission(a,p);
 async function owned(s:any,table:string,id:string|undefined,c:string,extra:Record<string,any>={}){if(!id)return false;let q=s.from(table).select('id').eq('id',id).eq('company_id',c);for(const[k,v]of Object.entries(extra))q=q.eq(k,v);const r=await q.maybeSingle();return !!r.data}
 

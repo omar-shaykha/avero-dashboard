@@ -3,12 +3,14 @@ import Sidebar from "@/app/components/Sidebar";
 import DashboardHeader from "@/app/components/DashboardHeader";
 import CoreOperationsWorkspace from "@/app/components/CoreOperationsWorkspace";
 import { getAuthorizationContext } from "@/lib/auth/authorization";
+import { canOpenSell } from "@/lib/os/catalog";
 
 export const dynamic = "force-dynamic";
 
 export default async function PosPage({ searchParams }: { searchParams: Promise<{ area?: string }> }) {
   const access = await getAuthorizationContext();
   if (!access) redirect("/login");
+  if (!access.profile.company_id || !canOpenSell(access)) redirect("/workspace");
 
   const params = await searchParams;
   const user = access.user;

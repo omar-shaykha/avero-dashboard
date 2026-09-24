@@ -11,7 +11,7 @@ import { AppWindow, BarChart3, Bot, Boxes, Building2, ChevronDown, ChevronRight,
 interface SidebarProps { userEmail?: string; userName?: string; access?: AuthorizationContext | null; }
 type NavIcon = ComponentType<{ size?: number; className?: string }>;
 type NavItem = { label: string; href: string; show: boolean; icon?: NavIcon };
-type PosArea = "cashier" | "add-items";
+type PosArea = "cashier" | "add-items" | "purchasing";
 type NavSectionKey = "monitoring" | "pos" | "apps" | "settings" | "agents" | "crm" | "clients";
 
 const DEFAULT_ORDER: NavSectionKey[] = ["monitoring","pos","agents","crm","clients","settings","apps"];
@@ -52,7 +52,7 @@ export default function Sidebar({ access }: SidebarProps) {
       if (pathname?.startsWith("/pos")) {
         const q = new URLSearchParams(window.location.search);
         const raw = q.get("area") || "cashier";
-        const area: PosArea = raw === "add-items" || raw === "products" ? "add-items" : "cashier";
+        const area: PosArea = raw === "add-items" || raw === "products" ? "add-items" : raw === "purchasing" ? "purchasing" : "cashier";
         setPosOpen(true);
         setCurrentArea(area);
       }
@@ -89,9 +89,10 @@ export default function Sidebar({ access }: SidebarProps) {
     view_ai_marketing: "marketing.view",
   };
   const permitted = (permission: string) => isKingAdmin || !!currentAccess?.permissions.includes(aliases[permission] || permission);
-  const has = (feature: string, permission: string) => isKingAdmin || !!(currentAccess?.features.includes(feature) && permitted(permission));
-  const canModule = (...permissions: string[]) => !currentAccess || isKingAdmin || isTenantAdmin || permissions.some((p) => permitted(p));
-  const crmVisible = has("crm", "view_crm");
+  const app = (key:string) => isKingAdmin || !!currentAccess?.features.includes(key);
+  const has = (feature: string, permission: string) => isKingAdmin || !!(app("app_intelligence") && currentAccess?.features.includes(feature) && permitted(permission));
+  const canModule = (...permissions: string[]) => isKingAdmin || isTenantAdmin || permissions.some((p) => permitted(p));
+  const crmVisible = app("app_sell") && (isKingAdmin || !!(currentAccess?.features.includes("crm") && permitted("view_crm")));
   const monitoringVisible = isKingAdmin || isTenantAdmin || permitted("analytics.view");
   const clientsVisible = isKingAdmin;
   const appsVisible = isKingAdmin || permitted("apps.view");
@@ -140,7 +141,7 @@ export default function Sidebar({ access }: SidebarProps) {
 
   const sections: Record<NavSectionKey, ReactNode> = {
     monitoring: monitoringVisible ? <Main href="/manager-monitoring" label={collapsed ? "" : "Manager Monitoring"} icon={BarChart3} active={pathname?.startsWith("/manager-monitoring") || pathname?.startsWith("/analytics")} /> : null,
-    pos: canModule("sales.view", "sales.cashier", "sales.manage") ? <div>
+    pos: app("app_sell") && canModule("sales.view", "sales.cashier", "sales.manage") ? <div>
       <button onClick={() => { if (collapsed) { setCollapsed(false); setPosOpen(true); } else setPosOpen((v) => !v); }} className={`flex w-full items-center gap-3 rounded-xl px-4 py-3 ${pathname?.startsWith("/pos") ? "bg-cyan-500/10 text-cyan-300" : "text-slate-300 hover:bg-slate-900"}`}>
         <Store size={18} />
         <span className={`flex-1 text-start text-sm font-medium ${collapsed ? "hidden" : "block"}`}>POS</span>
@@ -149,6 +150,7 @@ export default function Sidebar({ access }: SidebarProps) {
       {posOpen && !collapsed && <div className={`mt-2 space-y-1 border-slate-800 ${subBorder}`}>
         {canModule("sales.view", "sales.cashier") && <ModuleLink href="/pos?area=cashier" label={L("Cashier", "الكاشير")} active={pathname?.startsWith("/pos") && currentArea === "cashier"} onClick={() => selectRoute("cashier")} />}
         {canModule("sales.view", "sales.manage") && <ModuleLink href="/pos?area=add-items" label={L("Add Items", "إضافة الأصناف")} active={pathname?.startsWith("/pos") && currentArea === "add-items"} onClick={() => selectRoute("add-items")} />}
+        {canModule("purchasing.view", "purchasing.manage") && <ModuleLink href="/pos?area=purchasing" label={L("Purchasing", "المشتريات")} active={pathname?.startsWith("/pos") && currentArea === "purchasing"} onClick={() => selectRoute("purchasing")} />}
       </div>}
     </div> : null,
     apps: appsVisible ? <Main href="/apps" label={collapsed ? "" : rtl ? "التطبيقات" : "Apps"} icon={AppWindow} active={pathname?.startsWith("/apps")} /> : null,
@@ -160,8 +162,8 @@ export default function Sidebar({ access }: SidebarProps) {
       </button>
       {settingsOpen && !collapsed && <div className={`mt-2 space-y-1 border-slate-800 ${subBorder}`}>
         <SubLink href="/settings" label={rtl ? "إعدادات الشركة" : "Company Settings"} active={pathname === "/settings"} />
-        <SubLink href="/settings/cashier" label={rtl ? "إعدادات الكاشير" : "Cashier Settings"} active={pathname?.startsWith("/settings/cashier")} />
-        <SubLink href="/settings/pos" label={rtl ? "نقاط البيع والطباعة والفاتورة" : "POS, Printing & Invoice"} active={pathname?.startsWith("/settings/pos")} />
+        {app("app_sell") && <SubLink href="/settings/cashier" label={rtl ? "إعدادات الكاشير" : "Cashier Settings"} active={pathname?.startsWith("/settings/cashier")} />}
+        {app("app_sell") && <SubLink href="/settings/pos" label={rtl ? "نقاط البيع والطباعة والفاتورة" : "POS, Printing & Invoice"} active={pathname?.startsWith("/settings/pos")} />}
         <SubLink href="/settings/zatca" label={rtl ? "هيئة الزكاة والضريبة" : "ZATCA"} active={pathname?.startsWith("/settings/zatca")} />
       </div>}
     </div> : null,
@@ -194,7 +196,7 @@ export default function Sidebar({ access }: SidebarProps) {
 
       <nav className="flex-1 space-y-2 overflow-y-auto p-3">
         <Main href="/workspace" label={collapsed ? "" : L("Control Center", "مركز التحكم")} icon={LayoutGrid} active={pathname === "/workspace"}/>
-        {canModule("inventory.view", "inventory.manage", "purchasing.view", "purchasing.manage", "production.view", "production.manage", "sales.cost.view", "inventory.cost.view") && <Main href="/operations" label={collapsed ? "" : L("Operations", "العمليات")} icon={Boxes} active={pathname?.startsWith("/operations")}/>}
+        {app("app_operations") && canModule("inventory.view", "inventory.manage", "purchasing.view", "purchasing.manage", "production.view", "production.manage", "sales.cost.view", "inventory.cost.view") && <Main href="/operations" label={collapsed ? "" : L("Operations", "العمليات")} icon={Boxes} active={pathname?.startsWith("/operations")}/>}
         {navOrder.map((key) => {
           const content = sections[key];
           if (!content) return null;

@@ -1,9 +1,9 @@
 // @ts-nocheck
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { getAuthorizationContext, hasPermission, isKingAdmin, isTenantAdmin } from "@/lib/auth/authorization";
+import { hasApp, getAuthorizationContext, hasPermission, isKingAdmin, isTenantAdmin } from "@/lib/auth/authorization";
 const db=()=>createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!,process.env.SUPABASE_SECRET_KEY!,{auth:{persistSession:false}});
-async function context(){const a=await getAuthorizationContext();return a?.profile?.company_id?{a,companyId:a.profile.company_id,s:db()}:null}
+async function context(){const a=await getAuthorizationContext();return ((hasApp(a,"app_operations")||hasApp(a,"app_sell")) && a?.profile?.company_id)?{a,companyId:a.profile.company_id,s:db()}:null}
 const isAdmin=(a:any)=>isKingAdmin(a)||isTenantAdmin(a);
 function canView(a:any){return isAdmin(a)||hasPermission(a,"inventory.view")||hasPermission(a,"inventory.manage")}
 function canDo(a:any,kind:string){if(isAdmin(a)||hasPermission(a,"inventory.manage"))return true;const map:any={stock_movement:"inventory.adjust",transfer:"inventory.transfer",receive_transfer:"inventory.transfer",internal_move:"inventory.transfer",stock_count:"inventory.count",waste:"inventory.waste",return:"inventory.returns",receive_stock:"inventory.adjust",incoming:"inventory.adjust",receive_incoming:"inventory.adjust",reserve:"inventory.manage",release_reservation:"inventory.manage",location:"inventory.manage",warehouse:"inventory.manage",item:"inventory.manage",unit:"inventory.manage"};return Boolean(map[kind]&&hasPermission(a,map[kind]))}
