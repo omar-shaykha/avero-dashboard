@@ -1,6 +1,7 @@
 import sharp from "sharp";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { publishMarketingContent } from "@/lib/marketing/publisher";
+import { hasFoxyEntitlement } from "@/lib/marketing/entitlement";
 
 function authorized(request: Request) {
   const secret = process.env.CRON_SECRET;
@@ -99,6 +100,7 @@ export async function GET(request: Request) {
     let failed = 0;
 
     for (const item of rows || []) {
+      if (!await hasFoxyEntitlement(item.company_id)) continue;
       const { data: setting } = await s.from("marketing_schedule_settings")
         .select("mode,enabled")
         .eq("company_id", item.company_id)
