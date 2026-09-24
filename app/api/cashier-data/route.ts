@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { getAuthorizationContext, isKingAdmin, isTenantAdmin, hasPermission } from "@/lib/auth/authorization";
+import { hasApp, getAuthorizationContext, isKingAdmin, isTenantAdmin, hasPermission } from "@/lib/auth/authorization";
 
 const db = () => createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -14,7 +14,7 @@ const can = (a: any, permission: string) =>
 
 export async function GET() {
   const auth = await getAuthorizationContext();
-  const companyId = auth?.profile?.company_id;
+  const companyId = hasApp(auth,"app_sell") ? auth?.profile?.company_id : null;
 
   if (!auth || !companyId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

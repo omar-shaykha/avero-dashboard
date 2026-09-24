@@ -139,7 +139,7 @@ export default function HelpChatBubble() {
     if (!wasMoved) setOpen((v) => !v);
   }
 
-  if (pathname?.startsWith("/login")) return null;
+  if (pathname?.startsWith("/login") || pathname?.startsWith("/go/")) return null;
 
   const panelW = 390;
   const panelH = Math.min(560, typeof window !== "undefined" ? window.innerHeight - 24 : 560);

@@ -1,11 +1,11 @@
 // @ts-nocheck
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { getAuthorizationContext,isKingAdmin,isTenantAdmin,hasPermission } from '@/lib/auth/authorization';
+import { hasApp, getAuthorizationContext,isKingAdmin,isTenantAdmin,hasPermission } from '@/lib/auth/authorization';
 
 const db=()=>createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!,process.env.SUPABASE_SECRET_KEY!,{auth:{persistSession:false}});
 const ok=(a:any,p:string)=>isKingAdmin(a)||isTenantAdmin(a)||hasPermission(a,p);
-async function C(){const a=await getAuthorizationContext();return a?.profile?.company_id?{a,c:a.profile.company_id,s:db()}:null}
+async function C(){const a=await getAuthorizationContext();return (hasApp(a,"app_operations") && a?.profile?.company_id)?{a,c:a.profile.company_id,s:db()}:null}
 async function owned(s:any,table:string,id:string|undefined,c:string,extra:Record<string,any>={}){if(!id)return false;let q=s.from(table).select('id').eq('id',id).eq('company_id',c);for(const[k,v]of Object.entries(extra))q=q.eq(k,v);const r=await q.maybeSingle();return !!r.data}
 
 export async function GET(){

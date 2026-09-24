@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { NextResponse } from 'next/server';
 import { createAdminClient } from "@/lib/supabase/admin";
-import { getAuthorizationContext, isKingAdmin, isTenantAdmin, hasPermission } from '@/lib/auth/authorization';
+import { hasApp, getAuthorizationContext, isKingAdmin, isTenantAdmin, hasPermission } from '@/lib/auth/authorization';
 
 const db = () => createAdminClient();
 const can = (a:any,p:string) => isKingAdmin(a) || isTenantAdmin(a) || hasPermission(a,p);
@@ -134,7 +134,17 @@ export async function POST(req:Request){
       await x.s.from('sales_orders').update({customer_id:customerId,customer_name:d.customer?.name||null,customer_phone:d.customer?.phone||null,customer_email:d.customer?.email||null,customer_notes:d.customer?.notes||null,discount_percent:Number(d.discount_percent||0)}).eq('id',oid).eq('company_id',x.c);
       for(const line of Array.isArray(d.lines)?d.lines:[]){const notes=String(line.notes||'').trim();if(notes)await x.s.from('sales_order_lines').update({notes}).eq('order_id',oid).eq('product_id',line.product_id).eq('company_id',x.c);}
     }
-    if(d.held_order_id){await x.s.from('sales_order_lines').delete().eq('order_id',d.held_order_id).eq('company_id',x.c);await x.s.from('sales_orders').delete().eq('id',d.held_order_id).eq('company_id',x.c).eq('status','held');}
+    if(d.held_order_id){
+      const held=await x.s.from('sales_orders').select('id,channel').eq('id',d.held_order_id).eq('company_id',x.c).eq('status','held').maybeSingle();
+      if(held.data?.channel==='go'){
+        const completed=await x.s.from('sales_orders').update({status:'fulfilled',tracking_status:'completed',go_sale_id:oid})
+          .eq('id',d.held_order_id).eq('company_id',x.c).eq('status','held');
+        if(completed.error)console.error('GO order completion link failed',completed.error);
+      }else if(held.data){
+        await x.s.from('sales_order_lines').delete().eq('order_id',d.held_order_id).eq('company_id',x.c);
+        await x.s.from('sales_orders').delete().eq('id',d.held_order_id).eq('company_id',x.c).eq('status','held');
+      }
+    }
     return NextResponse.json({result:r.data});
   }
   return NextResponse.json({error:'Invalid action'},{status:400});

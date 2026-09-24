@@ -3,7 +3,7 @@ import Link from "next/link";
 import Sidebar from "@/app/components/Sidebar";
 import DashboardHeader from "@/app/components/DashboardHeader";
 import AgentHireWizard from "@/app/components/AgentHireWizard";
-import { getAuthorizationContext } from "@/lib/auth/authorization";
+import { getAuthorizationContext, hasApp } from "@/lib/auth/authorization";
 
 const valid=new Set(["ai_hr","ai_support","ai_inventory","ai_warehouse","ai_customer_care","ai_analytics"]);
 export const dynamic="force-dynamic";
@@ -11,6 +11,7 @@ export const dynamic="force-dynamic";
 export default async function SubscriptionsPage({searchParams}:{searchParams:Promise<{agent?:string}>}){
  const access=await getAuthorizationContext();
  if(!access)redirect("/login");
+ if(!hasApp(access,"app_intelligence"))redirect("/workspace");
  const params=await searchParams;
  const key=String(params?.agent||"");
  if(!valid.has(key))redirect("/crm");

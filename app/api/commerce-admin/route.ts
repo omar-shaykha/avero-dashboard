@@ -1,11 +1,11 @@
 // @ts-nocheck
 import { NextResponse } from 'next/server';
 import { createAdminClient } from "@/lib/supabase/admin";
-import { getAuthorizationContext,isKingAdmin,isTenantAdmin,hasPermission } from '@/lib/auth/authorization';
+import { hasApp,getAuthorizationContext,isKingAdmin,isTenantAdmin,hasPermission } from '@/lib/auth/authorization';
 
 const db = () => createAdminClient();
 const can=(a:any,p:string)=>isKingAdmin(a)||isTenantAdmin(a)||hasPermission(a,p);
-async function C(){const a=await getAuthorizationContext();return a?.profile?.company_id?{a,c:a.profile.company_id,s:db()}:null}
+async function C(){const a=await getAuthorizationContext();return (hasApp(a,"app_sell")&&a?.profile?.company_id)?{a,c:a.profile.company_id,s:db()}:null}
 async function owned(s:any,table:string,id:string|undefined,c:string){if(!id)return false;const q=await s.from(table).select('id').eq('id',id).eq('company_id',c).maybeSingle();return !!q.data}
 const UNIT_MAP:any={piece:{code:'PCS',name:'Pieces',symbol:'pc',category:'count'},gram:{code:'G',name:'Gram',symbol:'g',category:'weight'},kilogram:{code:'KG',name:'Kilogram',symbol:'kg',category:'weight'},liter:{code:'L',name:'Liter',symbol:'L',category:'volume'},milliliter:{code:'ML',name:'Milliliter',symbol:'ml',category:'volume'}};
 async function ensureUnit(x:any,key:string){const u=UNIT_MAP[key]||UNIT_MAP.piece;let q=await x.s.from('inventory_units').select('id').eq('company_id',x.c).eq('code',u.code).maybeSingle();if(q.data)return q.data.id;const ins=await x.s.from('inventory_units').insert({company_id:x.c,code:u.code,name:u.name,symbol:u.symbol,category:u.category,precision:key==='piece'?0:3,active:true}).select('id').single();if(ins.error)throw new Error(ins.error.message);return ins.data.id}

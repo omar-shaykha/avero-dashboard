@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { createClient as createServerClient } from "@/lib/supabase/server";
+import { hasActiveCompanyMembership } from "@/lib/auth/membership";
+import { getAuthorizationContext, canAccess } from "@/lib/auth/authorization";
 
 const VALID_PLATFORMS = ["facebook", "instagram", "tiktok", "snapchat"];
 const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-3.6-flash";
@@ -100,6 +102,9 @@ export async function POST(req: NextRequest) {
     const s = admin();
     const { data: profile } = await s.from("user_profiles").select("company_id,role,full_name,username,nickname").eq("user_id", user.id).maybeSingle();
     if (!profile?.company_id) return NextResponse.json({ error: "حسابك مش مربوط بشركة بعد." }, { status: 409 });
+    if (!await hasActiveCompanyMembership(s, profile.company_id, user.id, profile.role)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const access = await getAuthorizationContext();
+    if (!canAccess(access, "ai_marketing", "marketing.manage")) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
     const wantsMarketing = includesAny(message, ["بوست", "post", "ماركت", "marketing", "فيس", "facebook", "انستا", "instagram", "سناب", "snap", "تيك", "tiktok", "صورة", "story", "ستوري", "اعلان", "إعلان", "نزل", "نزّل"]);
     if (!wantsMarketing) {

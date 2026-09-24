@@ -7,7 +7,7 @@ const HIREABLE=new Set(["ai_hr","ai_support","ai_inventory","ai_warehouse","ai_c
 export async function POST(req:Request){
  const access=await getAuthorizationContext();
  if(!access)return NextResponse.json({error:"Unauthorized"},{status:401});
- if(!(isKingAdmin(access)||isTenantAdmin(access)))return NextResponse.json({error:"Admin access required"},{status:403});
+ if(!isKingAdmin(access))return NextResponse.json({error:"Only AVERO Admin can activate an AI agent"},{status:403});
  const companyId=access.profile.company_id;if(!companyId)return NextResponse.json({error:"Company not configured"},{status:409});
  const body=await req.json().catch(()=>({}));const agentKey=String(body.agent_key||"");
  if(!HIREABLE.has(agentKey))return NextResponse.json({error:"Invalid AI employee"},{status:400});

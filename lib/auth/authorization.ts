@@ -1,7 +1,9 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient as createServerClient } from "@/lib/supabase/server";
+import { hasActiveCompanyMembership } from "@/lib/auth/membership";
 
 export type FeatureKey = "ai_sales" | "crm" | "analytics" | "ai_marketing" | "ai_hr" | "ai_support" | "ai_inventory" | "ai_customer_care" | "ai_analytics" | "ai_warehouse";
+export type AppKey = "app_sell" | "app_operations" | "app_go" | "app_intelligence";
 export interface AuthorizationContext { user:{id:string;email?:string}; profile:{company_id:string|null;role:string|null;role_id:string|null}; permissions:string[]; features:string[]; }
 const LEGACY_PERMISSION_ALIASES:Record<string,string>={
   view_crm:"crm.view",manage_crm:"crm.manage",view_analytics:"analytics.view",
@@ -20,6 +22,9 @@ export async function getAuthorizationContext():Promise<AuthorizationContext|nul
  const authClient=await createServerClient();const{data:{user}}=await authClient.auth.getUser();if(!user)return null;
  const supabase=getAdminClient();
  const{data:profile,error:profileError}=await supabase.from("user_profiles").select("company_id,role,role_id").eq("user_id",user.id).maybeSingle();if(profileError)throw profileError;
+ // Legacy profile ownership alone is no longer enough to access a company.
+ // Platform staff are verified separately by the existing king_admin role.
+ if(profile?.company_id&&!await hasActiveCompanyMembership(supabase,profile.company_id,user.id,profile.role))return null;
  const effective=new Map<string,boolean>();
  if(profile?.role_id){
    const{data:rolePermissions,error:rolePermissionsError}=await supabase.from("role_permissions").select("permissions(key)").eq("role_id",profile.role_id);if(rolePermissionsError)throw rolePermissionsError;
@@ -30,12 +35,16 @@ export async function getAuthorizationContext():Promise<AuthorizationContext|nul
  const permissions=[...effective.entries()].filter(([,allowed])=>allowed).map(([key])=>key);
  const features:string[]=[];
  if(profile?.company_id){const{data,error}=await supabase.from("company_features").select("enabled,expires_at,features(key)").eq("company_id",profile.company_id).eq("enabled",true);if(error)throw error;const now=Date.now();for(const row of data||[]){const feature=Array.isArray(row.features)?row.features[0]:row.features;if(feature?.key&&(!row.expires_at||new Date(row.expires_at).getTime()>now))features.push(feature.key)}}
- return{user:{id:user.id,email:user.email},profile:{company_id:profile?.company_id??null,role:profile?.role??null,role_id:profile?.role_id??null},permissions,features}
+ const hasSubscribedApp=features.includes("app_sell")||features.includes("app_operations")||
+   (features.includes("app_intelligence")&&features.some(key=>key==="ai_sales"||key==="ai_marketing"||key==="ai_hr"||key==="ai_inventory"||key==="ai_support"));
+ return{user:{id:user.id,email:user.email},profile:{company_id:profile?.company_id??null,role:profile?.role??null,role_id:profile?.role_id??null},permissions:profile?.role==="king_admin"||hasSubscribedApp?permissions:[],features}
 }
 export function isKingAdmin(context:AuthorizationContext|null){return context?.profile.role==="king_admin"}
-export function isSuperAdmin(context:AuthorizationContext|null){return context?.profile.role==="super_admin"}
-export function isTenantAdmin(context:AuthorizationContext|null){return context?.profile.role==="super_admin"||context?.profile.role==="admin"}
-export function hasPermission(context:AuthorizationContext|null,permissionKey:string){return Boolean(isKingAdmin(context)||context?.permissions.includes(normalizePermissionKey(permissionKey)))}
-export function hasFeature(context:AuthorizationContext|null,featureKey:FeatureKey){return Boolean(isKingAdmin(context)||context?.features.includes(featureKey))}
+export function isSuperAdmin(context:AuthorizationContext|null){return Boolean(hasAnyApp(context)&&context?.profile.role==="super_admin")}
+export function isTenantAdmin(context:AuthorizationContext|null){return Boolean(hasAnyApp(context)&&(context?.profile.role==="super_admin"||context?.profile.role==="admin"))}
+export function hasPermission(context:AuthorizationContext|null,permissionKey:string){return Boolean(isKingAdmin(context)||(hasAnyApp(context)&&context?.permissions.includes(normalizePermissionKey(permissionKey))))}
+export function hasFeature(context:AuthorizationContext|null,featureKey:FeatureKey){return Boolean(isKingAdmin(context)||(context?.features.includes(featureKey)&&(!featureKey.startsWith("ai_")||context.features.includes("app_intelligence"))&&(featureKey!=="crm"||context.features.includes("app_sell"))))}
+export function hasApp(context:AuthorizationContext|null,appKey:AppKey){return Boolean(isKingAdmin(context)||context?.features.includes(appKey))}
+export function hasAnyApp(context:AuthorizationContext|null){return Boolean(isKingAdmin(context)||context?.features.includes("app_sell")||context?.features.includes("app_operations")||(context?.features.includes("app_intelligence")&&context.features.some(key=>key==="ai_sales"||key==="ai_marketing"||key==="ai_hr"||key==="ai_inventory"||key==="ai_support")))}
 export function canAccess(context:AuthorizationContext|null,featureKey:FeatureKey,permissionKey:string){return Boolean(isKingAdmin(context)||(hasFeature(context,featureKey)&&hasPermission(context,permissionKey)))}
 export function canManageCompanyUsers(context:AuthorizationContext|null){return Boolean(isKingAdmin(context)||isSuperAdmin(context)||hasPermission(context,"users.permissions.manage"))}
