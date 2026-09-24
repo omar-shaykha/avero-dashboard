@@ -1,4 +1,4 @@
-import { hasApp, hasFeature, hasPermission, isKingAdmin, isTenantAdmin, type AuthorizationContext } from "@/lib/auth/authorization";
+import { canAccess, hasApp, hasPermission, isKingAdmin, isTenantAdmin, type AuthorizationContext } from "@/lib/auth/authorization";
 
 export type OsApp = "control" | "operations" | "sell" | "go" | "intelligence" | "admin";
 export type OperationsArea = "inventory" | "purchasing" | "production" | "accounting";
@@ -28,7 +28,7 @@ export function availableOsApps(access: AuthorizationContext): Record<OsApp, boo
     operations: allowedOperationsAreas(access).length > 0,
     sell: canOpenSell(access),
     go: hasApp(access, "app_go") && canOpenSell(access),
-    intelligence: ["ai_sales", "ai_marketing", "ai_hr", "ai_inventory", "ai_support"].some((key) => hasFeature(access, key as "ai_sales")),
+    intelligence: isKingAdmin(access) || canAccess(access,"ai_sales","sales.view") || canAccess(access,"ai_marketing","marketing.manage"),
     admin: isKingAdmin(access),
   };
 }
