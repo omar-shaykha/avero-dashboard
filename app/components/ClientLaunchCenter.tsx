@@ -139,6 +139,7 @@ export default function ClientLaunchCenter({ clientId }: { clientId: string }) {
           <p className="text-xs font-black uppercase tracking-[.24em] text-cyan-300">King Admin / Client Launch Center</p>
           <h1 className="mt-2 text-3xl font-black text-white md:text-4xl">{data.company.name}</h1>
           <p className="mt-2 text-sm text-slate-400">Configure the client once, then let the agents run from the dashboard and connected channels.</p>
+          <Link href={`/clients/${clientId}/access`} className="mt-4 inline-flex items-center gap-2 rounded-xl bg-cyan-600 px-5 py-3 font-bold text-white hover:bg-cyan-500"><ShieldCheck size={18}/>روابط العميل والصلاحيات ←</Link>
         </div>
         <div className="rounded-3xl border border-cyan-400/20 bg-cyan-400/10 p-5 text-center">
           <Gauge className="mx-auto text-cyan-300" size={28} />

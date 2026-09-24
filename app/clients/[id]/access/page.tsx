@@ -57,9 +57,10 @@ export default function ClientAccessPage(){
   async function copy(path:string,label:string){await navigator.clipboard.writeText(`${window.location.origin}${path}`);setCopied(label);window.setTimeout(()=>setCopied(""),2000)}
   const clientLinks=[
     {label:"لوحة الشركة · Dashboard",path:`/workspace/${slug||id}`,key:null},
+    ...(slug?[{label:"رابط المنيو للـQR · زبائن",path:`/go/${slug}`,key:"app_go"}]:[]),
+    {label:"الكاشير · POS",path:"/pos?area=cashier",key:"app_sell"},
     {label:"الدخول · Login",path:"/login",key:null},
     {label:"الملف الشخصي",path:"/profile",key:null},
-    {label:"الكاشير · POS",path:"/pos?area=cashier",key:"app_sell"},
     {label:"الأصناف · Add Items",path:"/pos?area=add-items",key:"app_sell"},
     {label:"مشتريات POS",path:"/pos?area=purchasing",key:"app_sell"},
     {label:"العمليات · ERP",path:"/operations",key:"app_operations"},
@@ -70,7 +71,6 @@ export default function ClientAccessPage(){
     {label:"تقارير المدير",path:"/manager-monitoring",key:"app_operations"},
     {label:"CRM",path:"/crm",key:"crm"},
     {label:"إدارة المنيو · GO",path:"/go",key:"app_go"},
-    ...(slug?[{label:"منيو الزبائن · Public menu",path:`/go/${slug}`,key:"app_go"}]:[]),
     {label:"وكلاء AI",path:"/ai-agents",key:"app_intelligence"},
     {label:"LEO",path:"/ai-sales",key:"ai_sales"},
     {label:"FOXY",path:"/ai-marketing",key:"ai_marketing"},
@@ -78,13 +78,11 @@ export default function ClientAccessPage(){
   const linkActive=(key:string|null)=>!key||(enabled(key)&&(!["app_go","crm"].includes(key)||enabled("app_sell"))&&(!key.startsWith("ai_")||enabled("app_intelligence")));
   const switchButton=(key:string,locked=false)=><button type="button" role="switch" aria-label={`Toggle ${key}`} aria-checked={enabled(key)} disabled={saving!==null||locked} onClick={()=>toggle(key)} className={`rounded-full px-4 py-2 text-sm font-bold disabled:opacity-40 ${enabled(key)?"bg-emerald-500/20 text-emerald-300":"bg-slate-800 text-slate-400"}`}>{saving===key?"…":enabled(key)?"ON":"OFF"}</button>;
   return <div className="min-h-screen bg-slate-950 text-white"><Sidebar/><div className="min-h-screen lg:ml-64"><DashboardHeader/><main className="mx-auto max-w-5xl space-y-6 p-5 md:p-8">
-    <header><p className="text-xs font-bold uppercase tracking-widest text-cyan-300">AVERO ADMIN · Client</p><h1 className="mt-2 text-3xl font-black">{overview?.company.name||"Client"}</h1>{overview?.users.filter(u=>u.role==="super_admin").map(u=><p key={u.user_id} className="mt-1 text-sm text-cyan-300">Super Admin · {u.email}</p>)}<p className="mt-2 text-slate-400">فعّل التطبيقات التي اشترك بها العميل، ثم اختَر وكلاء AI واحدًا واحدًا.</p></header>
+    <header><a href="/clients" className="text-sm text-cyan-300 hover:underline">← كل العملاء</a><p className="mt-3 text-xs font-bold uppercase tracking-widest text-cyan-300">AVERO ADMIN · Client</p><h1 className="mt-2 text-3xl font-black">{overview?.company.name||"Client"}</h1>{overview?.users.filter(u=>u.role==="super_admin").map(u=><p key={u.user_id} className="mt-1 text-sm text-cyan-300">Super Admin · {u.email}</p>)}<p className="mt-2 text-slate-400">فعّل التطبيقات التي اشترك بها العميل، ثم اختَر وكلاء AI واحدًا واحدًا.</p><a href="#client-links" className="mt-4 inline-flex rounded-xl bg-cyan-600 px-5 py-3 font-bold text-white">عرض روابط الشركة والمنيو والـPOS ↓</a></header>
     {error&&<p role="alert" className="rounded-xl border border-rose-700 bg-rose-900/20 p-4 text-rose-200">{error}</p>}
     {!loaded?<p className="text-slate-400">Loading…</p>:!overview?<p className="text-slate-400">بيانات العميل غير متاحة حاليًا.</p>:<>
-      <section className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5"><h2 className="text-xl font-bold">التطبيقات الأساسية · Apps</h2><p className="mt-1 text-sm text-slate-400">مركز التحكم والحساب موجودان دائمًا.</p><div className="mt-4 divide-y divide-slate-800">{apps.map(app=><div key={app.key} className="flex items-center justify-between gap-4 py-4"><div><h3 className="font-bold">{app.name}</h3><p className="mt-1 text-sm text-slate-400">{app.detail}</p></div>{switchButton(app.key)}</div>)}</div></section>
-      <section className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5"><h2 className="text-xl font-bold">AI Agents · الوكلاء</h2><p className="mt-1 text-sm text-slate-400">فعّل Intelligence أولًا. الوكلاء قيد التطوير لا تفتح لهم شاشات غير جاهزة.</p><div className="mt-4 divide-y divide-slate-800">{agents.map(agent=><div key={agent.key} className="flex items-center justify-between gap-4 py-4"><div><h3 className="font-bold">{agent.name}</h3><p className="text-sm text-slate-400">{agent.detail}</p></div>{switchButton(agent.key,!enabled("app_intelligence")||!agent.ready)}</div>)}</div></section>
-      <section className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5">
-        <h2 className="text-xl font-bold">روابط العميل · King only</h2>
+      <section id="client-links" className="scroll-mt-6 rounded-2xl border border-cyan-500/50 bg-slate-900/70 p-5">
+        <h2 className="text-xl font-bold">روابط الشركة والخدمات · للـKing فقط</h2>
         <p className="mt-1 text-sm text-slate-400">الروابط معروضة هون عندك فقط. تنسخ وتشارك ما تختاره؛ العميل ما بيشوف قائمة الروابط. التطبيق المطفّي ما بيظهر له حتى لو معه الرابط.</p>
         <div className="mt-4 grid gap-3 sm:grid-cols-2">{clientLinks.map(({label,path,key})=><div key={label} className="rounded-xl border border-slate-800 p-3">
           <div className="flex items-center justify-between gap-2"><strong className="text-sm">{label}</strong><span className={`text-xs ${!linkActive(key)?"text-slate-500":"text-emerald-300"}`}>{!key?"أساسي":linkActive(key)?"مفعّل":"غير مفعّل"}</span></div>
@@ -93,6 +91,8 @@ export default function ClientAccessPage(){
         </div>)}</div>
         {slug&&(!menuPublished||!enabled("app_go"))&&<p className="mt-3 text-sm text-amber-300">منيو الزبائن غير جاهز للطلبات؛ لازم GO والفرع والأصناف ونشر المنيو.</p>}
       </section>
+      <section className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5"><h2 className="text-xl font-bold">التطبيقات الأساسية · Apps</h2><p className="mt-1 text-sm text-slate-400">مركز التحكم والحساب موجودان دائمًا.</p><div className="mt-4 divide-y divide-slate-800">{apps.map(app=><div key={app.key} className="flex items-center justify-between gap-4 py-4"><div><h3 className="font-bold">{app.name}</h3><p className="mt-1 text-sm text-slate-400">{app.detail}</p></div>{switchButton(app.key)}</div>)}</div></section>
+      <section className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5"><h2 className="text-xl font-bold">AI Agents · الوكلاء</h2><p className="mt-1 text-sm text-slate-400">فعّل Intelligence أولًا. الوكلاء قيد التطوير لا تفتح لهم شاشات غير جاهزة.</p><div className="mt-4 divide-y divide-slate-800">{agents.map(agent=><div key={agent.key} className="flex items-center justify-between gap-4 py-4"><div><h3 className="font-bold">{agent.name}</h3><p className="text-sm text-slate-400">{agent.detail}</p></div>{switchButton(agent.key,!enabled("app_intelligence")||!agent.ready)}</div>)}</div></section>
       <section className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5"><h2 className="text-xl font-bold">الحساب والاشتراك</h2><p className="mt-3 text-slate-300">الخطة: {overview?.subscription?.subscription_plans?.name||"لم تحدد"} · الحالة: {overview?.subscription?.status||"—"}</p><p className="mt-2 text-sm text-slate-400">{overview?.users.length||0} مستخدمين · تفعيل التطبيقات والوكلاء من لوحة الـKing فقط.</p></section>
     </>}
   </main></div></div>;
