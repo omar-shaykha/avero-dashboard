@@ -13,5 +13,5 @@ export async function GET(_:Request,{params}:{params:Promise<{id:string}>}){
   ]);
   if(company.error||store.error)return Response.json({error:"Unable to load links"},{status:500});
   if(!company.data)return Response.json({error:"Client not found"},{status:404});
-  return Response.json({slug:store.data?.slug||null,menu_enabled:Boolean(store.data?.enabled)},{headers:{"Cache-Control":"no-store"}});
+  return Response.json({slug:store.data?.slug||`store-${id.slice(0,8)}`,menu_enabled:Boolean(store.data?.enabled)},{headers:{"Cache-Control":"no-store"}});
 }

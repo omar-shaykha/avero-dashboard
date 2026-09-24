@@ -30,14 +30,14 @@ export default function WorkspaceHome({ companyName, businessType, branchCount, 
       </div>
     </header>
 
-    <section aria-labelledby="control-title">
+    {(visibleProducts.length > 0 || apps.admin) && <section aria-labelledby="control-title">
       <h2 id="control-title" className="mb-4 text-xl font-bold">{L("Control Center", "مركز التحكم")}</h2>
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {canViewSettings && <Link href="/settings" className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5 hover:border-cyan-400/40"><Settings2 className="text-cyan-300"/><h3 className="mt-3 font-bold">{L("Company & team", "الشركة والفريق")}</h3><p className="mt-2 text-sm text-slate-400">{L("Company settings and users", "إعدادات الشركة والمستخدمون")}</p></Link>}
         <Link href="/profile" className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5 hover:border-cyan-400/40"><Users className="text-cyan-300"/><h3 className="mt-3 font-bold">{L("My account", "حسابي")}</h3><p className="mt-2 text-sm text-slate-400">{L("Your profile and account details", "ملفك وبيانات حسابك")}</p></Link>
         {canViewIntegrations && <Link href="/apps" className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5 hover:border-cyan-400/40"><Building2 className="text-cyan-300"/><h3 className="mt-3 font-bold">{L("Integrations", "التكاملات")}</h3><p className="mt-2 text-sm text-slate-400">{L("Connected services for this company", "الخدمات المرتبطة بهذه الشركة")}</p></Link>}
       </div>
-    </section>
+    </section>}
 
     {visibleProducts.length > 0 && <section aria-labelledby="apps-title">
       <div className="mb-4 flex items-center gap-2"><LayoutGrid className="text-cyan-300" size={21}/><h2 id="apps-title" className="text-xl font-bold">{L("Your applications", "تطبيقاتك")}</h2></div>
