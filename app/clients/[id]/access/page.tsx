@@ -7,6 +7,7 @@ import DashboardHeader from "@/app/components/DashboardHeader";
 type Feature = { id:string; key:string; enabled:boolean; expires_at:string|null };
 type Overview = { company:{name:string}; users:{user_id:string;email?:string;role:string}[]; subscription:{status:string;subscription_plans?:{name:string}}|null };
 const apps = [
+  {key:"app_manager", name:"Manager · لوحة المدير", detail:"تظهر فقط عند تفعيلها من لوحة King؛ اسم المنشأة والمستخدم في الأعلى"},
   {key:"app_sell", name:"AVERO SELL / POS", detail:"الكاشير، إضافة الأصناف والمنتجات، العملاء والمبيعات"},
   {key:"app_operations", name:"AVERO Operations / ERP", detail:"المخزون، المشتريات، الإنتاج والمحاسبة"},
   {key:"app_go", name:"AVERO GO", detail:"منيو الزبائن وطلبات الاستلام (يحتاج SELL)"},
@@ -31,6 +32,8 @@ export default function ClientAccessPage(){
   const [error,setError]=useState("");
   const [copied,setCopied]=useState("");
   const [origin,setOrigin]=useState("");
+  const [newEmail,setNewEmail]=useState("");
+  const [addingUser,setAddingUser]=useState(false);
   useEffect(()=>setOrigin(window.location.origin),[]);
   const load=useCallback(async()=>{
     const [o,f,l]=await Promise.all([
@@ -55,6 +58,14 @@ export default function ClientAccessPage(){
     }catch(e){setError(e instanceof Error?e.message:"تعذّر الحفظ")}finally{setSaving(null)}
   }
   async function copy(path:string,label:string){await navigator.clipboard.writeText(`${window.location.origin}${path}`);setCopied(label);window.setTimeout(()=>setCopied(""),2000)}
+  async function addUser(event:React.FormEvent<HTMLFormElement>){
+    event.preventDefault();setAddingUser(true);setError("");
+    try{
+      const response=await fetch(`/api/clients/${id}/users`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email:newEmail})});
+      const body=await response.json();if(!response.ok)throw new Error(body.error||"تعذّر إضافة المستخدم");
+      setNewEmail("");await load();
+    }catch(e){setError(e instanceof Error?e.message:"تعذّر إضافة المستخدم")}finally{setAddingUser(false)}
+  }
   const clientLinks=[
     {label:"لوحة الشركة · Dashboard",path:`/workspace/${slug||id}`,key:null},
     ...(slug?[{label:"رابط المنيو للـQR · زبائن",path:`/go/${slug}`,key:"app_go"}]:[]),
@@ -68,7 +79,7 @@ export default function ClientAccessPage(){
     {label:"مشتريات ERP",path:"/operations?area=purchasing",key:"app_operations"},
     {label:"الإنتاج",path:"/operations?area=production",key:"app_operations"},
     {label:"المحاسبة",path:"/operations?area=accounting",key:"app_operations"},
-    {label:"تقارير المدير",path:"/manager-monitoring",key:"app_operations"},
+    {label:"لوحة المدير · Manager",path:"/manager-monitoring",key:"app_manager"},
     {label:"CRM",path:"/crm",key:"crm"},
     {label:"إدارة المنيو · GO",path:"/go",key:"app_go"},
     {label:"وكلاء AI",path:"/ai-agents",key:"app_intelligence"},
@@ -91,7 +102,8 @@ export default function ClientAccessPage(){
         </div>)}</div>
         {slug&&(!menuPublished||!enabled("app_go"))&&<p className="mt-3 text-sm text-amber-300">منيو الزبائن غير جاهز للطلبات؛ لازم GO والفرع والأصناف ونشر المنيو.</p>}
       </section>
-      <section className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5"><h2 className="text-xl font-bold">التطبيقات الأساسية · Apps</h2><p className="mt-1 text-sm text-slate-400">مركز التحكم والحساب موجودان دائمًا.</p><div className="mt-4 divide-y divide-slate-800">{apps.map(app=><div key={app.key} className="flex items-center justify-between gap-4 py-4"><div><h3 className="font-bold">{app.name}</h3><p className="mt-1 text-sm text-slate-400">{app.detail}</p></div>{switchButton(app.key)}</div>)}</div></section>
+      <section className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5"><h2 className="text-xl font-bold">التطبيقات الأساسية · Apps</h2><p className="mt-1 text-sm text-slate-400">كل تطبيق يظهر للعميل عند تفعيله فقط.</p><div className="mt-4 divide-y divide-slate-800">{apps.map(app=><div key={app.key} className="flex items-center justify-between gap-4 py-4"><div><h3 className="font-bold">{app.name}</h3><p className="mt-1 text-sm text-slate-400">{app.detail}</p></div>{switchButton(app.key)}</div>)}</div></section>
+      <section id="client-users" className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5"><h2 className="text-xl font-bold">مستخدمو العميل · للـKing فقط</h2><p className="mt-2 text-sm text-slate-400">أضف البريد؛ تصله دعوة تسجيل الدخول. الصلاحيات تبدأ فارغة، ويحددها Super Admin العميل في Settings ← المستخدمون والصلاحيات.</p><form onSubmit={addUser} className="mt-4 flex flex-wrap gap-2"><input type="email" required value={newEmail} onChange={e=>setNewEmail(e.target.value)} placeholder="user@example.com" className="min-w-60 flex-1 rounded-xl border border-slate-700 bg-slate-950 px-4 py-3"/><button disabled={addingUser} className="rounded-xl bg-cyan-500 px-4 py-3 font-bold text-slate-950 disabled:opacity-50">{addingUser?"جارٍ الإضافة…":"Add new user · إضافة مستخدم"}</button></form><div className="mt-4 divide-y divide-slate-800">{overview.users.map(u=><div key={u.user_id} className="flex flex-wrap items-center justify-between gap-2 py-3"><span className="text-sm">{u.email||u.user_id} <small className="text-slate-400">· {u.role}</small></span><div className="flex flex-wrap gap-2"><button onClick={()=>copy(`/workspace/${slug||id}`,u.user_id).catch(()=>setError("تعذّر نسخ الرابط"))} className="rounded-lg border border-cyan-500/40 px-3 py-2 text-xs text-cyan-300">{copied===u.user_id?"تم النسخ ✓":"نسخ رابط الدخول"}</button></div></div>)}</div></section>
       <section className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5"><h2 className="text-xl font-bold">AI Agents · الوكلاء</h2><p className="mt-1 text-sm text-slate-400">فعّل Intelligence أولًا. الوكلاء قيد التطوير لا تفتح لهم شاشات غير جاهزة.</p><div className="mt-4 divide-y divide-slate-800">{agents.map(agent=><div key={agent.key} className="flex items-center justify-between gap-4 py-4"><div><h3 className="font-bold">{agent.name}</h3><p className="text-sm text-slate-400">{agent.detail}</p></div>{switchButton(agent.key,!enabled("app_intelligence")||!agent.ready)}</div>)}</div></section>
       <section className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5"><h2 className="text-xl font-bold">الحساب والاشتراك</h2><p className="mt-3 text-slate-300">الخطة: {overview?.subscription?.subscription_plans?.name||"لم تحدد"} · الحالة: {overview?.subscription?.status||"—"}</p><p className="mt-2 text-sm text-slate-400">{overview?.users.length||0} مستخدمين · تفعيل التطبيقات والوكلاء من لوحة الـKing فقط.</p></section>
     </>}

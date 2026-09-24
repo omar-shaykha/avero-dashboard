@@ -44,6 +44,7 @@ async function parseResponse(r:Response){
 export async function GET(){
   const x = await context();
   if(!x) return NextResponse.json({ error:'Unauthorized' },{ status:401 });
+  if(!canManage(x.auth) && !hasPermission(x.auth,'settings.view')) return NextResponse.json({error:'Forbidden'},{status:403});
 
   const [settings, units, documents, warehouses] = await Promise.all([
     x.supabase.from('zatca_company_settings').select('*').eq('company_id',x.companyId).maybeSingle(),

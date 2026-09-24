@@ -51,7 +51,7 @@ function pctChange(current: number, previous: number) {
   return ((current - previous) / Math.abs(previous)) * 100;
 }
 
-export default function ManagerMonitoringWorkspace() {
+export default function ManagerMonitoringWorkspace({ companyName, userName }: { companyName: string; userName: string }) {
   const { language } = useLanguage();
   const ar = language === "ar";
   const [range, setRange] = useState<RangeKey>("30d");
@@ -123,7 +123,8 @@ export default function ManagerMonitoringWorkspace() {
       <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
         <div>
           <div className="flex items-center gap-2 text-xs font-black uppercase tracking-[.2em] text-cyan-400"><Activity size={15}/>{ar ? "مراقبة الإدارة" : "MANAGEMENT CONTROL"}</div>
-          <h1 className="mt-2 text-3xl font-black sm:text-4xl">Manager Monitoring</h1>
+          <h1 className="mt-2 text-3xl font-black sm:text-4xl">{companyName}</h1>
+          <p className="mt-1 text-xs text-slate-400">{ar ? "المستخدم" : "User"} · {userName}</p>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">{ar ? "لوحة واحدة لمتابعة المبيعات، الربحية، المخزون، الإنتاج والاستثناءات التشغيلية بشكل مباشر." : "One operating view for sales, profitability, inventory, production and management exceptions."}</p>
         </div>
         <div className="flex flex-wrap gap-2">
