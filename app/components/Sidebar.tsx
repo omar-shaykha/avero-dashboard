@@ -6,15 +6,15 @@ import { usePathname } from "next/navigation";
 import AveroBrand from "./AveroBrand";
 import { useLanguage } from "./LanguageProvider";
 import type { AuthorizationContext } from "@/lib/auth/authorization";
-import { AppWindow, BarChart3, Bot, Boxes, Building2, ChevronDown, ChevronRight, GripVertical, LayoutGrid, Menu, Megaphone, PanelLeftClose, PanelLeftOpen, Settings, Store, UsersRound, X } from "lucide-react";
+import { AppWindow, BarChart3, Bot, Boxes, Building2, ChevronDown, ChevronRight, GripVertical, LayoutGrid, Menu, Megaphone, PanelLeftClose, PanelLeftOpen, Settings, ShoppingBag, Store, UsersRound, X } from "lucide-react";
 
 interface SidebarProps { userEmail?: string; userName?: string; access?: AuthorizationContext | null; }
 type NavIcon = ComponentType<{ size?: number; className?: string }>;
 type NavItem = { label: string; href: string; show: boolean; icon?: NavIcon };
 type PosArea = "cashier" | "add-items" | "purchasing";
-type NavSectionKey = "monitoring" | "pos" | "apps" | "settings" | "agents" | "crm" | "clients";
+type NavSectionKey = "monitoring" | "pos" | "apps" | "settings" | "go" | "agents" | "crm" | "clients";
 
-const DEFAULT_ORDER: NavSectionKey[] = ["monitoring","pos","agents","crm","clients","settings","apps"];
+const DEFAULT_ORDER: NavSectionKey[] = ["monitoring","pos","agents","crm","clients","apps","settings","go"];
 
 function normalizeOrder(value: unknown): NavSectionKey[] {
   const input = Array.isArray(value) ? value.map(String) : [];
@@ -93,10 +93,10 @@ export default function Sidebar({ access }: SidebarProps) {
   const has = (feature: string, permission: string) => isKingAdmin || !!(app("app_intelligence") && currentAccess?.features.includes(feature) && permitted(permission));
   const canModule = (...permissions: string[]) => isKingAdmin || isTenantAdmin || permissions.some((p) => permitted(p));
   const crmVisible = app("app_sell") && (isKingAdmin || !!(currentAccess?.features.includes("crm") && permitted("view_crm")));
-  const monitoringVisible = isKingAdmin || (app("app_operations") && (isTenantAdmin || permitted("analytics.view")));
+  const monitoringVisible = app("app_manager") && canModule("analytics.view");
   const clientsVisible = isKingAdmin;
-  const appsVisible = isKingAdmin;
-  const settingsVisible = isKingAdmin;
+  const appsVisible = app("app_sell") && canModule("settings.view", "settings.manage");
+  const settingsVisible = isKingAdmin || (currentAccess?.features.some(key => ["app_sell", "app_operations", "app_manager", "app_intelligence"].includes(key)) && canModule("settings.view", "settings.manage"));
   const agents: NavItem[] = [
     { label: "Leo — Sales", href: "/ai-sales", show: has("ai_sales", "view_ai_sales"), icon: Bot },
     { label: "Foxy — Marketing", href: "/ai-marketing", show: has("ai_marketing", "view_ai_marketing"), icon: Megaphone },
@@ -140,14 +140,13 @@ export default function Sidebar({ access }: SidebarProps) {
   }
 
   const sections: Record<NavSectionKey, ReactNode> = {
-    monitoring: monitoringVisible ? <Main href="/manager-monitoring" label={collapsed ? "" : "Manager Monitoring"} icon={BarChart3} active={pathname?.startsWith("/manager-monitoring") || pathname?.startsWith("/analytics")} /> : null,
+    monitoring: monitoringVisible ? <Main href="/manager-monitoring" label={collapsed ? "" : L("Manager", "المدير")} icon={BarChart3} active={pathname?.startsWith("/manager-monitoring") || pathname?.startsWith("/analytics")} /> : null,
     pos: app("app_sell") && canModule("sales.view", "sales.cashier", "sales.manage") ? <div>
-      <button onClick={() => { if (collapsed) { setCollapsed(false); setPosOpen(true); } else setPosOpen((v) => !v); }} className={`flex w-full items-center gap-3 rounded-xl px-4 py-3 ${pathname?.startsWith("/pos") ? "bg-cyan-500/10 text-cyan-300" : "text-slate-300 hover:bg-slate-900"}`}>
+      <Link href="/pos?area=cashier" onClick={() => selectRoute("cashier")} className={`flex w-full items-center gap-3 rounded-xl px-4 py-3 ${pathname?.startsWith("/pos") ? "bg-cyan-500/10 text-cyan-300" : "text-slate-300 hover:bg-slate-900"}`}>
         <Store size={18} />
         <span className={`flex-1 text-start text-sm font-medium ${collapsed ? "hidden" : "block"}`}>POS</span>
-        {!collapsed && (posOpen ? <ChevronDown size={15} /> : arrow)}
-      </button>
-      {posOpen && !collapsed && <div className={`mt-2 space-y-1 border-slate-800 ${subBorder}`}>
+      </Link>
+      {!collapsed && <div className={`mt-2 space-y-1 border-slate-800 ${subBorder}`}>
         {canModule("sales.view", "sales.cashier") && <ModuleLink href="/pos?area=cashier" label={L("Cashier", "الكاشير")} active={pathname?.startsWith("/pos") && currentArea === "cashier"} onClick={() => selectRoute("cashier")} />}
         {canModule("sales.view", "sales.manage") && <ModuleLink href="/pos?area=add-items" label={L("Add Items", "إضافة الأصناف")} active={pathname?.startsWith("/pos") && currentArea === "add-items"} onClick={() => selectRoute("add-items")} />}
         {canModule("purchasing.view", "purchasing.manage") && <ModuleLink href="/pos?area=purchasing" label={L("Purchasing", "المشتريات")} active={pathname?.startsWith("/pos") && currentArea === "purchasing"} onClick={() => selectRoute("purchasing")} />}
@@ -161,12 +160,11 @@ export default function Sidebar({ access }: SidebarProps) {
         {!collapsed && (settingsOpen ? <ChevronDown size={15} /> : arrow)}
       </button>
       {settingsOpen && !collapsed && <div className={`mt-2 space-y-1 border-slate-800 ${subBorder}`}>
-        <SubLink href="/settings" label={rtl ? "إعدادات الشركة" : "Company Settings"} active={pathname === "/settings"} />
-        {app("app_sell") && <SubLink href="/settings/cashier" label={rtl ? "إعدادات الكاشير" : "Cashier Settings"} active={pathname?.startsWith("/settings/cashier")} />}
-        {app("app_sell") && <SubLink href="/settings/pos" label={rtl ? "نقاط البيع والطباعة والفاتورة" : "POS, Printing & Invoice"} active={pathname?.startsWith("/settings/pos")} />}
-        <SubLink href="/settings/zatca" label={rtl ? "هيئة الزكاة والضريبة" : "ZATCA"} active={pathname?.startsWith("/settings/zatca")} />
+        <SubLink href="/settings" label={rtl ? "بيانات المنشأة والمستخدمون" : "Business & Team"} active={pathname === "/settings"} />
+        {app("app_sell") && <SubLink href="/settings/cashier" label={rtl ? "إدارة الكاشير" : "Cashier Management"} active={pathname?.startsWith("/settings/cashier") || pathname?.startsWith("/settings/pos")} />}
       </div>}
     </div> : null,
+    go: app("app_go") && app("app_sell") && canModule("sales.view", "sales.cashier", "sales.manage") ? <Main href="/go" label={collapsed ? "" : "AVERO GO"} icon={ShoppingBag} active={pathname === "/go" || Boolean(pathname?.startsWith("/go/"))} /> : null,
     agents: agents.length ? <div>
       <button onClick={() => { if (collapsed) { setCollapsed(false); setAgentsOpen(true); } else setAgentsOpen((value) => !value); }} className={`flex w-full items-center gap-3 rounded-xl px-4 py-3 ${pathname?.startsWith("/ai-") ? "bg-cyan-500/10 text-cyan-300" : "text-slate-300 hover:bg-slate-900"}`}>
         <Bot size={18} />
@@ -195,9 +193,9 @@ export default function Sidebar({ access }: SidebarProps) {
       </div>
 
       <nav className="flex-1 space-y-2 overflow-y-auto p-3">
-        <Main href="/workspace" label={collapsed ? "" : L("Control Center", "مركز التحكم")} icon={LayoutGrid} active={pathname === "/workspace"}/>
+        {isKingAdmin && <Main href="/workspace" label={collapsed ? "" : L("Control Center", "مركز التحكم")} icon={LayoutGrid} active={pathname === "/workspace"}/>}
         {app("app_operations") && canModule("inventory.view", "inventory.manage", "purchasing.view", "purchasing.manage", "production.view", "production.manage", "sales.cost.view", "inventory.cost.view") && <Main href="/operations" label={collapsed ? "" : L("Operations", "العمليات")} icon={Boxes} active={pathname?.startsWith("/operations")}/>}
-        {navOrder.map((key) => {
+        {(isKingAdmin ? navOrder : ["monitoring", "pos", "apps", "settings", "agents", "crm", "go"] as NavSectionKey[]).map((key) => {
           const content = sections[key];
           if (!content) return null;
           return <div

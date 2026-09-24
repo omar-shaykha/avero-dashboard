@@ -45,7 +45,7 @@ export default function KingClientLinks({ companyId, companyName }: { companyId:
   }, [companyId]);
 
   const enabled = (key: string) => features.some(f => f.key === key && f.enabled && (!f.expires_at || new Date(f.expires_at).getTime() > Date.now()));
-  const appLabels: Record<string, string> = { app_sell: "SELL / POS", app_operations: "Operations / ERP", app_go: "GO / المنيو", app_intelligence: "Intelligence / AI", ai_sales: "LEO", ai_marketing: "FOXY" };
+  const appLabels: Record<string, string> = { app_manager: "Manager / لوحة المدير", app_sell: "SELL / POS", app_operations: "Operations / ERP", app_go: "GO / المنيو", app_intelligence: "Intelligence / AI", ai_sales: "LEO", ai_marketing: "FOXY" };
 
   async function toggle(key: string) {
     const feature = features.find(f => f.key === key);
@@ -69,6 +69,7 @@ export default function KingClientLinks({ companyId, companyName }: { companyId:
 
   const links: LinkItem[] = [
     { label: "رابط لوحة الشركة", path: `/workspace/${slug || companyId}`, app: null },
+    { label: "رابط لوحة المدير", path: "/manager-monitoring", app: "app_manager" },
     { label: "رابط المنيو للزبائن والـQR", path: `/go/${slug}`, app: "app_go" },
     { label: "رابط الكاشير POS", path: "/pos?area=cashier", app: "app_sell" },
     { label: "إضافة الأصناف", path: "/pos?area=add-items", app: "app_sell" },

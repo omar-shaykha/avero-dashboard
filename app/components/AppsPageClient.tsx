@@ -6,7 +6,7 @@ import DashboardHeader from "@/app/components/DashboardHeader";
 import { useLanguage } from "@/app/components/LanguageProvider";
 import { AppWindow, ArrowRight, Landmark, MessageCircle, PlugZap } from "lucide-react";
 
-export default function AppsPage(){
+export default function AppsPage({showPlatformIntegrations=false}:{showPlatformIntegrations?:boolean}){
  const {language}=useLanguage();const ar=language==="ar";const [zatca,setZatca]=useState<any>(null);
  useEffect(()=>{fetch('/api/zatca',{cache:'no-store'}).then(async r=>r.ok?setZatca(await r.json()):null).catch(()=>undefined)},[]);
  const zatcaStatus=zatca?.settings?.onboarding_status||'not_started';
@@ -14,7 +14,7 @@ export default function AppsPage(){
   <div><div className="flex items-center gap-2 text-xs font-black uppercase tracking-[.22em] text-cyan-400"><AppWindow size={15}/> AVERO APPS</div><h1 className="mt-2 text-3xl font-black">{ar?'التطبيقات والربط':'Apps & Integrations'}</h1><p className="mt-2 max-w-3xl text-sm text-slate-400">{ar?'اربط الخدمات الخارجية التي تستخدمها شركتك من مكان واحد. كل تطبيق مرتبط بالشركة الحالية فقط.':'Connect external services used by your company from one place. Every app belongs only to the current tenant.'}</p></div>
   <div className="grid gap-5 lg:grid-cols-2">
    <AppCard href="/apps/zatca" icon={Landmark} title={ar?'هيئة الزكاة والضريبة والجمارك':'ZATCA · FATOORA'} description={ar?'ربط الفوترة الإلكترونية، EGS، OTP، CSID، وبعدها Reporting وClearance.':'Saudi e-invoicing onboarding, EGS, OTP, CSID, reporting and clearance.'} status={zatcaStatus==='active'?(ar?'متصل':'Connected'):zatcaStatus.replaceAll('_',' ')} ar={ar}/>
-   <AppCard href="/apps/whatsapp" icon={MessageCircle} title="Meta WhatsApp" description={ar?'إدارة ربط WhatsApp Business المستخدم داخل AVERO.':'Manage the WhatsApp Business connection used by AVERO.'} status={ar?'متاح':'Available'} ar={ar}/>
+   {showPlatformIntegrations && <AppCard href="/apps/whatsapp" icon={MessageCircle} title="Meta WhatsApp" description={ar?'إدارة ربط WhatsApp Business المستخدم داخل AVERO.':'Manage the WhatsApp Business connection used by AVERO.'} status={ar?'متاح':'Available'} ar={ar}/>}
   </div>
   <div className="rounded-2xl border border-slate-800 bg-slate-900/45 p-4 text-sm text-slate-500"><PlugZap className="mr-2 inline text-cyan-400" size={16}/>{ar?'لن نضيف تطبيقاً هنا إلا إذا كان له تكامل حقيقي ووظيفة واضحة داخل AVERO.':'Apps only appear here when they have a real integration and a clear job inside AVERO.'}</div>
  </div></main></div></div>

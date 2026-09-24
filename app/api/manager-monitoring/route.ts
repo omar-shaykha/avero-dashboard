@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { getAuthorizationContext, hasPermission, isKingAdmin, isTenantAdmin } from "@/lib/auth/authorization";
+import { getAuthorizationContext, hasApp, hasPermission, isKingAdmin, isTenantAdmin } from "@/lib/auth/authorization";
 
 function admin() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -10,7 +10,7 @@ function admin() {
 }
 
 function canView(access: Awaited<ReturnType<typeof getAuthorizationContext>>) {
-  return Boolean(access && (isKingAdmin(access) || isTenantAdmin(access) || hasPermission(access, "analytics.view")));
+  return Boolean(access && hasApp(access, "app_manager") && (isKingAdmin(access) || isTenantAdmin(access) || hasPermission(access, "analytics.view")));
 }
 
 function validDate(value: string | null) {
