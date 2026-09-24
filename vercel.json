@@ -6,7 +6,7 @@
     },
     {
       "path": "/api/marketing/social-insights/sync",
-      "schedule": "17 * * * *"
+      "schedule": "17 8 * * *"
     }
   ]
 }
