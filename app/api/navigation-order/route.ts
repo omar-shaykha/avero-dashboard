@@ -1,12 +1,18 @@
 import { getAuthorizationContext, isKingAdmin } from "@/lib/auth/authorization";
 import { createAdminClient } from "@/lib/supabase/admin";
 
-const DEFAULT_ORDER = ["monitoring","pos","apps","settings","subscriptions","agents","crm","clients"] as const;
+const DEFAULT_ORDER = ["monitoring","pos","cashier","add_items","purchasing","agents","crm","clients","apps","settings","go","subscriptions"] as const;
 const allowed = new Set<string>(DEFAULT_ORDER);
 
 function normalize(value: unknown) {
   const input = Array.isArray(value) ? value.map(String) : [];
   const unique = input.filter((key, index) => allowed.has(key) && input.indexOf(key) === index);
+  if (unique.includes("pos")) {
+    let afterPos = unique.indexOf("pos") + 1;
+    for (const key of ["cashier", "add_items", "purchasing"]) {
+      if (!unique.includes(key)) unique.splice(afterPos++, 0, key);
+    }
+  }
   return [...unique, ...DEFAULT_ORDER.filter((key) => !unique.includes(key))];
 }
 

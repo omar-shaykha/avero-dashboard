@@ -6,8 +6,12 @@ import DashboardHeader from "@/app/components/DashboardHeader";
 import { useLanguage } from "@/app/components/LanguageProvider";
 import { useTheme } from "@/app/components/ThemeProvider";
 import { Bell, Building2, Check, Moon, Monitor, Plus, Save, Settings2, ShieldCheck, Sun, Trash2, UserPlus, UsersRound, Volume2 } from "lucide-react";
+import dynamic from "next/dynamic";
 
-type Tab="company"|"notification"|"users"|"appearance";
+const CashierSettingsContent=dynamic(()=>import("@/app/components/CashierSettingsContent"));
+const CommerceAdminWorkspace=dynamic(()=>import("@/app/components/CommerceAdminWorkspace"));
+
+type Tab="company"|"notification"|"users"|"appearance"|"cashier";
 type NotificationKey="new_lead"|"qualified_lead"|"quotation_request"|"negotiation_started"|"high_interest"|"new_customer_message"|"won_deal"|"lost_deal"|"event_soon"|"ai_handoff"|"automation_error"|"subscription_expiry"|"security_alert";
 type NotificationPrefs=Record<NotificationKey,boolean>&{master:boolean;sound:boolean};
 const defaults:NotificationPrefs={master:true,sound:true,new_lead:true,qualified_lead:true,quotation_request:true,negotiation_started:true,high_interest:true,new_customer_message:true,won_deal:true,lost_deal:false,event_soon:true,ai_handoff:true,automation_error:true,subscription_expiry:true,security_alert:true};
@@ -29,9 +33,13 @@ const notificationItems:{key:NotificationKey;en:string;ar:string;enDesc:string;a
 const input="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2.5 text-sm text-white outline-none focus:border-cyan-400";
 const card="rounded-3xl border border-slate-800 bg-slate-900/55";
 
-export default function SettingsPage(){
+export default function SettingsPage({initialTab="company",initialCashierSection="setup",sellEnabled=false}:{initialTab?:string;initialCashierSection?:"setup"|"receipts";sellEnabled?:boolean}){
  const {language}=useLanguage();const ar=language==="ar";const {theme,setTheme}=useTheme();
- const [tab,setTab]=useState<Tab>("company"),[prefs,setPrefs]=useState<NotificationPrefs>(defaults),[syncing,setSyncing]=useState(true),[saved,setSaved]=useState(false);
+ const initial:Tab=["company","notification","users","appearance",...(sellEnabled?["cashier"]:[])].includes(initialTab)?initialTab as Tab:"company";
+ const [tab,setTab]=useState<Tab>(initial),[prefs,setPrefs]=useState<NotificationPrefs>(defaults),[syncing,setSyncing]=useState(true),[saved,setSaved]=useState(false);
+ const [cashierSection,setCashierSection]=useState(initialCashierSection);
+ useEffect(()=>setTab(initial),[initial]);
+ useEffect(()=>setCashierSection(initialCashierSection),[initialCashierSection]);
  const [companyData,setCompanyData]=useState<any>(null),[company,setCompany]=useState<any>({}),[busy,setBusy]=useState(false),[message,setMessage]=useState("");
  const [cert,setCert]=useState({name:"",issuer:"",certificate_number:"",issued_at:"",expires_at:""});
  const [newUser,setNewUser]=useState({full_name:"",email:"",temporary_password:"",role:"user",permissions:[] as string[]});
@@ -48,13 +56,17 @@ export default function SettingsPage(){
  async function createUser(){const j=await api('POST',{kind:'create_user',data:newUser});if(j){setNewUser({full_name:"",email:"",temporary_password:"",role:"user",permissions:[]});setMessage(ar?'تمت إضافة المستخدم':'User added');loadCompany()}}
  async function saveUser(user:any){const j=await api('PATCH',{kind:'user_access',data:{user_id:user.user_id,role:user.role,permissions:user.permissions}});if(j){setMessage(ar?'تم تحديث صلاحيات المستخدم':'User access updated');loadCompany()}}
  function patchUser(id:string,patch:any){setCompanyData((prev:any)=>({...prev,users:prev.users.map((u:any)=>u.user_id===id?{...u,...patch}:u)}))}
+ function selectTab(next:Tab){setTab(next);window.history.replaceState(null,"",next==="company"?"/settings":`/settings?tab=${next}${next==="cashier"&&cashierSection==="receipts"?"&section=receipts":""}`)}
+ function selectCashierSection(next:"setup"|"receipts"){setCashierSection(next);window.history.replaceState(null,"",`/settings?tab=cashier${next==="receipts"?"&section=receipts":""}`)}
  const permissionGroups=useMemo(()=>{const groups:Record<string,any[]>={};for(const p of companyData?.permissions||[]){const group=String(p.key).split('.')[0];(groups[group] ||= []).push(p)}return groups},[companyData]);
- const tabs=[{key:'company' as Tab,icon:Building2,en:'Company Information',ar:'معلومات الشركة'},{key:'notification' as Tab,icon:Bell,en:'Notification',ar:'التنبيهات'},{key:'users' as Tab,icon:UsersRound,en:'Users & Permissions',ar:'المستخدمون والصلاحيات'},{key:'appearance' as Tab,icon:Settings2,en:'Appearance',ar:'المظهر'}];
+ const tabs=[{key:'company' as Tab,icon:Building2,en:'Business & Team',ar:'المنشأة والفريق'},{key:'notification' as Tab,icon:Bell,en:'Notifications',ar:'التنبيهات'},{key:'users' as Tab,icon:UsersRound,en:'Users & Permissions',ar:'المستخدمون والصلاحيات'},{key:'appearance' as Tab,icon:Settings2,en:'Appearance',ar:'المظهر'},...(sellEnabled?[{key:'cashier' as Tab,icon:Settings2,en:'Cashier Management',ar:'إدارة الكاشير'}]:[])];
 
  return <div className="min-h-screen bg-slate-950 text-white"><Sidebar/><div className="ml-64 flex min-h-screen flex-col"><DashboardHeader/><main className="flex-1 px-6 py-7"><div className="mx-auto max-w-7xl space-y-6">
-  <div className="flex flex-wrap items-start justify-between gap-4"><div><div className="text-xs font-black uppercase tracking-[.2em] text-cyan-400">AVERO SETTINGS</div><h1 className="mt-2 text-3xl font-black">{ar?'إعدادات الشركة':'Company Settings'}</h1><p className="mt-2 text-sm text-slate-400">{ar?'بيانات المنشأة، التنبيهات، المستخدمون، والصلاحيات — بعيداً عن الملف الشخصي.':'Company data, notifications, users and access — separate from personal Profile.'}</p></div>{(saved||syncing)&&<div className="rounded-full border border-emerald-500/20 bg-emerald-500/10 px-4 py-2 text-xs text-emerald-300">{syncing?(ar?'جارٍ المزامنة':'Syncing'):(ar?'تم الحفظ':'Saved')}</div>}</div>
-  <div className="flex flex-wrap gap-2 rounded-2xl border border-slate-800 bg-slate-900/55 p-2">{tabs.map(t=>{const Icon=t.icon;return <button key={t.key} onClick={()=>setTab(t.key)} className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold ${tab===t.key?'bg-cyan-400 text-slate-950':'text-slate-400 hover:bg-slate-800 hover:text-white'}`}><Icon size={16}/>{ar?t.ar:t.en}</button>})}</div>
+  <div className="flex flex-wrap items-start justify-between gap-4"><div><div className="text-xs font-black uppercase tracking-[.2em] text-cyan-400">AVERO SETTINGS</div><h1 className="mt-2 text-3xl font-black">{ar?'الإعدادات':'Settings'}</h1><p className="mt-2 text-sm text-slate-400">{ar?'المنشأة والفريق، التنبيهات، وإعدادات البيع في مكان واحد.':'Business, team, notifications and selling preferences in one place.'}</p></div>{(saved||syncing)&&<div className="rounded-full border border-emerald-500/20 bg-emerald-500/10 px-4 py-2 text-xs text-emerald-300">{syncing?(ar?'جارٍ المزامنة':'Syncing'):(ar?'تم الحفظ':'Saved')}</div>}</div>
+  <div className="flex flex-wrap gap-2 rounded-2xl border border-slate-800 bg-slate-900/55 p-2">{tabs.map(t=>{const Icon=t.icon;return <button key={t.key} onClick={()=>selectTab(t.key)} className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold ${tab===t.key?'bg-cyan-400 text-slate-950':'text-slate-400 hover:bg-slate-800 hover:text-white'}`}><Icon size={16}/>{ar?t.ar:t.en}</button>})}</div>
   {message&&<div className="rounded-2xl border border-cyan-500/20 bg-cyan-500/5 px-4 py-3 text-sm font-bold text-cyan-200">{message}</div>}
+
+  {tab==='cashier'&&sellEnabled&&<div className="space-y-6"><nav className="flex flex-wrap gap-2" aria-label={ar?'إدارة الكاشير':'Cashier Management'}><button type="button" onClick={()=>selectCashierSection('setup')} className={`rounded-xl px-4 py-2.5 text-sm font-bold ${cashierSection==='setup'?'bg-cyan-400 text-slate-950':'border border-slate-700 bg-slate-950 text-slate-300'}`}>{ar?'إعداد الكاشير':'Cashier Setup'}</button><button type="button" onClick={()=>selectCashierSection('receipts')} className={`rounded-xl px-4 py-2.5 text-sm font-bold ${cashierSection==='receipts'?'bg-cyan-400 text-slate-950':'border border-slate-700 bg-slate-950 text-slate-300'}`}>{ar?'الإيصالات والطابعات':'Receipts & Printers'}</button></nav>{cashierSection==='setup'?<CashierSettingsContent/>:<CommerceAdminWorkspace mode="invoice"/>}</div>}
 
   {tab==='company'&&<div className="space-y-6">
    <section className={`${card} p-6`}><div className="mb-5"><h2 className="text-xl font-black">{ar?'الهوية القانونية والتجارية':'Legal & Business Identity'}</h2><p className="mt-1 text-sm text-slate-500">{ar?'هذه هي بيانات الشركة الأساسية التي تستخدمها AVERO والتكاملات.':'This is the company source of truth used by AVERO and connected apps.'}</p></div><div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">

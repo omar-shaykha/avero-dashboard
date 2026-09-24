@@ -6,19 +6,24 @@ import { usePathname } from "next/navigation";
 import AveroBrand from "./AveroBrand";
 import { useLanguage } from "./LanguageProvider";
 import type { AuthorizationContext } from "@/lib/auth/authorization";
-import { AppWindow, BarChart3, Bot, Boxes, Building2, ChevronDown, ChevronRight, GripVertical, LayoutGrid, Menu, Megaphone, PanelLeftClose, PanelLeftOpen, Settings, ShoppingBag, Store, UsersRound, X } from "lucide-react";
+import { AppWindow, BarChart3, Bot, Boxes, Building2, GripVertical, LayoutGrid, Menu, PackagePlus, PanelLeftClose, PanelLeftOpen, ScanLine, Settings, ShoppingBag, ShoppingCart, Store, UsersRound, X } from "lucide-react";
 
 interface SidebarProps { userEmail?: string; userName?: string; access?: AuthorizationContext | null; }
 type NavIcon = ComponentType<{ size?: number; className?: string }>;
-type NavItem = { label: string; href: string; show: boolean; icon?: NavIcon };
 type PosArea = "cashier" | "add-items" | "purchasing";
-type NavSectionKey = "monitoring" | "pos" | "apps" | "settings" | "go" | "agents" | "crm" | "clients";
+type NavSectionKey = "monitoring" | "pos" | "cashier" | "add_items" | "purchasing" | "apps" | "settings" | "go" | "agents" | "crm" | "clients";
 
-const DEFAULT_ORDER: NavSectionKey[] = ["monitoring","pos","agents","crm","clients","apps","settings","go"];
+const DEFAULT_ORDER: NavSectionKey[] = ["monitoring","pos","cashier","add_items","purchasing","agents","crm","clients","apps","settings","go"];
 
 function normalizeOrder(value: unknown): NavSectionKey[] {
   const input = Array.isArray(value) ? value.map(String) : [];
   const valid = input.filter((key, index) => DEFAULT_ORDER.includes(key as NavSectionKey) && input.indexOf(key) === index) as NavSectionKey[];
+  if (valid.includes("pos")) {
+    let afterPos = valid.indexOf("pos") + 1;
+    for (const key of ["cashier", "add_items", "purchasing"] as const) {
+      if (!valid.includes(key)) valid.splice(afterPos++, 0, key);
+    }
+  }
   return [...valid, ...DEFAULT_ORDER.filter((key) => !valid.includes(key))];
 }
 
@@ -29,9 +34,6 @@ export default function Sidebar({ access }: SidebarProps) {
   const [loadedAccess, setLoadedAccess] = useState(access);
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [agentsOpen, setAgentsOpen] = useState(pathname?.startsWith("/ai-") ?? true);
-  const [posOpen, setPosOpen] = useState(pathname?.startsWith("/pos") ?? false);
-  const [settingsOpen, setSettingsOpen] = useState(pathname?.startsWith("/settings") ?? false);
   const [currentArea, setCurrentArea] = useState<PosArea>("cashier");
   const [navOrder, setNavOrder] = useState<NavSectionKey[]>(DEFAULT_ORDER);
   const [dragging, setDragging] = useState<NavSectionKey | null>(null);
@@ -47,16 +49,13 @@ export default function Sidebar({ access }: SidebarProps) {
   }, [access]);
 
   useEffect(() => {
-    if (pathname?.startsWith("/ai-")) setAgentsOpen(true);
     const syncRoute = () => {
       if (pathname?.startsWith("/pos")) {
         const q = new URLSearchParams(window.location.search);
         const raw = q.get("area") || "cashier";
         const area: PosArea = raw === "add-items" || raw === "products" ? "add-items" : raw === "purchasing" ? "purchasing" : "cashier";
-        setPosOpen(true);
         setCurrentArea(area);
       }
-      if (pathname?.startsWith("/settings")) setSettingsOpen(true);
     };
     syncRoute();
     window.addEventListener("popstate", syncRoute);
@@ -97,15 +96,9 @@ export default function Sidebar({ access }: SidebarProps) {
   const clientsVisible = isKingAdmin;
   const appsVisible = app("app_sell") && canModule("settings.view", "settings.manage");
   const settingsVisible = isKingAdmin || (currentAccess?.features.some(key => ["app_sell", "app_operations", "app_manager", "app_intelligence"].includes(key)) && canModule("settings.view", "settings.manage"));
-  const agents: NavItem[] = [
-    { label: "Leo — Sales", href: "/ai-sales", show: has("ai_sales", "view_ai_sales"), icon: Bot },
-    { label: "Foxy — Marketing", href: "/ai-marketing", show: has("ai_marketing", "view_ai_marketing"), icon: Megaphone },
-  ].filter((item) => item.show);
-
-  const arrow = rtl ? <ChevronRight size={15} className="rotate-180" /> : <ChevronRight size={15} />;
+  const agentsVisible = has("ai_sales", "view_ai_sales") || has("ai_marketing", "marketing.manage");
   const width = collapsed ? "md:w-20 w-72" : "md:w-64 w-72";
   const mobileTransform = mobileOpen ? "translate-x-0" : rtl ? "translate-x-full md:translate-x-0" : "-translate-x-full md:translate-x-0";
-  const subBorder = rtl ? "mr-5 border-r pr-3" : "ml-5 border-l pl-3";
   const L = (en: string, ar: string) => rtl ? ar : en;
   const selectRoute = (area: PosArea) => { setCurrentArea(area); setMobileOpen(false); };
 
@@ -141,40 +134,14 @@ export default function Sidebar({ access }: SidebarProps) {
 
   const sections: Record<NavSectionKey, ReactNode> = {
     monitoring: monitoringVisible ? <Main href="/manager-monitoring" label={collapsed ? "" : L("Manager", "المدير")} icon={BarChart3} active={pathname?.startsWith("/manager-monitoring") || pathname?.startsWith("/analytics")} /> : null,
-    pos: app("app_sell") && canModule("sales.view", "sales.cashier", "sales.manage") ? <div>
-      <Link href="/pos?area=cashier" onClick={() => selectRoute("cashier")} className={`flex w-full items-center gap-3 rounded-xl px-4 py-3 ${pathname?.startsWith("/pos") ? "bg-cyan-500/10 text-cyan-300" : "text-slate-300 hover:bg-slate-900"}`}>
-        <Store size={18} />
-        <span className={`flex-1 text-start text-sm font-medium ${collapsed ? "hidden" : "block"}`}>POS</span>
-      </Link>
-      {!collapsed && <div className={`mt-2 space-y-1 border-slate-800 ${subBorder}`}>
-        {canModule("sales.view", "sales.cashier") && <ModuleLink href="/pos?area=cashier" label={L("Cashier", "الكاشير")} active={pathname?.startsWith("/pos") && currentArea === "cashier"} onClick={() => selectRoute("cashier")} />}
-        {canModule("sales.view", "sales.manage") && <ModuleLink href="/pos?area=add-items" label={L("Add Items", "إضافة الأصناف")} active={pathname?.startsWith("/pos") && currentArea === "add-items"} onClick={() => selectRoute("add-items")} />}
-        {canModule("purchasing.view", "purchasing.manage") && <ModuleLink href="/pos?area=purchasing" label={L("Purchasing", "المشتريات")} active={pathname?.startsWith("/pos") && currentArea === "purchasing"} onClick={() => selectRoute("purchasing")} />}
-      </div>}
-    </div> : null,
+    pos: app("app_sell") && canModule("sales.view", "sales.cashier", "sales.manage") ? <Main href="/pos" label={collapsed ? "" : "POS"} icon={Store} onClick={() => selectRoute("cashier")} /> : null,
+    cashier: app("app_sell") && canModule("sales.view", "sales.cashier") ? <Main href="/pos?area=cashier" label={collapsed ? "" : L("Cashier", "الكاشير")} icon={ScanLine} active={pathname === "/pos" && currentArea === "cashier"} onClick={() => selectRoute("cashier")} /> : null,
+    add_items: app("app_sell") && canModule("sales.view", "sales.manage") ? <Main href="/pos?area=add-items" label={collapsed ? "" : L("Add Items", "إضافة الأصناف")} icon={PackagePlus} active={pathname === "/pos" && currentArea === "add-items"} onClick={() => selectRoute("add-items")} /> : null,
+    purchasing: app("app_sell") && canModule("purchasing.view", "purchasing.manage") ? <Main href="/pos?area=purchasing" label={collapsed ? "" : L("Purchasing", "المشتريات")} icon={ShoppingCart} active={pathname === "/pos" && currentArea === "purchasing"} onClick={() => selectRoute("purchasing")} /> : null,
     apps: appsVisible ? <Main href="/apps" label={collapsed ? "" : rtl ? "التطبيقات" : "Apps"} icon={AppWindow} active={pathname?.startsWith("/apps")} /> : null,
-    settings: settingsVisible ? <div>
-      <button onClick={() => { if (collapsed) { setCollapsed(false); setSettingsOpen(true); } else setSettingsOpen((v) => !v); }} className={`flex w-full items-center gap-3 rounded-xl px-4 py-3 ${pathname?.startsWith("/settings") ? "bg-cyan-500/10 text-cyan-300" : "text-slate-300 hover:bg-slate-900"}`}>
-        <Settings size={18} />
-        <span className={`flex-1 text-start text-sm font-medium ${collapsed ? "hidden" : "block"}`}>{rtl ? "الإعدادات" : "Settings"}</span>
-        {!collapsed && (settingsOpen ? <ChevronDown size={15} /> : arrow)}
-      </button>
-      {settingsOpen && !collapsed && <div className={`mt-2 space-y-1 border-slate-800 ${subBorder}`}>
-        <SubLink href="/settings" label={rtl ? "بيانات المنشأة والمستخدمون" : "Business & Team"} active={pathname === "/settings"} />
-        {app("app_sell") && <SubLink href="/settings/cashier" label={rtl ? "إدارة الكاشير" : "Cashier Management"} active={pathname?.startsWith("/settings/cashier") || pathname?.startsWith("/settings/pos")} />}
-      </div>}
-    </div> : null,
+    settings: settingsVisible ? <Main href="/settings" label={collapsed ? "" : L("Settings", "الإعدادات")} icon={Settings} active={pathname?.startsWith("/settings")} /> : null,
     go: app("app_go") && app("app_sell") && canModule("sales.view", "sales.cashier", "sales.manage") ? <Main href="/go" label={collapsed ? "" : "AVERO GO"} icon={ShoppingBag} active={pathname === "/go" || Boolean(pathname?.startsWith("/go/"))} /> : null,
-    agents: agents.length ? <div>
-      <button onClick={() => { if (collapsed) { setCollapsed(false); setAgentsOpen(true); } else setAgentsOpen((value) => !value); }} className={`flex w-full items-center gap-3 rounded-xl px-4 py-3 ${pathname?.startsWith("/ai-") ? "bg-cyan-500/10 text-cyan-300" : "text-slate-300 hover:bg-slate-900"}`}>
-        <Bot size={18} />
-        <span className={`flex-1 text-start text-sm font-medium ${collapsed ? "hidden" : "block"}`}>{L("AI AGENT", "AI AGENT")}</span>
-        {!collapsed && (agentsOpen ? <ChevronDown size={15} /> : arrow)}
-      </button>
-      {agentsOpen && !collapsed && <div className={`mt-2 space-y-1 border-slate-800 ${subBorder}`}>
-        {agents.map((item) => <Sub key={item.href} href={item.href} label={item.label} pathname={pathname} icon={item.icon} />)}
-      </div>}
-    </div> : null,
+    agents: agentsVisible ? <Main href="/ai-agents" label={collapsed ? "" : "AI Agent"} icon={Bot} active={pathname?.startsWith("/ai-")} /> : null,
     crm: crmVisible ? <Main href="/crm" label={collapsed ? "" : "CRM"} icon={UsersRound} active={pathname?.startsWith("/crm")} /> : null,
     clients: clientsVisible ? <Main href="/clients" label={collapsed ? "" : t("clients")} icon={Building2} active={pathname?.startsWith("/clients")} /> : null,
   };
@@ -195,7 +162,7 @@ export default function Sidebar({ access }: SidebarProps) {
       <nav className="flex-1 space-y-2 overflow-y-auto p-3">
         {isKingAdmin && <Main href="/workspace" label={collapsed ? "" : L("Control Center", "مركز التحكم")} icon={LayoutGrid} active={pathname === "/workspace"}/>}
         {app("app_operations") && canModule("inventory.view", "inventory.manage", "purchasing.view", "purchasing.manage", "production.view", "production.manage", "sales.cost.view", "inventory.cost.view") && <Main href="/operations" label={collapsed ? "" : L("Operations", "العمليات")} icon={Boxes} active={pathname?.startsWith("/operations")}/>}
-        {(isKingAdmin ? navOrder : ["monitoring", "pos", "apps", "settings", "agents", "crm", "go"] as NavSectionKey[]).map((key) => {
+        {(isKingAdmin ? navOrder : ["monitoring", "pos", "cashier", "add_items", "purchasing", "agents", "crm", "apps", "settings", "go"] as NavSectionKey[]).map((key) => {
           const content = sections[key];
           if (!content) return null;
           return <div
@@ -216,19 +183,6 @@ export default function Sidebar({ access }: SidebarProps) {
   </>;
 }
 
-function Main({ href, label, icon: Icon, active }: { href: string; label: string; icon: NavIcon; active?: boolean }) {
-  return <Link href={href} className={`flex items-center gap-3 rounded-xl px-4 py-3 ${active ? "bg-cyan-500/10 text-cyan-300" : "text-slate-300 hover:bg-slate-900"}`}><Icon size={18} /><span className={`text-sm font-medium ${label ? "block" : "hidden"}`}>{label}</span></Link>;
-}
-
-function ModuleLink({ href, label, active, onClick }: { href: string; label: string; active?: boolean; onClick?: () => void }) {
-  return <Link href={href} onClick={onClick} className={`flex items-center justify-between rounded-lg px-3 py-2 text-xs ${active ? "bg-cyan-500/10 font-bold text-cyan-300" : "text-slate-500 hover:bg-slate-900 hover:text-slate-300"}`}><span>{label}</span>{active && <span className="text-[9px]">●</span>}</Link>;
-}
-
-function SubLink({ href, label, active }: { href: string; label: string; active?: boolean }) {
-  return <Link href={href} className={`block rounded-lg px-3 py-2 text-xs ${active ? "bg-cyan-500/10 font-bold text-cyan-300" : "text-slate-500 hover:bg-slate-900 hover:text-slate-300"}`}>{label}</Link>;
-}
-
-function Sub({ href, label, pathname, exact = false, icon: Icon = Bot }: { href: string; label: string; pathname: string | null; exact?: boolean; icon?: NavIcon }) {
-  const active = exact ? pathname === href : pathname?.startsWith(href);
-  return <Link href={href} className={`flex items-center gap-2 rounded-lg px-3 py-2 text-xs ${active ? "bg-cyan-500/10 text-cyan-300" : "text-slate-500 hover:text-slate-300"}`}><Icon size={12} />{label}</Link>;
+function Main({ href, label, icon: Icon, active, onClick }: { href: string; label: string; icon: NavIcon; active?: boolean; onClick?: () => void }) {
+  return <Link href={href} onClick={onClick} className={`flex items-center gap-3 rounded-xl px-4 py-3 ${active ? "bg-cyan-500/10 text-cyan-300" : "text-slate-300 hover:bg-slate-900"}`}><Icon size={18} /><span className={`text-sm font-medium ${label ? "block" : "hidden"}`}>{label}</span></Link>;
 }
