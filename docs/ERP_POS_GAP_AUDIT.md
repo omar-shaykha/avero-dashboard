@@ -10,7 +10,7 @@ This is a code and India schema audit, not a claim of end-to-end acceptance by a
 | Operations: inventory | Items, warehouses, balances, counts, moves, reservations and waste routes | Broad foundation. Review every privileged write for tenant-owned related IDs, negative stock and accounting reconciliation. |
 | Operations: purchasing | Request, RFQ, quotes, approval, PO, receipt, invoice, match, payment and supplier return actions | Broad foundation. Run controlled request → receipt → payable acceptance tests; confirm taxes and amounts cannot be supplied inconsistently by clients. |
 | Operations: recipes/production | Recipes, versions, orders, consumption, waste and completion RPC | Broad foundation. Validate recipe cost/yield and stock consumption in a controlled test, including failure rollback. |
-| Operations: accounting | Accounts, journal entries and lines with a read-only API | Partial. No expense, period close, full financial statements or reconciliation workflow in this interface; displayed balances currently sum only the latest 1,000 fetched lines, so they cannot be called an all-time trial balance. |
+| Operations: accounting | Accounts, journal entries and lines with a read-only API | Partial. Balance display now paginates all available ledger lines, but no expense, period close, full financial statements or reconciliation workflow exists in this interface. Posted/reversed semantics still need formal review before calling it an audited trial balance. |
 | Operations: HR/assets/maintenance | Biometric registration and hiring tables exist outside the Operations area | Incomplete. Attendance/payroll, assets and maintenance operations are not implemented as an ERP cycle. |
 
 ## Security and correctness changes in this slice
@@ -22,7 +22,7 @@ This is a code and India schema audit, not a claim of end-to-end acceptance by a
 ## Next delivery order
 
 1. Make checkout retry-safe and test payment totals, tax and stock/accounting posting together. Split payments and gateway callbacks need separate transaction design.
-2. Fix accounting balance aggregation over the full ledger, define posted/reversed semantics and add a trial balance reconciliation check.
+2. Define posted/reversed accounting semantics, move full-ledger aggregation into a bounded database report, and add a trial balance reconciliation check. The current paginated read avoids the 1,000-row truncation but can slow down as journals grow.
 3. Complete inventory and purchasing tenant integrity at the database boundary and acceptance-test a full purchase to sale cycle.
 4. Add requested HR/expenses/assets/maintenance features as separate Operations use cases, with module permissions and audit events.
 
