@@ -7,13 +7,14 @@ function parseAiJson(text:string){const clean=text.replace(/```json/gi,"").repla
 async function cloudflareJson(prompt:string){
  const token=process.env.CLOUDFLARE_API_TOKEN,account=process.env.CLOUDFLARE_ACCOUNT_ID;
  if(!token||!account)throw new Error("Cloudflare text AI is not configured");
- const r=await fetch(`https://api.cloudflare.com/client/v4/accounts/${encodeURIComponent(account)}/ai/run/@cf/zai-org/glm-4.7-flash`,{
+ const r=await fetch(`https://api.cloudflare.com/client/v4/accounts/${encodeURIComponent(account)}/ai/run/@cf/meta/llama-3.3-70b-instruct-fp8-fast`,{
   method:"POST",headers:{Authorization:`Bearer ${token}`,"Content-Type":"application/json"},
-  body:JSON.stringify({messages:[{role:"system",content:"Return exactly one valid JSON object; follow the tenant-specific user prompt."},{role:"user",content:prompt}],temperature:.35,max_tokens:1300}),signal:AbortSignal.timeout(35000)
+  body:JSON.stringify({messages:[{role:"system",content:"Return exactly one valid JSON object; follow the tenant-specific user prompt."},{role:"user",content:prompt}],temperature:.35,max_tokens:1300,response_format:{type:"json_schema",json_schema:{type:"object",properties:{reply:{type:"string"},lead:{type:"object"}},required:["reply","lead"]}}}),signal:AbortSignal.timeout(35000)
  });
  if(!r.ok)throw new Error(`Cloudflare text AI failed ${r.status}`);
- const json=await r.json(),text=String(json?.result?.response||json?.result?.text||"");
- return parseAiJson(text);
+ const json=await r.json(),response=json?.result?.response;
+ if(response&&typeof response==="object"&&typeof response.reply==="string")return response;
+ return parseAiJson(typeof response==="string"?response:String(json?.result?.text||""));
 }
 function safeReply(message:string){
  const arabic=/[\u0600-\u06ff]/.test(message);
