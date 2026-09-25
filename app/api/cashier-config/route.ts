@@ -5,7 +5,7 @@ import { hasApp, getAuthorizationContext, isKingAdmin, isTenantAdmin, hasPermiss
 
 const db = () => createAdminClient();
 const can = (a:any,p:string) => isKingAdmin(a) || isTenantAdmin(a) || hasPermission(a,p);
-async function C(){ const a=await getAuthorizationContext(); return a?.profile?.company_id ? { a, c:a.profile.company_id, s:db() } : null; }
+async function C(){ const a=await getAuthorizationContext(); return (hasApp(a,"app_sell") && a?.profile?.company_id) ? { a, c:a.profile.company_id, s:db() } : null; }
 async function owned(s:any,table:string,id:string|undefined,c:string){ if(!id)return false; const r=await s.from(table).select("id").eq("id",id).eq("company_id",c).maybeSingle(); return !!r.data; }
 const codeFrom = (v:string) => String(v||"").trim().toUpperCase().replace(/[^A-Z0-9]+/g,"_").replace(/^_+|_+$/g,"").slice(0,30);
 
