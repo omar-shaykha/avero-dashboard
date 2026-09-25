@@ -36,4 +36,4 @@ Do not treat an app tile as a security boundary: API authorization and RLS remai
 
 ## Release rule
 
-Ship only to `codex/avero-v2-architecture` Preview until the app and tenant isolation gates pass. Production remains untouched.
+Ship verified fixes to the current Vercel application through a reviewed pull request and confirm the production deployment. Keep new cross-app architecture and database migrations in Preview until their tenant isolation and session gates pass. See `AVERO_ENGINEERING_SECURITY_ARCHITECTURE.md` for the current security baseline.
