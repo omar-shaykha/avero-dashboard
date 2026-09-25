@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { canAccess, getAuthorizationContext, isKingAdmin } from "@/lib/auth/authorization";
-import { POST as generateDailyContent } from "@/app/api/marketing/daily-content/route";
+import { generateDailyContent } from "@/app/api/marketing/daily-content/route";
 
 const GRAPH_VERSION=process.env.META_GRAPH_VERSION||"v24.0";
 const DAY=24*60*60*1000;
@@ -112,8 +112,8 @@ export async function GET(req:NextRequest){
  const authorized=(secret&&bearer===secret)||(ua.includes("vercel-cron/1.0")&&schedule==="0 6 * * *");
  if(!authorized)return Response.json({error:"Unauthorized"},{status:401});
  // Reuse the same India-backed daily generator before syncing social metrics.
- // The signed Cron Authorization header is forwarded directly to its handler.
- const dailyResponse=await generateDailyContent(req);
+ // This internal call follows the authorization check above.
+ const dailyResponse=await generateDailyContent();
  const daily=await dailyResponse.json();
  const s=createAdminClient();
  const {data}=await s.from("company_social_connections").select("company_id").eq("direct_publishing_enabled",true).in("platform",["facebook","instagram"]);
