@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { canAccess, getAuthorizationContext, isKingAdmin } from "@/lib/auth/authorization";
+import { POST as generateDailyContent } from "@/app/api/marketing/daily-content/route";
 
 const GRAPH_VERSION=process.env.META_GRAPH_VERSION||"v24.0";
 const DAY=24*60*60*1000;
@@ -108,12 +109,16 @@ export async function GET(req:NextRequest){
  const bearer=(req.headers.get("authorization")||"").replace(/^Bearer\s+/i,"").trim();
  const ua=(req.headers.get("user-agent")||"").toLowerCase();
  const schedule=req.headers.get("x-vercel-cron-schedule")||"";
- const authorized=(secret&&bearer===secret)||(ua.includes("vercel-cron/1.0")&&schedule==="17 8 * * *");
+ const authorized=(secret&&bearer===secret)||(ua.includes("vercel-cron/1.0")&&schedule==="0 6 * * *");
  if(!authorized)return Response.json({error:"Unauthorized"},{status:401});
+ // Reuse the same India-backed daily generator before syncing social metrics.
+ // The signed Cron Authorization header is forwarded directly to its handler.
+ const dailyResponse=await generateDailyContent(req);
+ const daily=await dailyResponse.json();
  const s=createAdminClient();
  const {data}=await s.from("company_social_connections").select("company_id").eq("direct_publishing_enabled",true).in("platform",["facebook","instagram"]);
  const ids=[...new Set((data||[]).map((x:any)=>x.company_id).filter(Boolean))];
  const results=[] as any[];
  for(const id of ids){results.push({company_id:id,...await syncCompany(String(id))});}
- return Response.json({ok:true,companies:results.length,results});
+ return Response.json({ok:dailyResponse.ok,foxy_daily:daily,companies:results.length,results},{status:dailyResponse.ok?200:500});
 }

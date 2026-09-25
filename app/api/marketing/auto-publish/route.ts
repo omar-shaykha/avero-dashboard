@@ -25,12 +25,13 @@ async function media(s: any, item: any, companyId: string) {
     .eq("company_id", companyId)
     .maybeSingle();
 
-  const key = process.env.GEMINI_API_KEY;
+  const key = process.env.CLOUDFLARE_API_TOKEN;
+  const accountId = process.env.CLOUDFLARE_ACCOUNT_ID;
   let image: Buffer;
   let provider = "cloudflare_flux_1_schnell";
 
   try {
-    if (!key) throw new Error("Missing Cloudflare image key");
+    if (!key || !accountId) throw new Error("Missing Cloudflare Workers AI configuration");
     const prompt = [
       `Create a premium 1:1 social-media advertising visual for ${brand?.brand_name || "AVERO OS"}.`,
       `The visual must specifically match this post: ${item.caption || item.campaign_name || ""}`,
@@ -40,21 +41,13 @@ async function media(s: any, item: any, companyId: string) {
       "Professional art-directed campaign image, cinematic depth, polished lighting, strong business-tech visual metaphor.",
       "Do not render captions, paragraphs, hashtags, fake dashboards, logos, gibberish or placeholder text inside the image.",
       "Leave some clean space at the top-left for brand identity.",
-    ].join("\n");
+    ].join("\n").slice(0, 1900);
 
-    const r = await fetch("https://generativelanguage.googleapis.com/v1beta/interactions", {
+    const model = process.env.CLOUDFLARE_IMAGE_MODEL || "@cf/black-forest-labs/flux-1-schnell";
+    const r = await fetch(`https://api.cloudflare.com/client/v4/accounts/${encodeURIComponent(accountId)}/ai/run/${model}`, {
       method: "POST",
-      headers: {"x-goog-api-key": key, "Content-Type": "application/json"},
-      body: JSON.stringify({
-        model: "gemini-3.1-flash-image",
-        input: [{ type: "text", text: prompt }],
-        response_format: {
-          type: "image",
-          mime_type: "image/jpeg",
-          aspect_ratio: "1:1",
-          image_size: "1K",
-        },
-      }),
+      headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ prompt, steps: 4 }),
       signal: AbortSignal.timeout(90000),
     });
     if (!r.ok) {
@@ -62,7 +55,7 @@ async function media(s: any, item: any, companyId: string) {
       throw new Error(`Cloudflare image failed ${r.status}: ${details.slice(0, 300)}`);
     }
     const j = await r.json();
-    const data = j?.output_image?.data;
+    const data = j?.result?.image || j?.image;
     if (!data) throw new Error("No generated image returned");
     image = await sharp(Buffer.from(data,"base64")).resize(1080,1080,{fit:"cover"}).jpeg({quality:92,mozjpeg:true}).toBuffer();  } catch (e) {
     const reason = e instanceof Error ? e.message : "AI image generation failed";
