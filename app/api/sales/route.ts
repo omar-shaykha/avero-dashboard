@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import { createAdminClient } from "@/lib/supabase/admin";
 import { hasApp, getAuthorizationContext, isKingAdmin, isTenantAdmin, hasPermission } from '@/lib/auth/authorization';
 import { visibleSalesOrders } from '@/lib/sell/visibility';
+import { summarizeShift } from '@/lib/sell/shift-report';
 
 const db = () => createAdminClient();
 const can = (a:any,p:string) => isKingAdmin(a) || isTenantAdmin(a) || hasPermission(a,p);
@@ -89,10 +90,26 @@ export async function POST(req:Request){
     if(!can(x.a,'sales.cashier'))return NextResponse.json({error:'Forbidden'},{status:403});
     const shift=await x.s.from('sales_shifts').select('*').eq('id',d.shift_id).eq('company_id',x.c).eq('user_id',x.a.user.id).eq('status','open').maybeSingle();if(!shift.data)return NextResponse.json({error:'Open shift not found'},{status:404});
     const closingCash=Number(d.closing_cash||0);if(!Number.isFinite(closingCash)||closingCash<0)return NextResponse.json({error:'Invalid closing cash'},{status:400});
-    const orderRows=await x.s.from('sales_orders').select('id').eq('company_id',x.c).eq('shift_id',d.shift_id).eq('status','completed');const orderIds=(orderRows.data||[]).map((o:any)=>o.id);let cashSales=0,cashRefunds=0;
-    if(orderIds.length){const payRows=await x.s.from('sales_payments').select('amount,payment_method').eq('company_id',x.c).in('order_id',orderIds);cashSales=(payRows.data||[]).filter((p:any)=>String(p.payment_method).toLowerCase()==='cash').reduce((a:number,p:any)=>a+Number(p.amount||0),0);const refundRows=await x.s.from('sales_refunds').select('amount,payment_method').eq('company_id',x.c).in('order_id',orderIds);cashRefunds=(refundRows.data||[]).filter((p:any)=>String(p.payment_method).toLowerCase()==='cash').reduce((a:number,p:any)=>a+Number(p.amount||0),0);}
-    const expectedCash=Number(shift.data.opening_cash||0)+cashSales-cashRefunds;const r=await x.s.from('sales_shifts').update({status:'closed',closed_at:new Date().toISOString(),closing_cash:closingCash,expected_cash:expectedCash}).eq('id',d.shift_id).eq('company_id',x.c).eq('user_id',x.a.user.id).eq('status','open').select().single();
-    return r.error?NextResponse.json({error:r.error.message},{status:400}):NextResponse.json({record:r.data,variance:closingCash-expectedCash});
+    const readAll=async(build:any)=>{const rows:any[]=[];for(let offset=0;;offset+=1000){const page=await build().range(offset,offset+999);if(page.error)throw page.error;rows.push(...(page.data||[]));if((page.data||[]).length<1000)break;}return rows;};
+    let orders:any[];
+    try { orders=await readAll(()=>x.s.from('sales_orders').select('id,subtotal,discount,tax,total,status').eq('company_id',x.c).eq('shift_id',d.shift_id).in('status',['completed','refunded']).order('id')); }
+    catch { return NextResponse.json({error:'Could not load shift sales'},{status:500}); }
+    const orderIds=orders.map((o:any)=>o.id);
+    let payments:any[] = [], refunds:any[] = [];
+    try { for(let index=0;index<orderIds.length;index+=100){
+      const ids=orderIds.slice(index,index+100);
+      const [paid,returned]=await Promise.all([
+        readAll(()=>x.s.from('sales_payments').select('amount,payment_method').eq('company_id',x.c).in('order_id',ids).order('id')),
+        readAll(()=>x.s.from('sales_refunds').select('amount,payment_method').eq('company_id',x.c).in('order_id',ids).order('id')),
+      ]);
+      payments.push(...paid);refunds.push(...returned);
+    }} catch { return NextResponse.json({error:'Could not reconcile shift payments'},{status:500}); }
+    const summary=summarizeShift(orders,payments,refunds,Number(shift.data.opening_cash||0),closingCash);
+    const expectedCash=summary.expected_cash;
+    const closedAt=new Date().toISOString();
+    const r=await x.s.from('sales_shifts').update({status:'closed',closed_at:closedAt,closing_cash:closingCash,expected_cash:expectedCash}).eq('id',d.shift_id).eq('company_id',x.c).eq('user_id',x.a.user.id).eq('status','open').select().single();
+    if(r.error)return NextResponse.json({error:r.error.message},{status:400});
+    return NextResponse.json({record:r.data,variance:summary.variance,report:{shift_id:d.shift_id,closed_at:closedAt,cashier:x.a.user.email||'',...summary}});
   }
   if(b.kind==='hold'){
     if(!can(x.a,'sales.cashier'))return NextResponse.json({error:'Forbidden'},{status:403});

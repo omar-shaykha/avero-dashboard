@@ -35,6 +35,7 @@ export default function CashierWorkspace() {
   const [heldId, H] = useState<string | null>(null);
   const [tableForm, setTableForm] = useState<any>({ name: "", area: "Main", seats: 2 });
   const [paying, setPaying] = useState(false);
+  const [lastShiftReport, setLastShiftReport] = useState<any>(null);
 
   async function load() {
     const [a, b] = await Promise.all([
@@ -116,6 +117,25 @@ export default function CashierWorkspace() {
     doc.write(`<!doctype html><html dir="${ar ? "rtl" : "ltr"}"><head><meta charset="utf-8"/><title>${esc(result?.order_no || "Receipt")}</title><style>@page{size:80mm auto;margin:3mm}*{box-sizing:border-box}body{margin:0;width:74mm;font-family:Arial,sans-serif;color:#000;font-size:12px}h1{font-size:17px;margin:0 0 4px;text-align:center}.center{text-align:center}.muted{color:#444;font-size:10px}.sep{border-top:1px dashed #000;margin:7px 0}.row{display:flex;justify-content:space-between;gap:8px}.item{padding:5px 0;border-bottom:1px dotted #999}.note{margin-top:3px;padding:3px 5px;border:1px solid #aaa;border-radius:3px;white-space:pre-wrap}.total{font-size:16px;font-weight:700;margin-top:5px}</style></head><body><h1>AVERO</h1><div class="center">${esc(L("Sales Receipt", "إيصال مبيعات"))}</div><div class="sep"></div><div>${esc(result?.order_no || "")}</div><div>${esc(new Date().toLocaleString(ar ? "ar-SA" : "en-SA"))}</div><div>${esc(L("Cashier", "الكاشير"))}: ${esc(x.cashier_name)}</div><div>${esc(L("Service", "الخدمة"))}: ${esc(service)}</div>${table ? `<div>${esc(L("Table", "الطاولة"))}: ${esc(table.name)}</div>` : ""}<div class="sep"></div>${itemRows}<div class="sep"></div><div class="row"><span>${esc(L("Subtotal", "المجموع الفرعي"))}</span><span>${Number(result?.subtotal || 0).toFixed(2)}</span></div>${Number(result?.discount || 0) > 0 ? `<div class="row"><span>${esc(L("Discount", "الخصم"))}</span><span>-${Number(result?.discount || 0).toFixed(2)}</span></div>` : ""}<div class="row"><span>${esc(L("Tax", "الضريبة"))}</span><span>${Number(result?.tax || 0).toFixed(2)}</span></div><div class="row total"><span>${esc(L("Total", "الإجمالي"))}</span><span>${Number(result?.total || 0).toFixed(2)} ${esc(currency)}</span></div><div class="sep"></div><div>${esc(L("Payment", "الدفع"))}: ${esc(method?.name || method?.code || "Cash")}</div><div class="center" style="margin-top:10px">${esc(L("Thank you", "شكراً لكم"))}</div></body></html>`);
     doc.close();
 
+    const cleanup = () => { if (frame.isConnected) frame.remove(); };
+    if (frame.contentWindow) frame.contentWindow.onafterprint = cleanup;
+    setTimeout(() => { frame.contentWindow?.focus(); frame.contentWindow?.print(); }, 250);
+    setTimeout(cleanup, 60000);
+  }
+
+  function printShiftReport(report: any) {
+    const frame = document.createElement("iframe");
+    frame.setAttribute("aria-hidden", "true");
+    Object.assign(frame.style, { position: "fixed", right: "0", bottom: "0", width: "1px", height: "1px", border: "0", opacity: "0" });
+    document.body.appendChild(frame);
+    const doc = frame.contentDocument || frame.contentWindow?.document;
+    if (!doc) { frame.remove(); return; }
+    const row = (label: string, value: string) => `<div class="row"><span>${esc(label)}</span><b>${esc(value)}</b></div>`;
+    const money = (value: number) => `${Number(value || 0).toFixed(2)} ${esc(currency)}`;
+    const methods = Object.entries(report.payments || {}).map(([method, amount]) => row(method, money(Number(amount)))).join("");
+    doc.open();
+    doc.write(`<!doctype html><html dir="${ar ? "rtl" : "ltr"}"><head><meta charset="utf-8"><title>${esc(L("Shift closing report", "تقرير إقفال الوردية"))}</title><style>@page{size:80mm auto;margin:3mm}body{font:12px Arial,sans-serif;color:#000;width:74mm;margin:0}h1,h2{text-align:center;margin:5px 0}.row{display:flex;justify-content:space-between;gap:8px;padding:4px 0}.sep{border-top:1px dashed #333;margin:9px 0}.muted{text-align:center;font-size:10px}</style></head><body><h1>AVERO</h1><h2>${esc(L("Shift closing report", "تقرير إقفال الوردية"))}</h2><div class="muted">${esc(new Date(report.closed_at).toLocaleString(ar ? "ar-SA" : "en-SA"))}</div><div class="sep"></div>${row(L("Cashier", "الكاشير"), report.cashier || x.cashier_name)}${row(L("Orders", "الطلبات"), String(report.orders))}${row(L("Gross sales", "إجمالي المبيعات"), money(report.gross_sales))}${row(L("Discount", "الخصم"), money(report.discount))}${row(L("Tax", "الضريبة"), money(report.tax))}${row(L("Refunds", "المرتجعات"), money(report.refunds))}<div class="sep"></div>${methods}<div class="sep"></div>${row(L("Opening cash", "نقد البداية"), money(report.opening_cash))}${row(L("Expected cash", "النقد المتوقع"), money(report.expected_cash))}${row(L("Counted cash", "النقد المعدود"), money(report.closing_cash))}${row(L("Variance", "الفرق"), money(report.variance))}<div class="sep"></div><div class="muted">${esc(report.shift_id)}</div></body></html>`);
+    doc.close();
     const cleanup = () => { if (frame.isConnected) frame.remove(); };
     if (frame.contentWindow) frame.contentWindow.onafterprint = cleanup;
     setTimeout(() => { frame.contentWindow?.focus(); frame.contentWindow?.print(); }, 250);
@@ -205,7 +225,7 @@ export default function CashierWorkspace() {
     if (!Number.isFinite(closing) || closing < 0) return alert(L("Invalid cash amount", "قيمة النقد غير صحيحة"));
     const j = await api("close_shift", { shift_id: shift.id, closing_cash: closing });
     if (j) {
-      alert(L("Shift closed. Variance: ", "تم إغلاق الوردية. الفرق: ") + Number(j.variance || 0).toFixed(2) + " " + currency);
+      if (j.report) { setLastShiftReport(j.report); printShiftReport(j.report); }
       await load();
     }
   }
@@ -248,6 +268,7 @@ export default function CashierWorkspace() {
 
     <div className="flex flex-wrap gap-2">
       {!shift ? <button className={btn} onClick={openShift}>{L("Open Shift", "فتح وردية")}</button> : <button className={ghost} onClick={closeShift}>{L("Close Shift", "إغلاق الوردية")}</button>}
+      {lastShiftReport && <button className={ghost} onClick={() => printShiftReport(lastShiftReport)}>{L("Print closing report", "طباعة تقرير الإقفال")}</button>}
       <button className={ghost} onClick={() => Z("track")}>{L("Track Invoice", "تتبع الفاتورة")}</button>
       <button className={ghost} onClick={() => Z("tables")}>{L("Dining Map", "خريطة الطاولات")}</button>
       <button className={ghost} onClick={() => Z("holds")}>{L("Held Orders", "الطلبات المعلقة")} ({held.length})</button>
