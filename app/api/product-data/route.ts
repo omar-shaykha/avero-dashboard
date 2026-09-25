@@ -14,7 +14,7 @@ async function C(){
 export async function GET(){
   const x=await C();
   if(!x)return NextResponse.json({error:"Unauthorized"},{status:401});
-  if(!can(x.a,"sales.view")&&!can(x.a,"sales.manage"))return NextResponse.json({error:"Forbidden"},{status:403});
+  if(!can(x.a,"sales.manage"))return NextResponse.json({error:"Forbidden"},{status:403});
 
   const [products,categories,warehouses,suppliers,recipes,sections,inventoryItems,units]=await Promise.all([
     x.s.from("sales_products")

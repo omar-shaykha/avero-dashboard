@@ -27,6 +27,12 @@ const POLICIES=['none','stock','recipe_on_sale','produced_stock'];
 
 export async function GET(){
  const x=await C();if(!x)return NextResponse.json({error:'Unauthorized'},{status:401});
+ if(!can(x.a,'sales.manage')){
+  if(!can(x.a,'sales.invoice.customize'))return NextResponse.json({error:'Forbidden'},{status:403});
+  const template=await x.s.from('sales_invoice_templates').select('*').eq('company_id',x.c).maybeSingle();
+  if(template.error)return NextResponse.json({error:'Could not load invoice template'},{status:500});
+  return NextResponse.json({invoice_template:template.data||null});
+ }
  const [customers,b2b,invoices,payments,tables,invoiceTemplate,products,categories,profiles,warehouses,suppliers,items,units,recipes]=await Promise.all([
   x.s.from('sales_customers').select('*').eq('company_id',x.c).order('created_at',{ascending:false}),
   x.s.from('b2b_accounts').select('*').eq('company_id',x.c).order('created_at',{ascending:false}),

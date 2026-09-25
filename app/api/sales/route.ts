@@ -2,10 +2,11 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from "@/lib/supabase/admin";
 import { hasApp, getAuthorizationContext, isKingAdmin, isTenantAdmin, hasPermission } from '@/lib/auth/authorization';
+import { visibleSalesOrders } from '@/lib/sell/visibility';
 
 const db = () => createAdminClient();
 const can = (a:any,p:string) => isKingAdmin(a) || isTenantAdmin(a) || hasPermission(a,p);
-async function C(){ const a=await getAuthorizationContext(); return a?.profile?.company_id ? {a,c:a.profile.company_id,s:db()} : null; }
+async function C(){ const a=await getAuthorizationContext(); return (hasApp(a,'app_sell') && a?.profile?.company_id) ? {a,c:a.profile.company_id,s:db()} : null; }
 async function owned(s:any,table:string,id:string|undefined,c:string){ if(!id)return true; const r=await s.from(table).select('id').eq('id',id).eq('company_id',c).maybeSingle(); return !!r.data; }
 async function upsertCustomer(x:any, customer:any){
   const name=String(customer?.name||'').trim(),phone=String(customer?.phone||'').trim(),email=String(customer?.email||'').trim(),notes=String(customer?.notes||'').trim();
@@ -36,7 +37,7 @@ export async function GET(){
     x.s.from('sales_shifts').select('*').eq('company_id',x.c).eq('user_id',x.a.user.id).order('created_at',{ascending:false}).limit(30),
     x.s.from('sales_refunds').select('*').eq('company_id',x.c).order('created_at',{ascending:false}).limit(150)
   ]);
-  return NextResponse.json({products:products.data||[],categories:categories.data||[],orders:orders.data||[],settings:settings.data||null,warehouses:warehouses.data||[],items:items.data||[],recipes:recipes.data||[],shifts:shifts.data||[],refunds:refunds.data||[]});
+  return NextResponse.json({products:products.data||[],categories:categories.data||[],orders:visibleSalesOrders(orders.data||[],showCost),settings:settings.data||null,warehouses:warehouses.data||[],items:items.data||[],recipes:recipes.data||[],shifts:shifts.data||[],refunds:refunds.data||[]});
 }
 
 export async function POST(req:Request){

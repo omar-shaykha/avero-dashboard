@@ -13,6 +13,7 @@ export default async function PosPage({ searchParams }: { searchParams: Promise<
   if (!access.profile.company_id || !canOpenSell(access)) redirect("/workspace");
 
   const params = await searchParams;
+  if ((params?.area === "add-items" || params?.area === "products") && !isKingAdmin(access) && !isTenantAdmin(access) && !hasPermission(access, "sales.manage")) redirect("/pos?area=cashier");
   if (params?.area === "purchasing" && !isKingAdmin(access) && !isTenantAdmin(access) && !["purchasing.view", "purchasing.manage"].some((permission) => hasPermission(access, permission))) redirect("/pos?area=cashier");
   const user = access.user;
   const userName = user.email?.split("@")[0];
