@@ -72,7 +72,7 @@ export async function GET() {
         .select("action")
         .eq("company_id", companyId)
         .eq("agent_key", "ai_sales")
-        .eq("status", "active")
+        .eq("status", "running")
         .like("action", "leo_human_takeover:%")
         .limit(500),
     ]);
