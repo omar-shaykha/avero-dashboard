@@ -1,23 +1,33 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowUpRight, Boxes, BrainCircuit, Building2, CreditCard, LayoutGrid, Settings2, ShieldCheck, ShoppingBag, Users } from "lucide-react";
+import { ArrowUpRight, BrainCircuit, Building2, CreditCard, Factory, Landmark, LayoutGrid, Settings2, ShieldCheck, ShoppingBag, ShoppingCart, Users, Warehouse } from "lucide-react";
 import { useLanguage } from "./LanguageProvider";
-import type { OsApp } from "@/lib/os/catalog";
+import type { OperationsArea, OsApp } from "@/lib/os/catalog";
 
-type Props = { companyName: string; businessType: string; branchCount: number; apps: Record<OsApp, boolean>; canViewSettings: boolean; canViewIntegrations: boolean };
+type Props = { companyName: string; businessType: string; branchCount: number; apps: Record<OsApp, boolean>; operationsAreas: OperationsArea[]; canViewSettings: boolean; canViewIntegrations: boolean };
 
-export default function WorkspaceHome({ companyName, businessType, branchCount, apps, canViewSettings, canViewIntegrations }: Props) {
+export default function WorkspaceHome({ companyName, businessType, branchCount, apps, operationsAreas, canViewSettings, canViewIntegrations }: Props) {
   const { language } = useLanguage();
   const ar = language === "ar";
   const L = (en: string, arabic: string) => ar ? arabic : en;
   const products = [
-    { key: "operations" as const, title: "AVERO Operations", description: L("Inventory, purchasing, production and accounting", "المخزون والمشتريات والإنتاج والمحاسبة"), href: "/operations", icon: Boxes },
     { key: "sell" as const, title: "AVERO Sell", description: L("Cashier and product management", "الكاشير وإدارة الأصناف"), href: "/pos?area=cashier", icon: CreditCard },
     { key: "go" as const, title: "AVERO GO", description: L("Pickup menu and customer orders", "منيو الاستلام وطلبات العملاء"), href: "/go", icon: ShoppingBag },
     { key: "intelligence" as const, title: "AVERO Intelligence", description: L("Your subscribed AI agents", "وكلاء الذكاء المشترك بهم"), href: "/ai-agents", icon: BrainCircuit },
   ];
-  const visibleProducts = products.filter(({key}) => apps[key]);
+  const visibleProducts = [
+    ...(["inventory", "purchasing", "production", "accounting"] as const)
+      .filter((area) => operationsAreas.includes(area))
+      .map((area) => ({
+        key: area,
+        title: ({ inventory: L("Inventory", "المخزون"), purchasing: L("Purchasing", "المشتريات"), production: L("Production", "الإنتاج"), accounting: L("Accounting", "المحاسبة") })[area],
+        description: L("Company operations", "عمليات الشركة"),
+        href: `/operations?area=${area}`,
+        icon: ({ inventory: Warehouse, purchasing: ShoppingCart, production: Factory, accounting: Landmark })[area],
+      })),
+    ...products.filter(({ key }) => apps[key]),
+  ];
 
   return <main className="mx-auto max-w-7xl space-y-8 px-5 py-8 md:px-8">
     <header className="rounded-3xl border border-cyan-400/15 bg-gradient-to-br from-slate-900 to-slate-950 p-7 md:p-9">

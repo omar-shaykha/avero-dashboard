@@ -1,20 +1,6 @@
 import { getAuthorizationContext, isKingAdmin } from "@/lib/auth/authorization";
 import { createAdminClient } from "@/lib/supabase/admin";
-
-const DEFAULT_ORDER = ["monitoring","pos","cashier","add_items","purchasing","agents","crm","clients","apps","settings","go","subscriptions"] as const;
-const allowed = new Set<string>(DEFAULT_ORDER);
-
-function normalize(value: unknown) {
-  const input = Array.isArray(value) ? value.map(String) : [];
-  const unique = input.filter((key, index) => allowed.has(key) && input.indexOf(key) === index);
-  if (unique.includes("pos")) {
-    let afterPos = unique.indexOf("pos") + 1;
-    for (const key of ["cashier", "add_items", "purchasing"]) {
-      if (!unique.includes(key)) unique.splice(afterPos++, 0, key);
-    }
-  }
-  return [...unique, ...DEFAULT_ORDER.filter((key) => !unique.includes(key))];
-}
+import { DEFAULT_ORDER, normalizeOrder } from "@/lib/navigation/order";
 
 export async function GET() {
   const access = await getAuthorizationContext();
@@ -29,7 +15,7 @@ export async function GET() {
     .maybeSingle();
 
   if (error) return Response.json({ error: "Could not load sidebar order" }, { status: 500 });
-  return Response.json({ order: normalize(data?.sidebar_order) });
+  return Response.json({ order: normalizeOrder(data?.sidebar_order) });
 }
 
 export async function PATCH(request: Request) {
@@ -39,7 +25,7 @@ export async function PATCH(request: Request) {
   if (!access.profile.company_id) return Response.json({ error: "Company required" }, { status: 409 });
 
   const body = await request.json().catch(() => ({}));
-  const order = normalize(body.order);
+  const order = normalizeOrder(body.order);
   const s = createAdminClient();
   const row = {
     user_id: access.user.id,

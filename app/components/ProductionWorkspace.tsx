@@ -1,1 +1,78 @@
-"use client";import{useEffect,useState}from'react';const box='rounded-2xl border border-slate-800 bg-slate-900 p-5',inp='w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2.5 text-sm',btn='rounded-xl bg-cyan-400 px-4 py-2.5 font-black text-slate-950';export default function ProductionWorkspace(){const[d,S]=useState<any>({orders:[],recipes:[],warehouses:[]}),[f,F]=useState<any>(null);async function load(){let r=await fetch('/api/production',{cache:'no-store'});if(r.ok)S(await r.json())}useEffect(()=>{load()},[]);async function act(kind:string,data:any){let r=await fetch('/api/production',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({kind,data})}),j=await r.json();if(!r.ok)return alert(j.error);F(null);load()}let main=(d.recipes||[]).filter((r:any)=>(r.recipe_type||'main')==='main');return <div className="space-y-5"><header className="flex justify-between"><div><h1 className="text-2xl font-black">Production</h1><p className="text-sm text-slate-400">Production orders · batches · yield · waste · costing · variance</p></div><button className={btn} onClick={()=>F({recipe_id:'',warehouse_id:'',planned_qty:1,planned_date:new Date().toISOString().slice(0,10),priority:'normal',batch_no:''})}>+ Production Order</button></header><div className="grid gap-3 md:grid-cols-4"><Stat t="Orders" v={d.orders.length}/><Stat t="Planned" v={d.orders.filter((o:any)=>o.status==='planned').length}/><Stat t="In Progress" v={d.orders.filter((o:any)=>o.status==='in_progress').length}/><Stat t="Completed" v={d.orders.filter((o:any)=>o.status==='completed').length}/></div><div className={box}>{d.orders.map((o:any)=><div key={o.id} className="grid items-center gap-2 border-b border-slate-800 py-3 md:grid-cols-[1fr_120px_120px_120px]"><span><b>{o.production_no}</b><small className="block text-slate-500">{o.production_recipes?.name} {o.batch_no?`· Batch ${o.batch_no}`:''}</small></span><span>{o.status}</span><span>Plan {o.planned_qty}</span><span>{o.status==='planned'?<button className="text-cyan-300" onClick={()=>act('start',{order_id:o.id})}>Start</button>:o.status==='in_progress'?<button className="text-emerald-300" onClick={()=>{let r=main.find((x:any)=>x.id===o.recipe_id),scale=Number(o.planned_qty)/Number(r?.yield_qty||1);F({complete:true,order_id:o.id,actual_qty:o.planned_qty,consumption:(r?.production_recipe_lines||[]).filter((l:any)=>l.item_id).map((l:any)=>({item_id:l.item_id,planned_qty:Number(l.quantity)*scale,actual_qty:Number(l.quantity)*scale})),waste:[],byproducts:[]})}}>Complete</button>:<span className="text-slate-500">Done</span>}</span></div>)}</div>{f&&<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4"><div className="w-full max-w-2xl rounded-3xl border border-slate-700 bg-slate-900 p-6"><div className="mb-4 flex justify-between"><h2 className="text-xl font-black">{f.complete?'Complete Production':'Production Order'}</h2><button onClick={()=>F(null)}>✕</button></div>{f.complete?<><label className="text-sm text-slate-400">Actual output</label><input className={inp} type="number" value={f.actual_qty} onChange={e=>F({...f,actual_qty:Number(e.target.value)})}/><div className="mt-4 text-sm text-slate-400">Actual consumption uses the recipe plan by default and can be edited in the detailed production flow later.</div><button className={`${btn} mt-5 w-full`} onClick={()=>act('complete',f)}>Complete Production</button></>:<><div className="grid gap-2 md:grid-cols-2"><select className={inp} value={f.recipe_id} onChange={e=>F({...f,recipe_id:e.target.value})}><option value="">Main Recipe</option>{main.map((r:any)=><option key={r.id} value={r.id}>{r.name}</option>)}</select><select className={inp} value={f.warehouse_id} onChange={e=>F({...f,warehouse_id:e.target.value})}><option value="">Warehouse</option>{d.warehouses.map((w:any)=><option key={w.id} value={w.id}>{w.name}</option>)}</select><input className={inp} type="number" value={f.planned_qty} onChange={e=>F({...f,planned_qty:Number(e.target.value)})}/><input className={inp} type="date" value={f.planned_date} onChange={e=>F({...f,planned_date:e.target.value})}/><input className={inp} placeholder="Batch no" value={f.batch_no} onChange={e=>F({...f,batch_no:e.target.value})}/><select className={inp} value={f.priority} onChange={e=>F({...f,priority:e.target.value})}><option>normal</option><option>high</option><option>urgent</option></select></div><button className={`${btn} mt-5 w-full`} onClick={()=>act('order',f)}>Create Order</button></>}</div></div>}</div>}function Stat({t,v}:any){return <div className={box}>{t}<div className="text-2xl font-black">{v}</div></div>}
+"use client";
+
+import { useEffect, useState } from "react";
+import { useLanguage } from "./LanguageProvider";
+
+const box = "rounded-2xl border border-slate-800 bg-slate-900 p-5";
+const inp = "w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2.5 text-sm";
+const btn = "rounded-xl bg-cyan-400 px-4 py-2.5 font-black text-slate-950";
+
+export default function ProductionWorkspace() {
+  const { language } = useLanguage();
+  const L = (en: string, ar: string) => language === "ar" ? ar : en;
+  const [data, setData] = useState<any>({ orders: [], recipes: [], warehouses: [] });
+  const [form, setForm] = useState<any>(null);
+
+  async function load() {
+    const response = await fetch("/api/production", { cache: "no-store" });
+    if (response.ok) setData(await response.json());
+  }
+  useEffect(() => { void load(); }, []);
+
+  async function act(kind: string, payload: any) {
+    const response = await fetch("/api/production", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ kind, data: payload }),
+    });
+    const result = await response.json();
+    if (!response.ok) return alert(result.error);
+    setForm(null);
+    void load();
+  }
+
+  const mainRecipes = (data.recipes || []).filter((recipe: any) => (recipe.recipe_type || "main") === "main");
+  const statusLabel = (status: string) => ({
+    planned: L("Planned", "مخطط"), in_progress: L("In Progress", "قيد التنفيذ"), completed: L("Completed", "مكتمل"),
+  })[status as "planned" | "in_progress" | "completed"] || status;
+
+  return <div className="space-y-5">
+    <header className="flex flex-wrap justify-between gap-3">
+      <div><h1 className="text-2xl font-black">{L("Production", "الإنتاج")}</h1><p className="text-sm text-slate-400">{L("Production orders · batches · yield · waste · costing · variance", "أوامر الإنتاج · الدفعات · الناتج · الهدر · التكاليف · الفروقات")}</p></div>
+      <button className={btn} onClick={() => setForm({ recipe_id: "", warehouse_id: "", planned_qty: 1, planned_date: new Date().toISOString().slice(0, 10), priority: "normal", batch_no: "" })}>{L("+ Production Order", "+ أمر إنتاج")}</button>
+    </header>
+    <div className="grid gap-3 md:grid-cols-4">
+      <Stat title={L("Orders", "الأوامر")} value={data.orders.length}/>
+      <Stat title={L("Planned", "المخططة")} value={data.orders.filter((order: any) => order.status === "planned").length}/>
+      <Stat title={L("In Progress", "قيد التنفيذ")} value={data.orders.filter((order: any) => order.status === "in_progress").length}/>
+      <Stat title={L("Completed", "المكتملة")} value={data.orders.filter((order: any) => order.status === "completed").length}/>
+    </div>
+    <div className={box}>{data.orders.map((order: any) => <div key={order.id} className="grid items-center gap-2 border-b border-slate-800 py-3 md:grid-cols-[1fr_120px_120px_120px]">
+      <span><b>{order.production_no}</b><small className="block text-slate-500">{order.production_recipes?.name} {order.batch_no ? `· ${L("Batch", "الدفعة")} ${order.batch_no}` : ""}</small></span>
+      <span>{statusLabel(order.status)}</span><span>{L("Plan", "الكمية المخططة")} {order.planned_qty}</span>
+      <span>{order.status === "planned" ? <button className="text-cyan-300" onClick={() => act("start", { order_id: order.id })}>{L("Start", "بدء")}</button>
+        : order.status === "in_progress" ? <button className="text-emerald-300" onClick={() => {
+          const recipe = mainRecipes.find((item: any) => item.id === order.recipe_id);
+          const scale = Number(order.planned_qty) / Number(recipe?.yield_qty || 1);
+          setForm({ complete: true, order_id: order.id, actual_qty: order.planned_qty, consumption: (recipe?.production_recipe_lines || []).filter((line: any) => line.item_id).map((line: any) => ({ item_id: line.item_id, planned_qty: Number(line.quantity) * scale, actual_qty: Number(line.quantity) * scale })), waste: [], byproducts: [] });
+        }}>{L("Complete", "إكمال")}</button> : <span className="text-slate-500">{L("Done", "تم")}</span>}</span>
+    </div>)}</div>
+    {form && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4"><div className="w-full max-w-2xl rounded-3xl border border-slate-700 bg-slate-900 p-6">
+      <div className="mb-4 flex justify-between"><h2 className="text-xl font-black">{form.complete ? L("Complete Production", "إكمال الإنتاج") : L("Production Order", "أمر إنتاج")}</h2><button onClick={() => setForm(null)} aria-label={L("Close", "إغلاق")}>✕</button></div>
+      {form.complete ? <><label className="text-sm text-slate-400">{L("Actual output", "الناتج الفعلي")}</label><input className={inp} type="number" value={form.actual_qty} onChange={event => setForm({ ...form, actual_qty: Number(event.target.value) })}/>
+        <div className="mt-4 text-sm text-slate-400">{L("Actual consumption uses the recipe plan by default and can be edited in the detailed production flow later.", "يعتمد الاستهلاك الفعلي مبدئيًا على خطة الوصفة ويمكن تعديله لاحقًا من تفاصيل الإنتاج.")}</div>
+        <button className={`${btn} mt-5 w-full`} onClick={() => act("complete", form)}>{L("Complete Production", "إكمال الإنتاج")}</button></>
+        : <><div className="grid gap-2 md:grid-cols-2">
+          <select className={inp} value={form.recipe_id} onChange={event => setForm({ ...form, recipe_id: event.target.value })}><option value="">{L("Main Recipe", "الوصفة الرئيسية")}</option>{mainRecipes.map((recipe: any) => <option key={recipe.id} value={recipe.id}>{recipe.name}</option>)}</select>
+          <select className={inp} value={form.warehouse_id} onChange={event => setForm({ ...form, warehouse_id: event.target.value })}><option value="">{L("Warehouse", "المستودع")}</option>{data.warehouses.map((warehouse: any) => <option key={warehouse.id} value={warehouse.id}>{warehouse.name}</option>)}</select>
+          <input className={inp} type="number" aria-label={L("Planned quantity", "الكمية المخططة")} value={form.planned_qty} onChange={event => setForm({ ...form, planned_qty: Number(event.target.value) })}/>
+          <input className={inp} type="date" aria-label={L("Planned date", "التاريخ المخطط")} value={form.planned_date} onChange={event => setForm({ ...form, planned_date: event.target.value })}/>
+          <input className={inp} placeholder={L("Batch no", "رقم الدفعة")} value={form.batch_no} onChange={event => setForm({ ...form, batch_no: event.target.value })}/>
+          <select className={inp} aria-label={L("Priority", "الأولوية")} value={form.priority} onChange={event => setForm({ ...form, priority: event.target.value })}><option value="normal">{L("Normal", "عادية")}</option><option value="high">{L("High", "عالية")}</option><option value="urgent">{L("Urgent", "عاجلة")}</option></select>
+        </div><button className={`${btn} mt-5 w-full`} onClick={() => act("order", form)}>{L("Create Order", "إنشاء الأمر")}</button></>}
+    </div></div>}
+  </div>;
+}
+
+function Stat({ title, value }: { title: string; value: number }) {
+  return <div className={box}>{title}<div className="text-2xl font-black">{value}</div></div>;
+}
