@@ -1,11 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useLanguage } from "./LanguageProvider";
 
 type Feature = { id: string; key: string; enabled: boolean; expires_at: string | null };
 type LinkItem = { label: string; path: string; app: string | null };
 
 export default function KingClientLinks({ companyId, companyName }: { companyId: string; companyName: string }) {
+  const { language } = useLanguage();
+  const L = (en: string, ar: string) => language === "ar" ? ar : en;
   const [features, setFeatures] = useState<Feature[]>([]);
   const [slug, setSlug] = useState("");
   const [menuPublished, setMenuPublished] = useState(false);
@@ -45,7 +48,7 @@ export default function KingClientLinks({ companyId, companyName }: { companyId:
   }, [companyId]);
 
   const enabled = (key: string) => features.some(f => f.key === key && f.enabled && (!f.expires_at || new Date(f.expires_at).getTime() > Date.now()));
-  const appLabels: Record<string, string> = { app_manager: "Manager / لوحة المدير", app_sell: "SELL / POS", app_operations: "Operations / ERP", app_go: "GO / المنيو", app_intelligence: "Intelligence / AI", ai_sales: "LEO", ai_marketing: "FOXY" };
+  const appLabels: Record<string, string> = { app_manager: L("Manager", "المدير"), app_sell: "SELL / POS", app_operations: "ERP", app_go: L("GO / Menu", "GO / المنيو"), app_intelligence: "Intelligence / AI", ai_sales: "LEO", ai_marketing: "FOXY" };
 
   async function toggle(key: string) {
     const feature = features.find(f => f.key === key);
@@ -68,40 +71,38 @@ export default function KingClientLinks({ companyId, companyName }: { companyId:
   }
 
   const links: LinkItem[] = [
-    { label: "رابط لوحة الشركة", path: `/workspace/${slug || companyId}`, app: null },
-    { label: "رابط لوحة المدير", path: "/manager-monitoring", app: "app_manager" },
-    { label: "رابط المنيو للزبائن والـQR", path: `/go/${slug}`, app: "app_go" },
-    { label: "رابط الكاشير POS", path: "/pos?area=cashier", app: "app_sell" },
-    { label: "إضافة الأصناف", path: "/pos?area=add-items", app: "app_sell" },
-    { label: "المشتريات POS", path: "/pos?area=purchasing", app: "app_sell" },
-    { label: "رابط ERP", path: "/operations", app: "app_operations" },
-    { label: "المخزون", path: "/operations?area=inventory", app: "app_operations" },
-    { label: "المشتريات ERP", path: "/operations?area=purchasing", app: "app_operations" },
-    { label: "الإنتاج", path: "/operations?area=production", app: "app_operations" },
-    { label: "المحاسبة", path: "/operations?area=accounting", app: "app_operations" },
-    { label: "إدارة منيو GO", path: "/go", app: "app_go" },
-    { label: "رابط AI Agents", path: "/ai-agents", app: "app_intelligence" },
-    { label: "رابط LEO", path: "/ai-sales", app: "ai_sales" },
-    { label: "رابط FOXY", path: "/ai-marketing", app: "ai_marketing" },
-    { label: "رابط تسجيل الدخول", path: "/login", app: null },
+    { label: L("Company dashboard", "لوحة الشركة"), path: `/workspace/${slug || companyId}`, app: null },
+    { label: L("Manager dashboard", "لوحة المدير"), path: "/manager-monitoring", app: "app_manager" },
+    { label: L("Customer menu and QR", "منيو الزبائن والـQR"), path: `/go/${slug}`, app: "app_go" },
+    { label: L("Cashier", "الكاشير"), path: "/pos?area=cashier", app: "app_sell" },
+    { label: L("Add Items", "إضافة الأصناف"), path: "/pos?area=add-items", app: "app_sell" },
+    { label: L("Inventory", "المخزون"), path: "/operations?area=inventory", app: "app_operations" },
+    { label: L("Purchasing", "المشتريات"), path: enabled("app_operations") ? "/operations?area=purchasing" : "/pos?area=purchasing", app: enabled("app_operations") ? "app_operations" : "app_sell" },
+    { label: L("Production", "الإنتاج"), path: "/operations?area=production", app: "app_operations" },
+    { label: L("Accounting", "المحاسبة"), path: "/operations?area=accounting", app: "app_operations" },
+    { label: L("Manage GO menu", "إدارة منيو GO"), path: "/go", app: "app_go" },
+    { label: L("AI Agents", "وكلاء AI"), path: "/ai-agents", app: "app_intelligence" },
+    { label: "LEO", path: "/ai-sales", app: "ai_sales" },
+    { label: "FOXY", path: "/ai-marketing", app: "ai_marketing" },
+    { label: L("Sign in", "تسجيل الدخول"), path: "/login", app: null },
   ];
 
-  return <section className="rounded-2xl border border-cyan-500/40 bg-slate-900 p-4 text-white sm:p-6" aria-label={`روابط ${companyName}`}>
-    <h3 className="text-xl font-bold">روابط {companyName} · للـKing فقط</h3>
-    <p className="mt-1 text-sm text-slate-400">فعّل التطبيق الذي اشترك فيه العميل، ثم انسخ الرابط وأرسله له أو حوّله إلى QR. ما في روابط أو تطبيقات غير مفعّلة بشاشة العميل.</p>
-    {loading ? <p className="mt-4 text-slate-400">جارٍ تحميل الروابط…</p> : <>
+  return <section className="rounded-2xl border border-cyan-500/40 bg-slate-900 p-4 text-white sm:p-6" aria-label={`${L("Links for", "روابط")} ${companyName}`}>
+    <h3 className="text-xl font-bold">{L("Links for", "روابط")} {companyName} · {L("King only", "للـKing فقط")}</h3>
+    <p className="mt-1 text-sm text-slate-400">{L("Enable the subscribed app, then copy its link to share it or make a QR code. Inactive apps stay hidden from the client.", "فعّل التطبيق الذي اشترك فيه العميل، ثم انسخ الرابط وأرسله له أو حوّله إلى QR. ما في روابط أو تطبيقات غير مفعّلة بشاشة العميل.")}</p>
+    {loading ? <p className="mt-4 text-slate-400">{L("Loading links…", "جارٍ تحميل الروابط…")}</p> : <>
       {error && <p role="alert" className="mt-3 rounded-lg bg-rose-950/70 p-3 text-rose-200">{error}</p>}
       <div className="mt-4 flex flex-wrap gap-2">{Object.entries(appLabels).map(([key, label]) => <button key={key} type="button" onClick={() => toggle(key)} disabled={Boolean(saving) || (key.startsWith("ai_") && !enabled("app_intelligence"))} aria-pressed={enabled(key)} className={`rounded-xl px-3 py-2 text-sm font-bold disabled:opacity-50 ${enabled(key) ? "bg-emerald-600 text-white" : "bg-slate-800 text-slate-300"}`}>{label} · {saving === key ? "…" : enabled(key) ? "ON" : "OFF"}</button>)}</div>
       <div className="mt-5 grid gap-3 md:grid-cols-2">{links.map(item => {
         const link = `${typeof window === "undefined" ? "" : window.location.origin}${item.path}`;
         const active = !item.app || (enabled(item.app) && (item.app !== "app_go" || enabled("app_sell")) && (!item.app.startsWith("ai_") || enabled("app_intelligence")) && (item.app !== "app_intelligence" || enabled("ai_sales") || enabled("ai_marketing")));
         return <div key={item.label} className="rounded-xl border border-slate-700 bg-slate-950 p-3">
-          <div className="flex items-start justify-between gap-2"><strong className="text-sm">{item.label}</strong><span className={`shrink-0 text-xs ${active ? "text-emerald-300" : "text-amber-300"}`}>{active ? "جاهز" : "غير مفعّل"}</span></div>
+          <div className="flex items-start justify-between gap-2"><strong className="text-sm">{item.label}</strong><span className={`shrink-0 text-xs ${active ? "text-emerald-300" : "text-amber-300"}`}>{active ? L("Ready", "جاهز") : L("Inactive", "غير مفعّل")}</span></div>
           <p className="mt-2 break-all select-all text-xs text-slate-300">{link}</p>
-          <button type="button" onClick={() => copy(link, item.label)} className="mt-3 rounded-lg border border-cyan-500/40 px-3 py-2 text-xs font-bold text-cyan-300">{copied === item.label ? "تم النسخ ✓" : "نسخ الرابط"}</button>
+          <button type="button" onClick={() => copy(link, item.label)} className="mt-3 rounded-lg border border-cyan-500/40 px-3 py-2 text-xs font-bold text-cyan-300">{copied === item.label ? L("Copied ✓", "تم النسخ ✓") : L("Copy link", "نسخ الرابط")}</button>
         </div>;
       })}</div>
-      {(!menuPublished || !enabled("app_go")) && <p className="mt-4 text-sm text-amber-300">رابط المنيو للـQR موجود للنسخ، لكن الطلبات لا تفتح قبل تفعيل GO وتجهيز المنيو ونشره.</p>}
+      {(!menuPublished || !enabled("app_go")) && <p className="mt-4 text-sm text-amber-300">{L("The QR menu link can be copied, but orders require GO to be enabled and the menu to be published.", "رابط المنيو للـQR موجود للنسخ، لكن الطلبات لا تفتح قبل تفعيل GO وتجهيز المنيو ونشره.")}</p>}
     </>}
   </section>;
 }

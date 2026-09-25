@@ -4,7 +4,7 @@ import DashboardHeader from "@/app/components/DashboardHeader";
 import WorkspaceHome from "@/app/components/WorkspaceHome";
 import { getAuthorizationContext, hasApp, isKingAdmin } from "@/lib/auth/authorization";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { availableOsApps } from "@/lib/os/catalog";
+import { allowedOperationsAreas, availableOsApps } from "@/lib/os/catalog";
 
 export const dynamic = "force-dynamic";
 
@@ -39,7 +39,7 @@ export default async function WorkspacePage() {
     <Sidebar access={access} />
     <div className="min-h-screen md:ml-64">
       <DashboardHeader userEmail={access.user.email} />
-      <WorkspaceHome companyName={company.data.name} businessType={company.data.activity_label || company.data.industry || ""} branchCount={branches.data?.length || 0} apps={apps} canViewSettings={isKingAdmin(access)} canViewIntegrations={isKingAdmin(access)} />
+      <WorkspaceHome companyName={company.data.name} businessType={company.data.activity_label || company.data.industry || ""} branchCount={branches.data?.length || 0} apps={apps} operationsAreas={allowedOperationsAreas(access)} canViewSettings={isKingAdmin(access)} canViewIntegrations={isKingAdmin(access)} />
     </div>
   </div>;
 }
