@@ -1,7 +1,7 @@
 // @ts-nocheck
 import {NextResponse} from "next/server";
 import {createClient} from "@supabase/supabase-js";
-import {getAuthorizationContext,isKingAdmin,isTenantAdmin,hasPermission} from "@/lib/auth/authorization";
+import {getAuthorizationContext,isKingAdmin,isTenantAdmin,hasApp,hasPermission} from "@/lib/auth/authorization";
 
 const admin=()=>createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!,process.env.SUPABASE_SECRET_KEY!,{auth:{persistSession:false}});
 async function ctx(){const a=await getAuthorizationContext();return ((hasApp(a,"app_operations")||hasApp(a,"app_sell")) && a?.profile?.company_id)?{a,c:a.profile.company_id,s:admin()}:null}
