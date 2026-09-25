@@ -95,6 +95,7 @@ export default function Sidebar({ access }: SidebarProps) {
   const purchaseFromSell = sellVisible && canModule("purchasing.view", "purchasing.manage");
   const crmVisible = app("app_sell") && (isKingAdmin || !!(currentAccess?.features.includes("crm") && permitted("view_crm")));
   const monitoringVisible = app("app_manager") && canModule("analytics.view");
+  const reportsVisible = (app("app_sell") && canModule("sales.view", "sales.manage", "customers.manage", "purchasing.view", "purchasing.manage")) || (app("app_operations") && canModule("inventory.view", "inventory.manage", "production.view", "production.manage", "purchasing.view", "purchasing.manage"));
   const clientsVisible = isKingAdmin;
   const appsVisible = app("app_sell") && canModule("settings.view", "settings.manage");
   const settingsVisible = isKingAdmin || (currentAccess?.features.some(key => ["app_sell", "app_operations", "app_manager", "app_intelligence"].includes(key)) && canModule("settings.view", "settings.manage"));
@@ -143,6 +144,7 @@ export default function Sidebar({ access }: SidebarProps) {
     purchasing: purchaseFromOperations || purchaseFromSell ? <Main href={purchaseFromOperations ? "/operations?area=purchasing" : "/pos?area=purchasing"} label={collapsed ? "" : L("Purchasing", "المشتريات")} icon={ShoppingCart} active={pathname === "/operations" && operationsArea === "purchasing" || pathname === "/pos" && currentArea === "purchasing"} onClick={() => purchaseFromOperations ? selectOperations("purchasing") : selectRoute("purchasing")} /> : null,
     production: canOperationsArea("production") ? <Main href="/operations?area=production" label={collapsed ? "" : L("Production", "الإنتاج")} icon={Factory} active={pathname === "/operations" && operationsArea === "production"} onClick={() => selectOperations("production")} /> : null,
     accounting: canOperationsArea("accounting") ? <Main href="/operations?area=accounting" label={collapsed ? "" : L("Accounting", "المحاسبة")} icon={Landmark} active={pathname === "/operations" && operationsArea === "accounting"} onClick={() => selectOperations("accounting")} /> : null,
+    reports: reportsVisible ? <Main href="/reports" label={collapsed ? "" : L("Reports", "التقارير")} icon={BarChart3} active={pathname === "/reports"} /> : null,
     apps: appsVisible ? <Main href="/apps" label={collapsed ? "" : L("Apps", "التطبيقات")} icon={AppWindow} active={pathname?.startsWith("/apps")} /> : null,
     settings: settingsVisible ? <Main href="/settings" label={collapsed ? "" : L("Settings", "الإعدادات")} icon={Settings} active={pathname?.startsWith("/settings")} /> : null,
     go: app("app_go") && sellVisible ? <Main href="/go" label={collapsed ? "" : L("AVERO GO", "أفيرو GO")} icon={ShoppingBag} active={pathname === "/go" || Boolean(pathname?.startsWith("/go/"))} /> : null,

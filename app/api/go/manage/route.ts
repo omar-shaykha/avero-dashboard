@@ -7,30 +7,39 @@ const canManage = (access: NonNullable<Awaited<ReturnType<typeof getAuthorizatio
 const canView = (access: NonNullable<Awaited<ReturnType<typeof getAuthorizationContext>>>) =>
   canManage(access) || hasPermission(access, "sales.view") || hasPermission(access, "sales.cashier");
 
-export async function GET() {
+async function selectedCompany(request: Request, access: NonNullable<Awaited<ReturnType<typeof getAuthorizationContext>>>) {
+  const requested = new URL(request.url).searchParams.get("company");
+  if (!requested || requested === access.profile.company_id) return access.profile.company_id;
+  if (!isKingAdmin(access) || !/^[0-9a-f-]{36}$/i.test(requested)) return null;
+  const { data, error } = await createAdminClient().from("companies").select("id").eq("id", requested).maybeSingle();
+  return error ? null : data?.id || null;
+}
+
+export async function GET(request: Request) {
   const access = await getAuthorizationContext();
-  const companyId = access?.profile.company_id;
+  const companyId = access && await selectedCompany(request, access);
   if (!access || !companyId) return json({ error: "Unauthorized" }, 401);
   if (!hasApp(access,"app_go") || !hasApp(access,"app_sell")) return json({error:"Forbidden"},403);
   if (!canView(access)) return json({ error: "Forbidden" }, 403);
   const db = createAdminClient();
-  const [store, company, branches, categories, products, orders] = await Promise.all([
+  const [store, company, branches, categories, products, orders, companies] = await Promise.all([
     db.from("go_stores").select("slug,pickup_branch_id,pickup_address,prep_minutes,enabled").eq("company_id", companyId).maybeSingle(),
     db.from("companies").select("name").eq("id", companyId).single(),
     db.from("branches").select("id,name,status").eq("company_id", companyId).eq("status", "active").order("created_at"),
     db.from("sales_categories").select("id,name,active").eq("company_id", companyId).order("sort_order"),
     db.from("sales_products").select("id,name,description,price,image_url,category_id,active,show_on_go,product_type").eq("company_id", companyId).neq("product_type", "raw_material").neq("product_type", "sub_recipe").order("sort_order"),
     db.from("sales_orders").select("id,order_no,customer_name,customer_phone,customer_notes,total,tracking_status,status,created_at,sales_order_lines(product_name,quantity)").eq("company_id", companyId).eq("channel", "go").order("created_at", { ascending: false }).limit(50),
+    isKingAdmin(access) ? db.from("companies").select("id,name").eq("status", "active").order("name") : Promise.resolve({ data: [], error: null }),
   ]);
-  const error = [store, company, branches, categories, products, orders].find((result) => result.error)?.error;
+  const error = [store, company, branches, categories, products, orders, companies].find((result) => result.error)?.error;
   if (error) { console.error("GO dashboard read failed", error); return json({ error: "Could not load GO" }, 500); }
   return json({ store: store.data, company: company.data, branches: branches.data, categories: categories.data,
-    products: products.data, orders: orders.data, can_manage: canManage(access) });
+    products: products.data, orders: orders.data, can_manage: canManage(access), selected_company_id: companyId, available_companies: companies.data || [] });
 }
 
 export async function PATCH(request: Request) {
   const access = await getAuthorizationContext();
-  const companyId = access?.profile.company_id;
+  const companyId = access && await selectedCompany(request, access);
   if (!access || !companyId) return json({ error: "Unauthorized" }, 401);
   if (!hasApp(access,"app_go") || !hasApp(access,"app_sell")) return json({error:"Forbidden"},403);
   if (!canManage(access)) return json({ error: "Forbidden" }, 403);
@@ -62,6 +71,12 @@ export async function PATCH(request: Request) {
     if (product.error || !product.data) return json({ error: "Product not found" }, 404);
     if (published && (!product.data.active || ["raw_material", "sub_recipe"].includes(product.data.product_type)
       || Number(product.data.price) < 0)) return json({ error: "Product is not ready for sale" }, 400);
+    if (published && product.data.category_id) {
+      const category = await db.from("sales_categories").select("id").eq("company_id", companyId)
+        .eq("id", product.data.category_id).eq("active", true).maybeSingle();
+      if (category.error) return json({ error: "Could not verify category" }, 500);
+      if (!category.data) return json({ error: "Activate the product category before publishing to GO" }, 400);
+    }
     const changed = await db.from("sales_products").update({ show_on_go: published }).eq("company_id", companyId).eq("id", id);
     return changed.error ? json({ error: "Could not update product" }, 500) : json({ ok: true });
   }

@@ -1,6 +1,6 @@
 export const DEFAULT_ORDER = [
   "monitoring", "cashier", "add_items", "inventory", "purchasing",
-  "production", "accounting", "agents", "crm", "clients", "apps", "settings", "go",
+  "production", "accounting", "reports", "agents", "crm", "clients", "apps", "settings", "go",
 ] as const;
 
 export type NavSectionKey = (typeof DEFAULT_ORDER)[number];
@@ -20,7 +20,7 @@ export function normalizeOrder(value: unknown): NavSectionKey[] {
   if (valid.includes("purchasing")) {
     if (!valid.includes("inventory")) valid.splice(valid.indexOf("purchasing"), 0, "inventory");
     let after = valid.indexOf("purchasing") + 1;
-    for (const key of ["production", "accounting"] as const) {
+    for (const key of ["production", "accounting", "reports"] as const) {
       if (!valid.includes(key)) valid.splice(after++, 0, key);
     }
   }
