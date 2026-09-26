@@ -23,7 +23,7 @@ export async function GET(request: Request) {
   if (!canView(access)) return json({ error: "Forbidden" }, 403);
   const db = createAdminClient();
   const [store, company, branches, categories, products, orders, companies] = await Promise.all([
-    db.from("go_stores").select("slug,pickup_branch_id,pickup_address,prep_minutes,enabled,logo_url,hero_image_url,primary_color,accent_color,contact_phone,contact_email,whatsapp_url,map_url,help_url,announcement_text,popup_enabled,popup_image_url,popup_title,popup_body,popup_link,about_title,about_body,about_image_url,locations_json,gallery_json,custom_links_json,font_family").eq("company_id", companyId).maybeSingle(),
+    db.from("go_stores").select("slug,pickup_branch_id,pickup_address,prep_minutes,enabled,logo_url,hero_image_url,primary_color,accent_color,contact_phone,contact_email,whatsapp_url,map_url,help_url,announcement_text,popup_enabled,popup_image_url,popup_title,popup_body,popup_link,about_title,about_body,about_image_url,locations_json,gallery_json,custom_links_json,font_family,site_template,site_sections,header_json,footer_json").eq("company_id", companyId).maybeSingle(),
     db.from("companies").select("name").eq("id", companyId).single(),
     db.from("branches").select("id,name,status").eq("company_id", companyId).eq("status", "active").order("created_at"),
     db.from("sales_categories").select("id,name,active").eq("company_id", companyId).order("sort_order"),
@@ -89,6 +89,7 @@ export async function PATCH(request: Request) {
       contact_phone:clean(body.contact_phone,40),contact_email:clean(body.contact_email,160),
       whatsapp_url:clean(body.whatsapp_url),map_url:clean(body.map_url),help_url:clean(body.help_url),
       announcement_text:clean(body.announcement_text,300),popup_enabled:!!body.popup_enabled,popup_image_url:clean(body.popup_image_url),popup_title:clean(body.popup_title,160),popup_body:clean(body.popup_body,800),popup_link:clean(body.popup_link),about_title:clean(body.about_title,160),about_body:clean(body.about_body,4000),about_image_url:clean(body.about_image_url),locations_json:Array.isArray(body.locations_json)?body.locations_json.slice(0,30):[],gallery_json:Array.isArray(body.gallery_json)?body.gallery_json.slice(0,30):[],custom_links_json:Array.isArray(body.custom_links_json)?body.custom_links_json.slice(0,20):[],
+      site_template:String(body.site_template||"restaurant_modern").slice(0,60),site_sections:Array.isArray(body.site_sections)?body.site_sections.slice(0,40):undefined,header_json:body.header_json&&typeof body.header_json==="object"?body.header_json:{},footer_json:body.footer_json&&typeof body.footer_json==="object"?body.footer_json:{},
       updated_at:new Date().toISOString()
     }).eq("company_id",companyId);
     return saved.error?json({error:"Could not save appearance"},500):json({ok:true});
