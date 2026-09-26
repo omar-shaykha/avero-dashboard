@@ -35,6 +35,8 @@ export default function CashierWorkspace() {
   const [heldId, H] = useState<string | null>(null);
   const [tableForm, setTableForm] = useState<any>({ name: "", area: "Main", seats: 2 });
   const [paying, setPaying] = useState(false);
+  const [openingCash, setOpeningCash] = useState("");
+  const [closingCash, setClosingCash] = useState("");
   const [lastShiftReport, setLastShiftReport] = useState<any>(null);
 
 
@@ -184,6 +186,7 @@ export default function CashierWorkspace() {
         customer,
         held_order_id: heldId,
         lines: cart.map((z: any) => ({ product_id: z.id, quantity: z.quantity, discount: 0, notes: z.notes || "" })),
+        checkout_key: crypto.randomUUID(),
         payments: [{ payment_method: method.code || method.name, base_amount: calc.total, amount: calc.total }]
       });
       if (j) {
@@ -213,17 +216,18 @@ export default function CashierWorkspace() {
   }
 
   async function openShift() {
-    await api("open_shift", { warehouse_id: wh || null, opening_cash: 0 });
+    const amount = Number(openingCash || 0); if (!Number.isFinite(amount) || amount < 0) return alert(L("Invalid opening cash", "رصيد البداية غير صالح"));
+    await api("open_shift", { warehouse_id: wh || null, opening_cash: amount }); setOpeningCash("");
     load();
   }
 
   async function closeShift() {
     if (!shift) return;
-    const closing = Number(shift.expected_cash ?? shift.opening_cash ?? 0);
+    const closing = Number(closingCash); if (!Number.isFinite(closing) || closing < 0) return alert(L("Enter counted cash before closing", "أدخل النقد المعدود قبل الإغلاق"));
     const j = await api("close_shift", { shift_id: shift.id, closing_cash: closing });
     if (j) {
       if (j.report) { setLastShiftReport(j.report); printShiftReport(j.report); }
-      await load();
+      setClosingCash(""); await load();
     }
   }
 
@@ -275,7 +279,7 @@ export default function CashierWorkspace() {
           {shift ? L("OPEN", "مفتوح") : L("CLOSED", "مغلق")}
         </span>
       </button>
-      {lastShiftReport && <button className={ghost} onClick={() => printShiftReport(lastShiftReport)}>{L("Print closing report", "طباعة تقرير الإقفال")}</button>}
+      {lastShiftReport && <button className={ghost} onClick={() => printShiftReport(lastShiftReport)}>{L("Print closing report", "طباعة تقرير الإقفال")}</button>}{!shift?<input className={`${inp} w-40`} type="number" min="0" step="0.01" value={openingCash} onChange={e=>setOpeningCash(e.target.value)} placeholder={L("Opening cash","نقد البداية")} />:<input className={`${inp} w-40`} type="number" min="0" step="0.01" value={closingCash} onChange={e=>setClosingCash(e.target.value)} placeholder={L("Counted cash","النقد المعدود")} />}
       <button className={ghost} onClick={() => Z("track")}>{L("Track Invoice", "تتبع الفاتورة")}</button>
       <button className={ghost} onClick={() => Z("tables")}>{L("Dining Map", "خريطة الطاولات")}</button>
       <button className={ghost} onClick={() => Z("holds")}>{L("Held Orders", "الطلبات المعلقة")} ({held.length})</button>
