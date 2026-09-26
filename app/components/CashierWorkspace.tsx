@@ -21,7 +21,7 @@ export default function CashierWorkspace() {
   const L = (e: string, a: string) => ar ? a : e;
 
   const [d, S] = useState<any>({ products: [], categories: [], orders: [], warehouses: [], shifts: [], refunds: [], settings: null });
-  const [x, X] = useState<any>({ payment_methods: [], tables: [], best_sellers: [], cashier_name: L("Cashier", "كاشير") });
+  const [x, X] = useState<any>({ payment_methods: [], tables: [], best_sellers: [], cashier_name: L("Cashier", "كاشير"), capabilities: {} });
   const [cart, K] = useState<any[]>([]);
   const [cat, C] = useState("all");
   const [q, Q] = useState("");
@@ -315,7 +315,7 @@ export default function CashierWorkspace() {
         <div className="border-t border-slate-800 p-5">
           <div className="text-sm"><div className="flex justify-between"><span>{L("Subtotal", "المجموع الفرعي")}</span><b>{current.subtotal.toFixed(2)}</b></div>{disc > 0 && <div className="flex justify-between text-emerald-300"><span>{L("Discount", "الخصم")} {disc}%</span><b>-{current.discount.toFixed(2)}</b></div>}<div className="flex justify-between"><span>{L("Tax", "الضريبة")}</span><b>{current.tax.toFixed(2)}</b></div><div className="mt-2 flex justify-between text-2xl font-black"><span>{L("Total", "الإجمالي")}</span><span>{current.total.toFixed(2)} {currency}</span></div></div>
           <button className={`${btn} mt-3 w-full`} disabled={!cart.length || !wh} onClick={() => { P(null); Z("payment"); }}>{L("Pay", "دفع")}</button>
-          <div className="mt-2 grid grid-cols-3 gap-2"><button className={ghost} disabled={!cart.length} onClick={hold}>{L("Hold", "تعليق")}</button><button className={ghost} onClick={() => { setCustomDisc(String(disc || "")); Z("discount"); }}>{L("Discount", "خصم")}</button><button className={ghost} onClick={() => Z("customer")}>{L("Customer", "العميل")}</button></div>
+          <div className="mt-2 grid grid-cols-3 gap-2"><button className={ghost} disabled={!cart.length} onClick={hold}>{L("Hold", "تعليق")}</button>{x.capabilities?.discount && <button className={ghost} onClick={() => { setCustomDisc(String(disc || "")); Z("discount"); }}>{L("Discount", "خصم")}</button>}<button className={ghost} onClick={() => Z("customer")}>{L("Customer", "العميل")}</button></div>
         </div>
       </aside>
     </div>
