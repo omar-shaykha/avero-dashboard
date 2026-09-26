@@ -36,8 +36,7 @@ export default function CashierWorkspace() {
   const [tableForm, setTableForm] = useState<any>({ name: "", area: "Main", seats: 2 });
   const [paying, setPaying] = useState(false);
   const [lastShiftReport, setLastShiftReport] = useState<any>(null);
-  const [closingCash, setClosingCash] = useState("");
-  const [closingShift, setClosingShift] = useState(false);
+
 
   async function load() {
     const [a, b] = await Promise.all([
@@ -219,26 +218,13 @@ export default function CashierWorkspace() {
     load();
   }
 
-  function requestCloseShift() {
-    if (!shift) return;
-    setClosingCash(String(shift.expected_cash ?? shift.opening_cash ?? 0));
-    Z("close_shift");
-  }
-
   async function closeShift() {
-    if (!shift || closingShift) return;
-    const closing = Number(closingCash);
-    if (!Number.isFinite(closing) || closing < 0) return alert(L("Invalid cash amount", "قيمة النقد غير صحيحة"));
-    setClosingShift(true);
-    try {
-      const j = await api("close_shift", { shift_id: shift.id, closing_cash: closing });
-      if (j) {
-        Z("");
-        if (j.report) { setLastShiftReport(j.report); printShiftReport(j.report); }
-        await load();
-      }
-    } finally {
-      setClosingShift(false);
+    if (!shift) return;
+    const closing = Number(shift.expected_cash ?? shift.opening_cash ?? 0);
+    const j = await api("close_shift", { shift_id: shift.id, closing_cash: closing });
+    if (j) {
+      if (j.report) { setLastShiftReport(j.report); printShiftReport(j.report); }
+      await load();
     }
   }
 
@@ -281,7 +267,7 @@ export default function CashierWorkspace() {
     <div className="flex flex-wrap gap-2">
       <button
         type="button"
-        onClick={() => shift ? requestCloseShift() : openShift()}
+        onClick={() => shift ? closeShift() : openShift()}
         className={"relative flex h-9 w-[118px] items-center rounded-full border px-1 transition " + (shift ? "border-emerald-500/50 bg-emerald-500/15" : "border-slate-600 bg-slate-950")}
         aria-label={shift ? L("Close shift", "إغلاق الوردية") : L("Open shift", "فتح الوردية")}
       >
@@ -336,28 +322,6 @@ export default function CashierWorkspace() {
         </div>
       </aside>
     </div>
-
-    {modal === "close_shift" && shift && <Modal t={L("Close Shift", "إغلاق الوردية")} x={() => !closingShift && Z("")}>
-      <div className="space-y-4">
-        <div className="rounded-2xl border border-slate-800 bg-slate-950 p-4">
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div><small className="text-slate-500">{L("Cashier", "الكاشير")}</small><div className="font-black">{x.cashier_name}</div></div>
-            <div><small className="text-slate-500">{L("Shift status", "حالة الوردية")}</small><div className="font-black text-emerald-300">{L("OPEN", "مفتوحة")}</div></div>
-            <div><small className="text-slate-500">{L("Opening cash", "نقد البداية")}</small><div className="text-xl font-black">{Number(shift.opening_cash || 0).toFixed(2)} {currency}</div></div>
-            <div><small className="text-slate-500">{L("Expected cash", "النقد المتوقع")}</small><div className="text-xl font-black text-cyan-300">{Number(shift.expected_cash ?? shift.opening_cash ?? 0).toFixed(2)} {currency}</div></div>
-          </div>
-        </div>
-        <div>
-          <label className="mb-2 block text-sm font-black">{L("Counted cash in drawer", "النقد الفعلي في الصندوق")}</label>
-          <input className={inp} type="number" min="0" step="0.01" autoFocus value={closingCash} onChange={e => setClosingCash(e.target.value)} />
-          <p className="mt-2 text-xs text-slate-500">{L("Confirming will close this shift and print the closing report automatically.", "عند التأكيد سيتم إغلاق الوردية وطباعة تقرير الإقفال تلقائياً.")}</p>
-        </div>
-        <div className="flex gap-2">
-          <button className={ghost} disabled={closingShift} onClick={() => Z("")}>{L("Cancel", "إلغاء")}</button>
-          <button className={`${btn} flex-1`} disabled={closingShift || closingCash === ""} onClick={closeShift}>{closingShift ? L("Closing...", "جارٍ الإغلاق...") : L("Close & Print Report", "إغلاق وطباعة التقرير")}</button>
-        </div>
-      </div>
-    </Modal>}
 
     {modal === "payment" && <Modal t={L("Choose Payment Method", "اختر طريقة الدفع")} x={() => { P(null); Z(""); }}>
       {x.payment_methods.length === 0 ? <div className="rounded-2xl border border-dashed border-slate-700 p-8 text-center text-slate-400">{L("No payment methods found. Add them from Settings → Cashier Monitor.", "لا توجد طرق دفع. أضفها من الإعدادات ← مراقبة الكاشير.")}</div> : <div className="grid gap-2 sm:grid-cols-2 md:grid-cols-3">{x.payment_methods.map((m: any) => <button key={m.id} className={`rounded-2xl border p-4 text-left rtl:text-right ${pay?.id === m.id ? "border-cyan-400 bg-cyan-400/10" : "border-slate-700 bg-slate-950"}`} onClick={() => P(m)}><b className="text-lg">{m.name}</b><div className="mt-2 text-xl font-black text-cyan-300">{totals(m).total.toFixed(2)} {currency}</div></button>)}</div>}
