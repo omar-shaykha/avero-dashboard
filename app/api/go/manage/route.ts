@@ -27,7 +27,7 @@ export async function GET(request: Request) {
     db.from("companies").select("name").eq("id", companyId).single(),
     db.from("branches").select("id,name,status").eq("company_id", companyId).eq("status", "active").order("created_at"),
     db.from("sales_categories").select("id,name,active").eq("company_id", companyId).order("sort_order"),
-    db.from("sales_products").select("id,name,description,price,image_url,category_id,active,show_on_go,product_type,calories,allergens").eq("company_id", companyId).neq("product_type", "raw_material").neq("product_type", "sub_recipe").order("sort_order"),
+    db.from("sales_products").select("id,sku,barcode,name,description,price,image_url,category_id,active,show_on_go,product_type,calories,allergens").eq("company_id", companyId).neq("product_type", "raw_material").neq("product_type", "sub_recipe").order("sort_order"),
     db.from("sales_orders").select("id,order_no,customer_name,customer_phone,customer_notes,total,tracking_status,status,created_at,sales_order_lines(product_name,quantity)").eq("company_id", companyId).eq("channel", "go").order("created_at", { ascending: false }).limit(50),
     isKingAdmin(access) ? db.from("companies").select("id,name").eq("status", "active").order("name") : Promise.resolve({ data: [], error: null }),
   ]);
