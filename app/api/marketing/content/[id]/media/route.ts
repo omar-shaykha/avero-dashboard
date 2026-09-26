@@ -45,6 +45,8 @@ function decodeDataUrl(value: string | null | undefined) {
 }
 
 async function generateVisual(prompt: string) {
+  // Cloudflare FLUX accepts prompts up to 2048 characters. Keep headroom for UTF-8/multilingual content.
+  const safePrompt = prompt.length > 1800 ? `${prompt.slice(0, 1790)}\nNo text or logos.` : prompt;
   const token = process.env.CLOUDFLARE_API_TOKEN;
   const accountId = process.env.CLOUDFLARE_ACCOUNT_ID;
   if (!token || !accountId) throw new Error("Missing Cloudflare Workers AI configuration");
@@ -58,7 +60,7 @@ async function generateVisual(prompt: string) {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        prompt,
+        prompt: safePrompt,
         steps: 8,
       }),
       signal: AbortSignal.timeout(90000),
