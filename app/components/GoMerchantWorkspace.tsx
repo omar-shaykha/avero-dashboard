@@ -1,95 +1,49 @@
 "use client";
-
-import { useCallback, useEffect, useState } from "react";
+import { useCallback,useEffect,useState } from "react";
 import Link from "next/link";
+import { useLanguage } from "./LanguageProvider";
 
-type Store = { slug: string; pickup_branch_id: string | null; pickup_address: string; prep_minutes: number; enabled: boolean };
-type Product = { id: string; name: string; price: number; active: boolean; show_on_go: boolean; category_id: string | null };
-type GoOrder = { id: string; order_no: string; customer_name: string; customer_phone: string; customer_notes: string | null; total: number; status: string; tracking_status: string; created_at: string; sales_order_lines: { product_name: string; quantity: number }[] };
-type Data = { company: { name: string }; store: Store | null; branches: { id: string; name: string }[]; products: Product[]; orders: GoOrder[]; can_manage: boolean; selected_company_id: string; available_companies: { id: string; name: string }[] };
+type Store={slug:string;pickup_branch_id:string|null;pickup_address:string;prep_minutes:number;enabled:boolean;logo_url?:string|null;hero_image_url?:string|null;primary_color?:string;accent_color?:string;contact_phone?:string|null;contact_email?:string|null;whatsapp_url?:string|null;map_url?:string|null;help_url?:string|null};
+type Product={id:string;name:string;description?:string|null;price:number;active:boolean;show_on_go:boolean;category_id:string|null;calories?:number|null;allergens?:string[]};
+type Data={company:{name:string};store:Store|null;branches:{id:string;name:string}[];products:Product[];orders:any[];can_manage:boolean;selected_company_id:string;available_companies:{id:string;name:string}[]};
+const input="w-full rounded-xl border border-slate-700 bg-slate-950 p-3 text-white outline-none focus:border-cyan-400";
+const button="rounded-xl bg-cyan-400 px-5 py-3 font-bold text-slate-950 disabled:opacity-50";
+export default function GoMerchantWorkspace(){
+ const {language}=useLanguage(),ar=language==="ar",L=(en:string,aa:string)=>ar?aa:en;
+ const [data,setData]=useState<Data|null>(null),[error,setError]=useState(""),[busy,setBusy]=useState(false),[companyId,setCompanyId]=useState("");
+ const [branchName,setBranchName]=useState(""),[address,setAddress]=useState(""),[branchId,setBranchId]=useState(""),[minutes,setMinutes]=useState(30);
+ const [appearance,setAppearance]=useState<any>({});
+ const load=useCallback(async()=>{const r=await fetch(`/api/go/manage${companyId?`?company=${encodeURIComponent(companyId)}`:""}`,{cache:"no-store"}),j=await r.json();if(!r.ok)throw new Error(j.error||L("Could not load GO","تعذّر تحميل GO"));setData(j);setAddress(j.store?.pickup_address||"");setBranchId(j.store?.pickup_branch_id||j.branches?.[0]?.id||"");setMinutes(j.store?.prep_minutes||30);setAppearance({logo_url:j.store?.logo_url||"",hero_image_url:j.store?.hero_image_url||"",primary_color:j.store?.primary_color||"#06b6d4",accent_color:j.store?.accent_color||"#f59e0b",contact_phone:j.store?.contact_phone||"",contact_email:j.store?.contact_email||"",whatsapp_url:j.store?.whatsapp_url||"",map_url:j.store?.map_url||"",help_url:j.store?.help_url||""})},[companyId,language]);
+ useEffect(()=>{load().catch(e=>setError(e.message))},[load]);
+ async function change(payload:Record<string,unknown>){setBusy(true);setError("");try{const r=await fetch(`/api/go/manage${companyId?`?company=${encodeURIComponent(companyId)}`:""}`,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)}),j=await r.json();if(!r.ok)throw new Error(j.error||L("Could not save","تعذّر الحفظ"));await load();setBranchName("")}catch(e){setError(e instanceof Error?e.message:L("Could not save","تعذّر الحفظ"))}finally{setBusy(false)}}
+ if(!data)return <div className="mt-8 rounded-2xl border border-slate-800 p-6 text-slate-300">{error||L("Loading GO settings…","جارٍ تحميل إعدادات GO…")}</div>;
+ const published=data.products.filter(p=>p.active&&p.show_on_go).length;
+ return <div className="mt-8 space-y-7">
+ {error&&<p className="rounded-xl border border-rose-600/50 bg-rose-500/10 p-4 text-rose-200">{error}</p>}
+ {data.available_companies.length>0&&<label className="block max-w-lg text-sm text-slate-300">{L("Menu company (King)","شركة المنيو (King)")}<select className={input+" mt-2"} value={data.selected_company_id} onChange={e=>{setCompanyId(e.target.value);setData(null)}}><option value={data.selected_company_id}>{data.company.name}</option>{data.available_companies.filter(c=>c.id!==data.selected_company_id).map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select></label>}
+ <section className="rounded-2xl border border-slate-800 bg-slate-900 p-6"><h2 className="text-xl font-bold">{L("Store setup","إعداد المتجر")}</h2><div className="mt-4 grid gap-3 sm:grid-cols-2">
+ {data.branches.length===0?<><label>{L("Branch name","اسم الفرع")}<input className={input+" mt-2"} value={branchName} onChange={e=>setBranchName(e.target.value)}/></label></>:<label>{L("Pickup branch","فرع الاستلام")}<select className={input+" mt-2"} value={branchId} onChange={e=>setBranchId(e.target.value)}>{data.branches.map(b=><option key={b.id} value={b.id}>{b.name}</option>)}</select></label>}
+ <label>{L("Pickup address","عنوان الاستلام")}<input className={input+" mt-2"} value={address} onChange={e=>setAddress(e.target.value)}/></label>
+ <label>{L("Preparation minutes","دقائق التحضير")}<input type="number" min="5" max="240" className={input+" mt-2"} value={minutes} onChange={e=>setMinutes(Number(e.target.value))}/></label></div>
+ {data.branches.length===0?<button className={button+" mt-4"} disabled={busy||branchName.trim().length<2||address.trim().length<8} onClick={()=>change({kind:"branch",name:branchName,address})}>{L("Add branch","إضافة الفرع")}</button>:<button className={button+" mt-4"} disabled={busy||!branchId||address.trim().length<8||!published} onClick={()=>change({kind:"store",branch_id:branchId,address,prep_minutes:minutes,enabled:!data.store?.enabled})}>{data.store?.enabled?L("Stop orders","إيقاف الطلبات"):L("Save and open orders","حفظ وفتح الطلبات")}</button>}
+ {data.store?.slug&&<Link href={`/go/${data.store.slug}`} target="_blank" className="ml-3 mt-4 inline-block rounded-xl border border-cyan-400 px-4 py-3 text-cyan-300">{L("Open QR website ↗","فتح موقع QR ↗")}</Link>}</section>
 
-const input = "w-full rounded-xl border border-slate-700 bg-slate-950 p-3 text-white outline-none focus:border-cyan-400";
-const button = "rounded-xl bg-cyan-400 px-5 py-3 font-bold text-slate-950 disabled:cursor-not-allowed disabled:opacity-50";
+ <section className="rounded-2xl border border-slate-800 bg-slate-900 p-6"><h2 className="text-xl font-bold">{L("Website appearance","شكل موقع الطلبات")}</h2><p className="mt-1 text-sm text-slate-400">{L("Make the QR site look like the merchant's own website.","خلّي موقع QR يظهر كأنه موقع خاص بالمتجر.")}</p>
+ <div className="mt-5 grid gap-6 lg:grid-cols-[1fr_360px]"><div className="grid gap-3 sm:grid-cols-2">
+ {([["logo_url","Logo URL","رابط الشعار"],["hero_image_url","Cover image URL","رابط صورة الغلاف"],["contact_phone","Contact phone","هاتف التواصل"],["contact_email","Contact email","بريد التواصل"],["whatsapp_url","WhatsApp link","رابط واتساب"],["map_url","Map link","رابط الموقع"],["help_url","Help center link","رابط مركز المساعدة"]] as const).map(([k,en,aa])=><label key={k} className="text-sm text-slate-300">{L(en,aa)}<input className={input+" mt-2"} value={appearance[k]||""} onChange={e=>setAppearance({...appearance,[k]:e.target.value})}/></label>)}
+ <label className="text-sm text-slate-300">{L("Primary color","اللون الأساسي")}<div className="mt-2 flex gap-2"><input type="color" value={appearance.primary_color||"#06b6d4"} onChange={e=>setAppearance({...appearance,primary_color:e.target.value})}/><input className={input} value={appearance.primary_color||""} onChange={e=>setAppearance({...appearance,primary_color:e.target.value})}/></div></label>
+ <label className="text-sm text-slate-300">{L("Accent color","لون الأزرار")}<div className="mt-2 flex gap-2"><input type="color" value={appearance.accent_color||"#f59e0b"} onChange={e=>setAppearance({...appearance,accent_color:e.target.value})}/><input className={input} value={appearance.accent_color||""} onChange={e=>setAppearance({...appearance,accent_color:e.target.value})}/></div></label>
+ <button className={button} disabled={busy||!data.can_manage} onClick={()=>change({kind:"appearance",...appearance})}>{L("Save website design","حفظ تصميم الموقع")}</button></div>
+ <div className="overflow-hidden rounded-3xl border border-slate-700 bg-slate-950"><div className="h-28 bg-cover bg-center" style={{backgroundColor:appearance.primary_color,backgroundImage:appearance.hero_image_url?`url("${appearance.hero_image_url}")`:undefined}}/><div className="p-5"><div className="flex items-center gap-3">{appearance.logo_url&&<img src={appearance.logo_url} alt="" className="h-12 w-12 rounded-xl object-cover"/>}<strong>{data.company.name}</strong></div><p className="mt-3 text-sm text-slate-400">{L("Live preview of the QR ordering page","معاينة مباشرة لصفحة طلب QR")}</p><button className="mt-4 w-full rounded-xl p-3 font-bold text-slate-950" style={{backgroundColor:appearance.accent_color}}>{L("Order now","اطلب الآن")}</button></div></div></div></section>
 
-export default function GoMerchantWorkspace() {
-  const [data, setData] = useState<Data | null>(null);
-  const [error, setError] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [branchName, setBranchName] = useState("");
-  const [address, setAddress] = useState("");
-  const [branchId, setBranchId] = useState("");
-  const [minutes, setMinutes] = useState(30);
-  const [companyId, setCompanyId] = useState("");
-  const load = useCallback(async () => {
-    const response = await fetch(`/api/go/manage${companyId ? `?company=${encodeURIComponent(companyId)}` : ""}`, { cache: "no-store" });
-    const result = await response.json();
-    if (!response.ok) throw new Error(result.error || "تعذّر تحميل GO");
-    setData(result);
-    setAddress(result.store?.pickup_address || "");
-    setBranchId(result.store?.pickup_branch_id || result.branches?.[0]?.id || "");
-    setMinutes(result.store?.prep_minutes || 30);
-  }, [companyId]);
-  useEffect(() => { load().catch((e) => setError(e.message)); }, [load]);
+ <section className="rounded-2xl border border-slate-800 bg-slate-900 p-6"><div className="flex justify-between gap-4"><h2 className="text-xl font-bold">{L("Menu items","أصناف المنيو")}</h2>{data.available_companies.length===0&&<Link href="/pos?area=add-items" className="text-cyan-300">{L("Add items ↗","إضافة أصناف ↗")}</Link>}</div>
+ <div className="mt-4 space-y-4">{data.products.map(p=><ProductEditor key={p.id} p={p} busy={busy} canManage={data.can_manage} L={L} change={change}/>)}</div></section>
 
-  async function change(payload: Record<string, unknown>) {
-    setBusy(true); setError("");
-    try {
-      const response = await fetch(`/api/go/manage${companyId ? `?company=${encodeURIComponent(companyId)}` : ""}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.error || "فشل الحفظ");
-      await load();
-      setBranchName("");
-    } catch (e) { setError(e instanceof Error ? e.message : "فشل الحفظ"); }
-    finally { setBusy(false); }
-  }
-
-  if (!data) return <div className="mt-8 rounded-2xl border border-slate-800 p-6 text-slate-300">{error || "عم نحمّل إعدادات المنيو..."}</div>;
-  const published = data.products.filter((p) => p.active && p.show_on_go).length;
-  const missing = [
-    !published && "انشر صنفًا واحدًا على الأقل تحت هذه الشركة",
-    !data.store?.pickup_branch_id && "اختر فرع الاستلام",
-    !data.store?.pickup_address && "أدخل عنوان الاستلام الحقيقي",
-    !data.store?.enabled && "احفظ وافتح المنيو للطلبات",
-  ].filter(Boolean);
-  return <div className="mt-8 space-y-7" dir="rtl">
-    {error && <p role="alert" className="rounded-xl border border-rose-600/50 bg-rose-500/10 p-4 text-rose-200">{error}</p>}
-    {data.available_companies.length > 0 && <label className="block max-w-lg text-sm text-slate-300">شركة المنيو (King)<select className={`${input} mt-2`} value={data.selected_company_id} onChange={(event) => { setCompanyId(event.target.value); setData(null); }}><option value={data.selected_company_id}>{data.company.name}</option>{data.available_companies.filter((company) => company.id !== data.selected_company_id).map((company) => <option key={company.id} value={company.id}>{company.name}</option>)}</select></label>}
-    <section className="rounded-2xl border border-slate-800 bg-slate-900 p-6">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div><h2 className="text-xl font-bold">منيو {data.company.name}</h2><p className="mt-2 text-sm text-slate-400">{data.store?.enabled ? "المنيو مفتوح للطلبات" : "المنيو غير منشور بعد"} · {published} صنف منشور</p></div>
-      </div>
-      <p className="mt-4 text-sm text-slate-400">تظهر الطلبات في هذه الصفحة وفي «الطلبات المعلّقة» بالكاشير. الدفع عند الاستلام؛ لا يتم خصم المخزون إلا عند إتمام البيع.</p>
-      {missing.length > 0 && <div className="mt-4 rounded-xl border border-amber-500/40 bg-amber-500/10 p-4 text-sm text-amber-100"><strong>قبل ظهور الأصناف في رابط QR لهذه الشركة:</strong><ul className="mt-2 list-inside list-disc space-y-1">{missing.map((reason) => <li key={String(reason)}>{reason}</li>)}</ul></div>}
-      {data.store?.enabled && data.store.slug && <Link className="mt-4 inline-block rounded-xl border border-cyan-400 px-4 py-2 font-bold text-cyan-300" href={`/go/${encodeURIComponent(data.store.slug)}`} target="_blank" rel="noopener noreferrer">افتح المنيو الإلكتروني ↗</Link>}
-    </section>
-
-    <section className="rounded-2xl border border-slate-800 bg-slate-900 p-6">
-      <h2 className="text-xl font-bold">١ · فرع الاستلام</h2>
-      {data.branches.length === 0 ? <div className="mt-4 grid gap-3 sm:grid-cols-2">
-        <label className="text-sm text-slate-300">اسم الفرع<input className={`${input} mt-2`} value={branchName} onChange={(e) => setBranchName(e.target.value)} placeholder="مثلاً: فرع الرياض" /></label>
-        <label className="text-sm text-slate-300">عنوان الاستلام الفعلي<input className={`${input} mt-2`} value={address} onChange={(e) => setAddress(e.target.value)} placeholder="المدينة، الحي، الشارع والموقع" /></label>
-        <button className={button} disabled={busy || branchName.trim().length < 2 || address.trim().length < 8} onClick={() => change({ kind: "branch", name: branchName, address })}>إضافة الفرع</button>
-      </div> : <div className="mt-4 grid gap-3 sm:grid-cols-2">
-        <label className="text-sm text-slate-300">الفرع<select className={`${input} mt-2`} value={branchId} onChange={(e) => setBranchId(e.target.value)}>{data.branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}</select></label>
-        <label className="text-sm text-slate-300">عنوان الاستلام<input className={`${input} mt-2`} value={address} onChange={(e) => setAddress(e.target.value)} placeholder="المدينة، الحي، الشارع" /></label>
-        <label className="text-sm text-slate-300">الوقت التقريبي بالدقائق<input type="number" min="5" max="240" className={`${input} mt-2`} value={minutes} onChange={(e) => setMinutes(Number(e.target.value))} /></label>
-      </div>}
-    </section>
-
-    <section className="rounded-2xl border border-slate-800 bg-slate-900 p-6">
-      <div className="flex flex-wrap items-center justify-between gap-4"><h2 className="text-xl font-bold">٢ · الأصناف والأسعار</h2>{data.available_companies.length === 0 && <Link href="/pos?area=add-items" className="rounded-xl border border-slate-600 px-4 py-2 text-sm text-cyan-300">إضافة الأصناف وتعديل الأسعار ↗</Link>}</div>
-      {data.products.length === 0 ? <p className="mt-4 text-slate-400">ما في أصناف بعد. أضفها من «Add Items» ثم انشرها هون.</p>
-        : <div className="mt-4 divide-y divide-slate-800">{data.products.map((p) => <div key={p.id} className="flex items-center justify-between gap-4 py-3"><div><strong>{p.name}</strong><p className="text-sm text-slate-400">{Number(p.price).toFixed(2)} SAR {p.active ? "" : "· غير نشط"}</p></div><button type="button" disabled={busy || !data.can_manage || !p.active} onClick={() => change({ kind: "product", id: p.id, published: !p.show_on_go })} className={`rounded-xl border px-4 py-2 text-sm disabled:opacity-50 ${p.show_on_go ? "border-cyan-400 text-cyan-300" : "border-slate-600 text-slate-300"}`}>{p.show_on_go ? "منشور ✓" : "انشر في GO"}</button></div>)}</div>}
-    </section>
-
-    <section className="rounded-2xl border border-slate-800 bg-slate-900 p-6">
-      <h2 className="text-xl font-bold">٣ · استقبال الطلبات</h2>
-      <p className="mt-2 text-sm text-slate-400">يلزم فرع بعنوان صحيح وصنف منشور واحد على الأقل قبل فتح استقبال الطلبات.</p>
-      <button className={`${button} mt-4`} disabled={busy || !data.can_manage || !branchId || address.trim().length < 8 || !published} onClick={() => change({ kind: "store", branch_id: branchId, address, prep_minutes: minutes, enabled: !data.store?.enabled })}>{data.store?.enabled ? "إيقاف استقبال الطلبات" : "حفظ وفتح المنيو للطلبات"}</button>
-      <div className="mt-7 space-y-3"><div className="flex items-center justify-between"><h3 className="font-bold">طلبات الاستلام الأخيرة</h3><button className="text-sm text-cyan-300" onClick={() => load().catch((e) => setError(e.message))}>تحديث الطلبات ↻</button></div>
-        {!data.orders.length && <p className="text-slate-400">ما في طلبات بعد.</p>}
-        {data.orders.map((o) => <div key={o.id} className="rounded-xl border border-slate-700 p-4"><div className="flex flex-wrap justify-between gap-2"><strong>{o.order_no} · {o.customer_name}</strong><span className="text-cyan-300">{Number(o.total).toFixed(2)} SAR</span></div><p className="mt-1 text-sm text-slate-300">{o.customer_phone} · {o.status === "cancelled" ? "ملغي" : o.status === "fulfilled" ? "تم الدفع والتسليم" : o.tracking_status === "ready" ? "جاهز" : o.tracking_status === "preparing" ? "قيد التحضير" : "جديد"}</p><p className="mt-2 text-sm text-slate-400">{o.sales_order_lines?.map((l) => `${l.product_name} × ${l.quantity}`).join("، ")}</p>{o.customer_notes && <p className="mt-1 text-sm text-slate-400">ملاحظة: {o.customer_notes}</p>}{o.status === "held" && data.can_manage && <div className="mt-3 flex gap-2">{(["preparing", "ready", "cancelled"] as const).map((status) => <button key={status} disabled={busy} className="rounded-lg border border-slate-600 px-3 py-1 text-xs" onClick={() => change({ kind: "order", id: o.id, status })}>{status === "preparing" ? "قيد التحضير" : status === "ready" ? "جاهز" : "إلغاء"}</button>)}</div>}</div>)}
-      </div>
-    </section>
-  </div>;
+ <section className="rounded-2xl border border-slate-800 bg-slate-900 p-6"><h2 className="text-xl font-bold">{L("Recent pickup orders","طلبات الاستلام الأخيرة")}</h2><div className="mt-4 space-y-3">{data.orders.length===0&&<p className="text-slate-400">{L("No orders yet.","لا توجد طلبات بعد.")}</p>}{data.orders.map(o=><div key={o.id} className="rounded-xl border border-slate-700 p-4"><div className="flex justify-between"><strong>{o.order_no} · {o.customer_name}</strong><span>{Number(o.total).toFixed(2)} SAR</span></div><p className="mt-2 text-sm text-slate-400">{o.customer_phone}</p></div>)}</div></section>
+ </div>;
+}
+function ProductEditor({p,busy,canManage,L,change}:{p:Product;busy:boolean;canManage:boolean;L:(a:string,b:string)=>string;change:(x:Record<string,unknown>)=>Promise<void>}){
+ const [description,setDescription]=useState(p.description||""),[calories,setCalories]=useState(p.calories?.toString()||""),[allergens,setAllergens]=useState((p.allergens||[]).join(", "));
+ useEffect(()=>{setDescription(p.description||"");setCalories(p.calories?.toString()||"");setAllergens((p.allergens||[]).join(", "))},[p.description,p.calories,p.allergens]);
+ return <div className="rounded-xl border border-slate-800 p-4"><div className="flex flex-wrap items-center justify-between gap-3"><div><strong>{p.name}</strong><p className="text-sm text-slate-400">{Number(p.price).toFixed(2)} SAR</p></div><button disabled={busy||!canManage||!p.active} onClick={()=>change({kind:"product",id:p.id,published:!p.show_on_go})} className="rounded-xl border border-cyan-500/40 px-3 py-2 text-sm text-cyan-300">{p.show_on_go?L("Published","منشور"):L("Publish","نشر")}</button></div><div className="mt-3 grid gap-3 md:grid-cols-3"><input className={input} placeholder={L("Description","الوصف")} value={description} onChange={e=>setDescription(e.target.value)}/><input className={input} type="number" min="0" placeholder={L("Calories","السعرات")} value={calories} onChange={e=>setCalories(e.target.value)}/><input className={input} placeholder={L("Allergens, comma separated","مسببات الحساسية، مفصولة بفاصلة")} value={allergens} onChange={e=>setAllergens(e.target.value)}/></div><button className="mt-3 rounded-lg border border-slate-600 px-3 py-2 text-xs" disabled={busy||!canManage} onClick={()=>change({kind:"product_details",id:p.id,description,calories,allergens:allergens.split(",")})}>{L("Save item details","حفظ تفاصيل الصنف")}</button></div>
 }
