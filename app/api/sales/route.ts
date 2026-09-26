@@ -27,11 +27,20 @@ async function upsertCustomer(x:any, customer:any){
   if(phone){
     const existing=await x.s.from('sales_customers').select('id').eq('company_id',x.c).eq('phone',phone).maybeSingle();
     if(existing.data){
-      await x.s.from('sales_customers').update({name:name||phone,email:email||null,notes:notes||null,active:true}).eq('id',existing.data.id).eq('company_id',x.c);
+      const extra:any={name:name||phone,email:email||null,notes:notes||null,active:true};
+      if(customer.tax_number!==undefined)extra.tax_number=customer.tax_number||null;
+      if(customer.commercial_registration!==undefined)extra.commercial_registration=customer.commercial_registration||null;
+      if(customer.national_address!==undefined)extra.national_address=customer.national_address||null;
+      if(customer.iban!==undefined)extra.iban=customer.iban||null;
+      if(customer.address!==undefined)extra.address=customer.address||null;
+      if(customer.city!==undefined)extra.city=customer.city||null;
+      extra.customer_type=extra.commercial_registration&&extra.tax_number&&extra.national_address?'business':'individual';
+      await x.s.from('sales_customers').update(extra).eq('id',existing.data.id).eq('company_id',x.c);
       return existing.data.id;
     }
   }
-  const ins=await x.s.from('sales_customers').insert({company_id:x.c,customer_code:`CUS-${Date.now().toString().slice(-7)}`,name:name||phone,phone:phone||null,email:email||null,notes:notes||null,active:true}).select('id').single();
+  const b2b=customer.commercial_registration&&customer.tax_number&&customer.national_address;
+  const ins=await x.s.from('sales_customers').insert({company_id:x.c,customer_code:`CUS-${Date.now().toString().slice(-7)}`,name:name||phone,phone:phone||null,email:email||null,notes:notes||null,tax_number:customer.tax_number||null,commercial_registration:customer.commercial_registration||null,national_address:customer.national_address||null,iban:customer.iban||null,address:customer.address||null,city:customer.city||null,customer_type:b2b?'business':'individual',active:true}).select('id').single();
   return ins.data?.id||null;
 }
 
