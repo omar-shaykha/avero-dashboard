@@ -7,9 +7,15 @@ export async function POST(){
   if(!access)return NextResponse.json({error:"Unauthorized"},{status:401});
   const companyId=access.profile.company_id;
   const now=new Date().toISOString();
-  const {error}=await createAdminClient().from("user_presence").upsert({
-    user_id:access.user.id,company_id:companyId,last_seen_at:now,updated_at:now
-  },{onConflict:"user_id"});
+  const {error}=await createAdminClient().from("user_presence").upsert({user_id:access.user.id,company_id:companyId,last_seen_at:now,updated_at:now},{onConflict:"user_id"});
   if(error){console.error("Presence heartbeat error",error);return NextResponse.json({error:"Presence unavailable"},{status:500});}
+  return NextResponse.json({ok:true});
+}
+export async function DELETE(){
+  const access=await getAuthorizationContext();
+  if(!access)return NextResponse.json({ok:true});
+  const old=new Date(0).toISOString();
+  const {error}=await createAdminClient().from("user_presence").update({last_seen_at:old,updated_at:new Date().toISOString()}).eq("user_id",access.user.id);
+  if(error){console.error("Presence offline error",error);return NextResponse.json({error:"Presence unavailable"},{status:500});}
   return NextResponse.json({ok:true});
 }
