@@ -1,0 +1,8 @@
+import {NextRequest,NextResponse} from "next/server";
+import {createAdminClient} from "@/lib/supabase/admin";
+import {getAuthorizationContext,hasApp,hasPermission,isKingAdmin,isTenantAdmin} from "@/lib/auth/authorization";
+export const runtime="nodejs";
+export async function POST(req:NextRequest){const a=await getAuthorizationContext();if(!a||!a.profile.company_id)return NextResponse.json({error:"Unauthorized"},{status:401});if(!hasApp(a,"app_go"))return NextResponse.json({error:"Forbidden"},{status:403});if(!isKingAdmin(a)&&!isTenantAdmin(a)&&!hasPermission(a,"go.manage"))return NextResponse.json({error:"Forbidden"},{status:403});
+ const form=await req.formData(),file=form.get("file");if(!(file instanceof File))return NextResponse.json({error:"Image required"},{status:400});if(!["image/jpeg","image/png","image/webp","image/gif"].includes(file.type)||file.size>10*1024*1024)return NextResponse.json({error:"Use JPG, PNG, WEBP or GIF up to 10 MB"},{status:400});
+ const ext=(file.name.split(".").pop()||"jpg").replace(/[^a-z0-9]/gi,"").toLowerCase(),path=`${a.profile.company_id}/${Date.now()}-${crypto.randomUUID()}.${ext}`,db=createAdminClient();
+ const up=await db.storage.from("go-website-media").upload(path,await file.arrayBuffer(),{contentType:file.type,upsert:false});if(up.error)return NextResponse.json({error:"Upload failed"},{status:500});const {data}=db.storage.from("go-website-media").getPublicUrl(path);return NextResponse.json({url:data.publicUrl})}
