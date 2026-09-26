@@ -2,7 +2,7 @@ import { canAccess, getAuthorizationContext, isKingAdmin } from "@/lib/auth/auth
 import { createAdminClient } from "@/lib/supabase/admin";
 import sharp from "sharp";
 
-const IMAGE_MODEL = process.env.CLOUDFLARE_IMAGE_MODEL || "@cf/black-forest-labs/flux-1-schnell";
+const IMAGE_MODEL = process.env.CLOUDFLARE_IMAGE_MODEL || "@cf/black-forest-labs/flux-1-dev";
 
 function esc(value: unknown) {
   return String(value || "")
@@ -59,7 +59,8 @@ async function generateVisual(prompt: string) {
       },
       body: JSON.stringify({
         prompt,
-        steps: 4,
+        steps: 20,
+        guidance: 4.5,
       }),
       signal: AbortSignal.timeout(90000),
     }
@@ -140,6 +141,9 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
       `Brand visual style: ${brandKit?.visual_style || "premium futuristic business technology, dark navy and black, cyan/electric-blue accents, clean high-end SaaS aesthetic"}.`,
       `Brand colors: primary ${brandKit?.primary_color || "#0B2A45"}, secondary ${brandKit?.secondary_color || "#00C8FF"}, accent ${brandKit?.accent_color || "#22D3EE"}.`,
       "The image must look like a professionally art-directed advertising visual, not a generic template.",
+      "Generate ONLY the photographic/illustrative campaign artwork. Absolutely no letters, words, numbers, typography, logos, icons with letters, app screens, dashboards, interface cards, charts with labels, signs, packaging text, or watermark-like marks.",
+      "Treat all brand identity as a later compositing layer: use the brand palette and visual mood, but NEVER attempt to draw the brand name or logo.",
+      "Prefer one strong hero concept with premium materials, cinematic lighting and intentional negative space over a busy collage.",
       "Use strong composition, realistic premium lighting, depth, subtle futuristic business/AI/operations elements, and enough negative space for brand identity.",
       "Do not render paragraphs, captions, hashtags, UI screenshots, fake dashboards, or random text inside the image.",
       "Do not generate logos or imitate another company logo. Leave the top-left area visually clean because AVERO's real logo will be overlaid there after generation.",
@@ -148,7 +152,7 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
     ].join("\n");
 
     let image: Buffer;
-    let provider = "cloudflare_flux_1_schnell";
+    let provider = "cloudflare_flux_quality";
     let generationError: string | null = null;
 
     try {
@@ -221,7 +225,7 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
       company_id: companyId,
       agent_key: "ai_marketing",
       action: "generate_media",
-      status: provider === "cloudflare_flux_1_schnell" ? "completed" : "completed_with_fallback",
+      status: provider === "cloudflare_flux_quality" ? "completed" : "completed_with_fallback",
       input: { content_id: id, visual_idea: visualIdea },
       output: { media_url: mediaUrl, provider, generation_error: generationError },
       error_message: generationError,
