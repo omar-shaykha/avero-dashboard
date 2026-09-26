@@ -199,9 +199,8 @@ export async function POST(req:Request){
     const pct=Math.max(0,Number(pm.data?.adjustment_percent||0));const sign=pm.data?.adjustment_type==='discount'?-1:1;const multiplier=Math.max(0.01,1+(sign*pct/100));
     const pricedLines=(Array.isArray(d.lines)?d.lines:[]).map((line:any)=>({...line,price_multiplier:multiplier}));
     const safePayments=requestedPayments.map((p:any)=>({payment_method:String(p.payment_method).toLowerCase(),base_amount:Number(p.base_amount??p.amount??0),amount:Number(p.amount??p.base_amount??0),reference_no:p.reference_no||null}));
-    const r=await x.s.rpc('sales_checkout',{p_company_id:x.c,p_cashier:x.a.user.id,p_shift_id:d.shift_id,p_warehouse_id:d.warehouse_id,p_service_type:d.service_type||'retail',p_table_no:d.table_no||null,p_discount:discount,p_lines:pricedLines,p_payments:safePayments,p_notes:d.notes||null});if(r.error)return NextResponse.json({error:r.error.message},{status:400});
+    const r=await x.s.rpc('sales_checkout_idempotent',{p_company_id:x.c,p_cashier:x.a.user.id,p_shift_id:d.shift_id,p_warehouse_id:d.warehouse_id,p_service_type:d.service_type||'retail',p_table_no:d.table_no||null,p_discount:discount,p_lines:pricedLines,p_payments:safePayments,p_notes:d.notes||null,p_checkout_key:checkoutKey});if(r.error)return NextResponse.json({error:r.error.message},{status:400});
     const oid=r.data?.order_id;
-    if(oid)await x.s.from('sales_orders').update({checkout_key:checkoutKey}).eq('id',oid).eq('company_id',x.c);
     if(oid){
       const customerId=await upsertCustomer(x,d.customer);
       await x.s.from('sales_orders').update({customer_id:customerId,customer_name:d.customer?.name||null,customer_phone:d.customer?.phone||null,customer_email:d.customer?.email||null,customer_notes:d.customer?.notes||null,discount_percent:Number(d.discount_percent||0)}).eq('id',oid).eq('company_id',x.c);
