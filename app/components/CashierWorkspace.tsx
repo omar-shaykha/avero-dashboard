@@ -213,8 +213,7 @@ export default function CashierWorkspace() {
   }
 
   async function openShift() {
-    if (!wh) return alert(L("Create or select a warehouse", "أنشئ أو اختر مستودعاً"));
-    await api("open_shift", { warehouse_id: wh, opening_cash: 0 });
+    await api("open_shift", { warehouse_id: wh || null, opening_cash: 0 });
     load();
   }
 
