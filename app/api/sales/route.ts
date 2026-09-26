@@ -9,6 +9,18 @@ const db = () => createAdminClient();
 const can = (a:any,p:string) => isKingAdmin(a) || isTenantAdmin(a) || hasPermission(a,p);
 async function C(){ const a=await getAuthorizationContext(); return (hasApp(a,'app_sell') && a?.profile?.company_id) ? {a,c:a.profile.company_id,s:db()} : null; }
 async function owned(s:any,table:string,id:string|undefined,c:string){ if(!id)return true; const r=await s.from(table).select('id').eq('id',id).eq('company_id',c).maybeSingle(); return !!r.data; }
+async function resolveSalesWarehouse(x:any,requested?:string){
+  if(requested&&await owned(x.s,'inventory_warehouses',requested,x.c))return requested;
+  const settings=await x.s.from('sales_settings').select('default_warehouse_id').eq('company_id',x.c).maybeSingle();
+  if(settings.data?.default_warehouse_id&&await owned(x.s,'inventory_warehouses',settings.data.default_warehouse_id,x.c))return settings.data.default_warehouse_id;
+  const existing=await x.s.from('inventory_warehouses').select('id').eq('company_id',x.c).eq('active',true).order('is_default',{ascending:false}).order('created_at',{ascending:true}).limit(1).maybeSingle();
+  if(existing.data?.id)return existing.data.id;
+  const ins=await x.s.from('inventory_warehouses').insert({company_id:x.c,code:'MAIN',name:'Main Warehouse',warehouse_type:'warehouse',active:true,is_default:true,allow_sales:true}).select('id').single();
+  if(ins.data?.id)return ins.data.id;
+  const retry=await x.s.from('inventory_warehouses').select('id').eq('company_id',x.c).eq('code','MAIN').maybeSingle();
+  if(retry.data?.id)return retry.data.id;
+  throw new Error(ins.error?.message||'Could not prepare sales location');
+}
 async function upsertCustomer(x:any, customer:any){
   const name=String(customer?.name||'').trim(),phone=String(customer?.phone||'').trim(),email=String(customer?.email||'').trim(),notes=String(customer?.notes||'').trim();
   if(!name&&!phone)return null;
@@ -80,10 +92,11 @@ export async function POST(req:Request){
   }
   if(b.kind==='open_shift'){
     if(!can(x.a,'sales.cashier'))return NextResponse.json({error:'Forbidden'},{status:403});
-    if(!d.warehouse_id || !await owned(x.s,'inventory_warehouses',d.warehouse_id,x.c))return NextResponse.json({error:'Valid warehouse is required'},{status:400});
+    let warehouseId:string;
+    try{warehouseId=await resolveSalesWarehouse(x,d.warehouse_id);}catch{return NextResponse.json({error:'Could not prepare cashier sales location'},{status:500});}
     const openingCash=Number(d.opening_cash||0);if(!Number.isFinite(openingCash)||openingCash<0)return NextResponse.json({error:'Invalid opening cash'},{status:400});
     const existing=await x.s.from('sales_shifts').select('*').eq('company_id',x.c).eq('user_id',x.a.user.id).eq('status','open').maybeSingle();if(existing.data)return NextResponse.json({record:existing.data});
-    const r=await x.s.from('sales_shifts').insert({company_id:x.c,user_id:x.a.user.id,warehouse_id:d.warehouse_id,opening_cash:openingCash,status:'open'}).select().single();
+    const r=await x.s.from('sales_shifts').insert({company_id:x.c,user_id:x.a.user.id,warehouse_id:warehouseId,opening_cash:openingCash,status:'open'}).select().single();
     return r.error?NextResponse.json({error:r.error.message},{status:400}):NextResponse.json({record:r.data});
   }
   if(b.kind==='close_shift'){
