@@ -282,11 +282,11 @@ export default function CashierWorkspace() {
       <button
         type="button"
         onClick={() => shift ? requestCloseShift() : openShift()}
-        className={`relative flex h-9 w-[118px] items-center rounded-full border px-1 transition ${shift ? "border-emerald-500/50 bg-emerald-500/15" : "border-slate-600 bg-slate-950"}`}
+        className={"relative flex h-9 w-[118px] items-center rounded-full border px-1 transition " + (shift ? "border-emerald-500/50 bg-emerald-500/15" : "border-slate-600 bg-slate-950")}
         aria-label={shift ? L("Close shift", "إغلاق الوردية") : L("Open shift", "فتح الوردية")}
       >
-        <span className={`absolute h-7 w-7 rounded-full transition-all ${shift ? (ar ? "right-[86px] bg-emerald-400" : "left-[86px] bg-emerald-400") : (ar ? "right-1 bg-slate-500" : "left-1 bg-slate-500")}`} />
-        <span className={`w-full px-2 text-xs font-black ${shift ? (ar ? "text-right" : "text-left") : (ar ? "text-left" : "text-right")}`}>
+        <span className={"absolute h-7 w-7 rounded-full transition-all " + (shift ? (ar ? "right-[86px] bg-emerald-400" : "left-[86px] bg-emerald-400") : (ar ? "right-1 bg-slate-500" : "left-1 bg-slate-500"))} />
+        <span className={"w-full px-2 text-xs font-black " + (shift ? (ar ? "text-right" : "text-left") : (ar ? "text-left" : "text-right"))}>
           {shift ? L("OPEN", "مفتوح") : L("CLOSED", "مغلق")}
         </span>
       </button>
