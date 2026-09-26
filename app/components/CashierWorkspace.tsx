@@ -293,7 +293,7 @@ export default function CashierWorkspace() {
         </span>
       </button>
       {lastShiftReport && <button className={ghost} onClick={() => printShiftReport(lastShiftReport)}>{L("Print closing report", "طباعة تقرير الإقفال")}</button>}{!shift?<input className={`${inp} w-40`} type="number" min="0" step="0.01" value={openingCash} onChange={e=>setOpeningCash(e.target.value)} placeholder={L("Opening cash","نقد البداية")} />:<input className={`${inp} w-40`} type="number" min="0" step="0.01" value={closingCash} onChange={e=>setClosingCash(e.target.value)} placeholder={L("Counted cash","النقد المعدود")} />}
-      <button className={ghost} onClick={() => Z("track")}>{L("Track Invoice", "تتبع الفاتورة")}</button>{shift&&<button className={ghost} onClick={()=>Z("cashmove")}>{L("Cash In / Out","إدخال / إخراج نقدي")}</button>}
+      <a className={ghost} href="/pos?area=kds">{L("Kitchen","المطبخ")}</a><button className={ghost} onClick={() => Z("track")}>{L("Track Invoice", "تتبع الفاتورة")}</button>{shift&&<button className={ghost} onClick={()=>Z("cashmove")}>{L("Cash In / Out","إدخال / إخراج نقدي")}</button>}
       <button className={ghost} onClick={() => Z("tables")}>{L("Dining Map", "خريطة الطاولات")}</button>
       <button className={ghost} onClick={() => Z("holds")}>{L("Held Orders", "الطلبات المعلقة")} ({held.length})</button>
     </div>
