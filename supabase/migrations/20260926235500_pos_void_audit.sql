@@ -1,0 +1,4 @@
+alter table public.sales_orders add column if not exists void_reason text;
+create table if not exists public.sales_audit_log(id uuid primary key default gen_random_uuid(),company_id uuid not null references public.companies(id) on delete cascade,order_id uuid references public.sales_orders(id) on delete set null,action text not null,reason text,performed_by uuid,metadata jsonb not null default '{}'::jsonb,created_at timestamptz not null default now());
+create index if not exists sales_audit_log_order_idx on public.sales_audit_log(company_id,order_id,created_at desc);
+-- sales_void_order is installed in Supabase: only unpaid draft/held orders can be voided; paid orders must use refund.
