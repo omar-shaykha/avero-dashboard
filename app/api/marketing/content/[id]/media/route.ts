@@ -2,7 +2,7 @@ import { canAccess, getAuthorizationContext, isKingAdmin } from "@/lib/auth/auth
 import { createAdminClient } from "@/lib/supabase/admin";
 import sharp from "sharp";
 
-const IMAGE_MODEL = process.env.CLOUDFLARE_IMAGE_MODEL || "@cf/black-forest-labs/flux-1-dev";
+const IMAGE_MODEL = process.env.CLOUDFLARE_IMAGE_MODEL || "@cf/black-forest-labs/flux-1-schnell";
 
 function esc(value: unknown) {
   return String(value || "")
@@ -59,8 +59,7 @@ async function generateVisual(prompt: string) {
       },
       body: JSON.stringify({
         prompt,
-        steps: 20,
-        guidance: 4.5,
+        steps: 8,
       }),
       signal: AbortSignal.timeout(90000),
     }
@@ -152,7 +151,7 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
     ].join("\n");
 
     let image: Buffer;
-    let provider = "cloudflare_flux_quality";
+    let provider = "cloudflare_flux_1_schnell";
     let generationError: string | null = null;
 
     try {
@@ -225,7 +224,7 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
       company_id: companyId,
       agent_key: "ai_marketing",
       action: "generate_media",
-      status: provider === "cloudflare_flux_quality" ? "completed" : "completed_with_fallback",
+      status: provider === "cloudflare_flux_1_schnell" ? "completed" : "completed_with_fallback",
       input: { content_id: id, visual_idea: visualIdea },
       output: { media_url: mediaUrl, provider, generation_error: generationError },
       error_message: generationError,
