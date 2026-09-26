@@ -1,6 +1,6 @@
 export const DEFAULT_ORDER = [
   "monitoring", "cashier", "customers", "add_items", "inventory", "purchasing",
-  "production", "accounting", "reports", "agents", "crm", "clients", "apps", "settings", "go",
+  "production", "accounting", "reports", "agents", "crm", "clients", "apps", "settings", "go", "website_builder",
 ] as const;
 
 export type NavSectionKey = (typeof DEFAULT_ORDER)[number];
