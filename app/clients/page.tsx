@@ -10,7 +10,7 @@ import ClientsTable from "@/app/components/ClientsTable";
 import AddClientModal from "@/app/components/AddClientModal";
 import { useLanguage } from "@/app/components/LanguageProvider";
 
-interface Company { id: string; name: string; whatsapp_phone_number_id?: string; activity_key?: string; activity_label?: string; created_at: string; }
+interface Company { id: string; name: string; whatsapp_phone_number_id?: string; activity_key?: string; activity_label?: string; created_at: string; online?: boolean; }
 interface User { id: string; email?: string; }
 type AddClientForm = { companyName: string; adminEmail: string; temporaryPassword: string; whatsappPhoneNumberId: string; activityKey: string; };
 
@@ -50,6 +50,13 @@ export default function ClientsPage() {
     };
     load();
   }, [router]);
+
+  useEffect(() => {
+    if (loading || accessDenied) return;
+    const refreshPresence = async () => { const res = await fetch("/api/clients", { cache: "no-store" }); if (res.ok) setCompanies(await res.json()); };
+    const timer = window.setInterval(refreshPresence, 30000);
+    return () => window.clearInterval(timer);
+  }, [loading, accessDenied]);
 
   const handleAddClient = async (formData: AddClientForm) => {
     const response = await fetch("/api/clients", {
