@@ -23,7 +23,7 @@ const operationsPermissions: Record<OperationsArea, string[]> = {
 export default function Sidebar({ access }: SidebarProps) {
   const pathname = usePathname();
   const { t, language } = useLanguage();
-  const rtl = language === "ar";
+  const rtl = false;
   const [loadedAccess, setLoadedAccess] = useState(access);
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -138,6 +138,7 @@ export default function Sidebar({ access }: SidebarProps) {
 
   const sections: Record<NavSectionKey, ReactNode> = {
     monitoring: monitoringVisible ? <Main href="/manager-monitoring" label={collapsed ? "" : L("Manager", "المدير")} icon={BarChart3} active={pathname?.startsWith("/manager-monitoring") || pathname?.startsWith("/analytics")} /> : null,
+    customers: sellVisible && canModule("sales.view", "customers.manage") ? <Main href="/customers" label={collapsed ? "" : L("Customers", "العملاء")} icon={UsersRound} active={pathname?.startsWith("/customers")} /> : null,
     cashier: sellVisible && canModule("sales.view", "sales.cashier") ? <Main href="/pos?area=cashier" label={collapsed ? "" : L("Cashier", "الكاشير")} icon={Store} active={pathname === "/pos" && currentArea === "cashier"} onClick={() => selectRoute("cashier")} /> : null,
     add_items: sellVisible && canModule("sales.manage") ? <Main href="/pos?area=add-items" label={collapsed ? "" : L("Add Items", "إضافة الأصناف")} icon={PackagePlus} active={pathname === "/pos" && currentArea === "add-items"} onClick={() => selectRoute("add-items")} /> : null,
     inventory: canOperationsArea("inventory") ? <Main href="/operations?area=inventory" label={collapsed ? "" : L("Inventory", "المخزون")} icon={Warehouse} active={pathname === "/operations" && operationsArea === "inventory"} onClick={() => selectOperations("inventory")} /> : null,
