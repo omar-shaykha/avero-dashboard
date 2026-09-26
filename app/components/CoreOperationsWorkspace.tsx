@@ -4,12 +4,14 @@ import { useEffect, useState } from "react";
 import CashierWorkspace from "@/app/components/CashierWorkspace";
 import ProductsWorkspace from "@/app/components/ProductsWorkspace";
 import PurchasingWorkspace from "@/app/components/PurchasingWorkspace";
+import KdsWorkspace from "@/app/components/KdsWorkspace";
 
-type Area = "cashier" | "add-items" | "purchasing";
+type Area = "cashier" | "add-items" | "purchasing" | "kds";
 
 function normalizeArea(value?: string): Area {
   if (value === "add-items" || value === "products") return "add-items";
   if (value === "purchasing") return "purchasing";
+  if (value === "kds") return "kds";
   return "cashier";
 }
 
@@ -20,5 +22,5 @@ export default function CoreOperationsWorkspace({ initialArea = "cashier" }: { i
     setArea(normalizeArea(initialArea));
   }, [initialArea]);
 
-  return area === "add-items" ? <ProductsWorkspace /> : area === "purchasing" ? <PurchasingWorkspace /> : <CashierWorkspace />;
+  return area === "add-items" ? <ProductsWorkspace /> : area === "purchasing" ? <PurchasingWorkspace /> : area === "kds" ? <KdsWorkspace /> : <CashierWorkspace />;
 }
