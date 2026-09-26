@@ -157,6 +157,12 @@ export async function POST(req:Request){
   if(b.kind==='cancel_hold'){
     if(!can(x.a,'sales.cashier'))return NextResponse.json({error:'Forbidden'},{status:403});const h=await x.s.from('sales_orders').select('id').eq('id',d.order_id).eq('company_id',x.c).eq('status','held').maybeSingle();if(!h.data)return NextResponse.json({error:'Held order not found'},{status:404});await x.s.from('sales_order_lines').delete().eq('order_id',d.order_id).eq('company_id',x.c);await x.s.from('sales_orders').delete().eq('id',d.order_id).eq('company_id',x.c);return NextResponse.json({ok:true});
   }
+  if(b.kind==='void'){
+    if(!can(x.a,'sales.void')&&!can(x.a,'sales.manage'))return NextResponse.json({error:'Void permission required'},{status:403});
+    if(!d.order_id||!String(d.reason||'').trim())return NextResponse.json({error:'Order and reason are required'},{status:400});
+    const r=await x.s.rpc('sales_void_order',{p_company_id:x.c,p_order_id:d.order_id,p_user_id:x.a.user.id,p_reason:String(d.reason)});
+    return r.error?NextResponse.json({error:r.error.message},{status:400}):NextResponse.json({result:r.data});
+  }
   if(b.kind==='partial_refund'){
     if(!can(x.a,'sales.refund'))return NextResponse.json({error:'Forbidden'},{status:403});
     const lines=Array.isArray(d.lines)?d.lines.filter((z:any)=>Number(z.quantity)>0):[];if(!d.order_id||!lines.length)return NextResponse.json({error:'Select refund items'},{status:400});
