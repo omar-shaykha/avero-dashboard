@@ -240,6 +240,8 @@ export default function CashierWorkspace() {
     }
   }
 
+  async function voidOrder(order:any){const reason=window.prompt(L("Void reason","سبب الإلغاء"),"");if(reason===null||!reason.trim())return;const j=await api("void",{order_id:order.id,reason});if(j){alert(L("Order voided","تم إلغاء الطلب"));await load();}}
+
   async function partialRefund(){if(!refundTarget)return;const lines=(refundTarget.sales_order_lines||[]).map((l:any)=>({order_line_id:l.id,quantity:Number(refundQty[l.id]||0)})).filter((l:any)=>l.quantity>0);if(!lines.length)return alert(L("Select at least one item","اختر صنفاً واحداً على الأقل"));const j=await api("partial_refund",{order_id:refundTarget.id,lines,reason:refundReason});if(j){alert(L("Refund completed: ","تم الاسترجاع: ")+(j.result?.refund_no||""));setRefundTarget(null);setRefundQty({});setRefundReason("");Z("track");await load();}}
 
   async function refundOrder(order: any) {
@@ -355,7 +357,7 @@ export default function CashierWorkspace() {
 
     {modal === "partialrefund" && refundTarget && <Modal t={L("Partial Refund","استرجاع جزئي")} x={()=>{setRefundTarget(null);Z("track")}}><div className="space-y-3"><div className="text-sm text-slate-400">{refundTarget.order_no}</div>{(refundTarget.sales_order_lines||[]).map((l:any)=><div key={l.id} className="grid grid-cols-[1fr_120px] items-center gap-3 rounded-xl border border-slate-800 p-3"><span><b>{l.product_name}</b><small className="block text-slate-500">{L("Sold","المباع")}: {Number(l.quantity)}</small></span><input className={inp} type="number" min="0" max={Number(l.quantity)} step="1" value={refundQty[l.id]||""} onChange={e=>setRefundQty({...refundQty,[l.id]:e.target.value})} placeholder={L("Qty","الكمية")}/></div>)}<textarea className={inp} value={refundReason} onChange={e=>setRefundReason(e.target.value)} placeholder={L("Refund reason","سبب الاسترجاع")}/><button className={`${btn} w-full`} onClick={partialRefund}>{L("Confirm Partial Refund","تأكيد الاسترجاع الجزئي")}</button></div></Modal>}
 
-    {modal === "holds" && <Modal t={L("Held Orders", "الطلبات المعلقة")} x={() => Z("")}><div>{held.map((o: any) => <div key={o.id} className="flex items-center justify-between border-b border-slate-800 py-3"><span><b>{o.order_no}</b>{o.channel === "go" && <span className="ml-2 rounded bg-amber-400/15 px-2 py-1 text-xs text-amber-300">GO · {L("Pickup", "استلام")}</span>}<small className="block text-slate-500">{o.customer_name && `${o.customer_name} · `}{Number(o.total).toFixed(2)} {currency}</small></span><button className={btn} onClick={() => recall(o)}>{L("Recall", "استرجاع")}</button></div>)}</div></Modal>}
+    {modal === "holds" && <Modal t={L("Held Orders", "الطلبات المعلقة")} x={() => Z("")}><div>{held.map((o: any) => <div key={o.id} className="flex items-center justify-between border-b border-slate-800 py-3"><span><b>{o.order_no}</b>{o.channel === "go" && <span className="ml-2 rounded bg-amber-400/15 px-2 py-1 text-xs text-amber-300">GO · {L("Pickup", "استلام")}</span>}<small className="block text-slate-500">{o.customer_name && `${o.customer_name} · `}{Number(o.total).toFixed(2)} {currency}</small></span><div className="flex gap-2"><button className={btn} onClick={() => recall(o)}>{L("Recall", "استرجاع")}</button><button className="rounded-xl border border-rose-700 px-3 py-2 text-xs font-black text-rose-300" onClick={()=>voidOrder(o)}>{L("Void","إلغاء")}</button></div></div>)}</div></Modal>}
   </div>;
 }
 
