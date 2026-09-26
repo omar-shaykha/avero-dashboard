@@ -42,14 +42,14 @@ export async function GET() {
       .order("sort_order"),
 
     s.from("sales_orders")
-      .select("id,order_no,status,total,discount_percent,customer_name,customer_phone,customer_email,customer_notes,service_type,created_at,sales_order_lines(product_id,quantity,notes)")
+      .select("id,order_no,status,total,discount_percent,customer_name,customer_phone,customer_email,customer_notes,service_type,created_at,sales_order_lines(id,product_id,product_name,quantity,unit_price,discount,tax_rate,tax_amount,line_total,unit_cost,total_cost,notes)")
       .eq("company_id", companyId)
       .eq("status", "held")
       .order("created_at", { ascending: false })
       .limit(100),
 
     s.from("sales_orders")
-      .select("id,order_no,status,total,cashier_name,tracking_status,created_at")
+      .select("id,order_no,status,total,cashier_name,tracking_status,created_at,sales_order_lines(id,product_id,product_name,quantity,unit_price,discount,tax_rate,tax_amount,line_total,unit_cost,total_cost,notes),sales_payments(payment_method,amount)")
       .eq("company_id", companyId)
       .eq("status", "completed")
       .order("created_at", { ascending: false })
