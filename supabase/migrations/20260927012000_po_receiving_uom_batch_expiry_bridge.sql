@@ -1,0 +1,4 @@
+-- PO receiving now converts ordered UOM to base UOM, validates batch/expiry tracking,
+-- creates/reuses the inventory batch, and posts the receipt against that batch.
+-- Canonical live function is installed by migration po_receiving_uom_batch_expiry_bridge.
+-- See Supabase migration history for the applied function body.
