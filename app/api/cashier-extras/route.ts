@@ -24,7 +24,7 @@ export async function GET(){
   if(firstError)return NextResponse.json({error:firstError.message},{status:400});
   const mode=settings.data?.best_seller_mode==="manual"?"manual":"auto";
   const bestSellers=mode==="manual"?(manual.data||[]).map((z:any)=>({product_id:z.id,qty:null})):(best.data||[]).map((z:any)=>({product_id:z.product_id,qty:Number(z.qty||0)}));
-  return NextResponse.json({payment_methods:payments.data||[],tables:tables.data||[],cashier_name:me.data?.full_name||me.data?.username||me.data?.nickname||"Cashier",best_seller_mode:mode,best_sellers:bestSellers,invoice_template:invoiceTemplate.data||null,company:company.data||null});
+  return NextResponse.json({payment_methods:payments.data||[],tables:tables.data||[],cashier_name:me.data?.full_name||me.data?.username||me.data?.nickname||"Cashier",best_seller_mode:mode,best_sellers:bestSellers,invoice_template:invoiceTemplate.data||null,company:company.data||null,capabilities:{discount:can(x.a,"sales.discount"),refund:can(x.a,"sales.refund"),void:can(x.a,"sales.void"),invoice_customize:can(x.a,"sales.invoice.customize"),manage:can(x.a,"sales.manage")}});
 }
 
 export async function POST(req:Request){
