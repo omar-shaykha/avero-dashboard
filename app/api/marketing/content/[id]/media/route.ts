@@ -82,11 +82,15 @@ async function generateVisual(prompt: string) {
   };
 }
 
-async function brandedImage(aiBuffer: Buffer, logoDataUrl?: string | null) {
+async function brandedImage(aiBuffer: Buffer, brand?: { logo_data_url?: string | null; primary_color?: string | null; secondary_color?: string | null; accent_color?: string | null }) {
   let base = sharp(aiBuffer).resize(1080, 1080, { fit: "cover", position: "centre" });
 
-  const logoBuffer = decodeDataUrl(logoDataUrl);
-  if (!logoBuffer) return base.jpeg({ quality: 92, mozjpeg: true }).toBuffer();
+  const logoBuffer = decodeDataUrl(brand?.logo_data_url);
+  const primary = brand?.primary_color || "#0B2A45";
+  const secondary = brand?.secondary_color || "#00C8FF";
+  const accent = brand?.accent_color || "#22D3EE";
+  const frame = Buffer.from(`<svg width="1080" height="1080" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="0"><stop stop-color="${primary}"/><stop offset=".55" stop-color="${secondary}"/><stop offset="1" stop-color="${accent}"/></linearGradient><linearGradient id="shade" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#000" stop-opacity=".30"/><stop offset=".25" stop-color="#000" stop-opacity="0"/><stop offset=".78" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".28"/></linearGradient></defs><rect width="1080" height="1080" fill="url(#shade)"/><rect x="0" y="0" width="1080" height="10" fill="url(#g)"/><rect x="58" y="1018" width="190" height="6" rx="3" fill="url(#g)"/></svg>`);
+  if (!logoBuffer) return base.composite([{ input: frame, left: 0, top: 0 }]).jpeg({ quality: 92, mozjpeg: true }).toBuffer();
 
   try {
     const logo = await sharp(logoBuffer)
@@ -95,7 +99,7 @@ async function brandedImage(aiBuffer: Buffer, logoDataUrl?: string | null) {
       .toBuffer();
 
     return base
-      .composite([{ input: logo, left: 58, top: 58 }])
+      .composite([{ input: frame, left: 0, top: 0 }, { input: logo, left: 58, top: 58 }])
       .jpeg({ quality: 92, mozjpeg: true })
       .toBuffer();
   } catch {
@@ -158,7 +162,7 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
 
     try {
       const generated = await generateVisual(prompt);
-      image = await brandedImage(generated.buffer, brandKit?.logo_data_url);
+      image = await brandedImage(generated.buffer, brandKit);
     } catch (generationFailure) {
       generationError = generationFailure instanceof Error ? generationFailure.message : "AI image generation failed";
       console.error("Foxy AI visual generation failed", generationFailure);
