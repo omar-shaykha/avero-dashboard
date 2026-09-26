@@ -23,7 +23,7 @@ export async function GET(request: Request) {
   if (!canView(access)) return json({ error: "Forbidden" }, 403);
   const db = createAdminClient();
   const [store, company, branches, categories, products, orders, companies] = await Promise.all([
-    db.from("go_stores").select("slug,pickup_branch_id,pickup_address,prep_minutes,enabled,logo_url,hero_image_url,primary_color,accent_color,contact_phone,contact_email,whatsapp_url,map_url,help_url,announcement_text,popup_enabled,popup_image_url,popup_title,popup_body,popup_link,about_title,about_body,about_image_url,locations_json,gallery_json,custom_links_json").eq("company_id", companyId).maybeSingle(),
+    db.from("go_stores").select("slug,pickup_branch_id,pickup_address,prep_minutes,enabled,logo_url,hero_image_url,primary_color,accent_color,contact_phone,contact_email,whatsapp_url,map_url,help_url,announcement_text,popup_enabled,popup_image_url,popup_title,popup_body,popup_link,about_title,about_body,about_image_url,locations_json,gallery_json,custom_links_json,font_family").eq("company_id", companyId).maybeSingle(),
     db.from("companies").select("name").eq("id", companyId).single(),
     db.from("branches").select("id,name,status").eq("company_id", companyId).eq("status", "active").order("created_at"),
     db.from("sales_categories").select("id,name,active").eq("company_id", companyId).order("sort_order"),
@@ -84,7 +84,7 @@ export async function PATCH(request: Request) {
     const color=(value:unknown,fallback:string)=>/^#[0-9a-f]{6}$/i.test(String(value||""))?String(value):fallback;
     const clean=(value:unknown,max=500)=>String(value||"").trim().slice(0,max)||null;
     const saved=await db.from("go_stores").update({
-      logo_url:clean(body.logo_url),hero_image_url:clean(body.hero_image_url),
+      logo_url:clean(body.logo_url),hero_image_url:clean(body.hero_image_url),font_family:["Inter","Geist","Arial","Georgia","Times New Roman"].includes(String(body.font_family||""))?String(body.font_family):"Geist",
       primary_color:color(body.primary_color,"#06b6d4"),accent_color:color(body.accent_color,"#f59e0b"),
       contact_phone:clean(body.contact_phone,40),contact_email:clean(body.contact_email,160),
       whatsapp_url:clean(body.whatsapp_url),map_url:clean(body.map_url),help_url:clean(body.help_url),
