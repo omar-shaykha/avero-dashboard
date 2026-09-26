@@ -23,6 +23,7 @@ const operationsPermissions: Record<OperationsArea, string[]> = {
 export default function Sidebar({ access }: SidebarProps) {
   const pathname = usePathname();
   const { t, language } = useLanguage();
+  const ar = language === "ar";
   const rtl = false;
   const [loadedAccess, setLoadedAccess] = useState(access);
   const [collapsed, setCollapsed] = useState(false);
@@ -102,7 +103,7 @@ export default function Sidebar({ access }: SidebarProps) {
   const agentsVisible = has("ai_sales", "view_ai_sales") || has("ai_marketing", "marketing.manage");
   const width = collapsed ? "md:w-20 w-72" : "md:w-64 w-72";
   const mobileTransform = mobileOpen ? "translate-x-0" : rtl ? "translate-x-full md:translate-x-0" : "-translate-x-full md:translate-x-0";
-  const L = (en: string, ar: string) => rtl ? ar : en;
+  const L = (en: string, arText: string) => ar ? arText : en;
   const selectRoute = (area: PosArea) => { setCurrentArea(area); setMobileOpen(false); };
   const selectOperations = (area: OperationsArea) => { setOperationsArea(area); setMobileOpen(false); };
 
