@@ -126,12 +126,21 @@ export async function POST(req:Request){
       ]);
       payments.push(...paid);refunds.push(...returned);
     }} catch { return NextResponse.json({error:'Could not reconcile shift payments'},{status:500}); }
-    const summary=summarizeShift(orders,payments,refunds,Number(shift.data.opening_cash||0),closingCash);
+    const cashMoves=await x.s.from('sales_shift_cash_movements').select('movement_type,amount').eq('company_id',x.c).eq('shift_id',d.shift_id);
+    const cashIn=(cashMoves.data||[]).filter((m:any)=>m.movement_type==='cash_in').reduce((a:number,m:any)=>a+Number(m.amount||0),0),cashOut=(cashMoves.data||[]).filter((m:any)=>m.movement_type==='cash_out').reduce((a:number,m:any)=>a+Number(m.amount||0),0);
+    const summary=summarizeShift(orders,payments,refunds,Number(shift.data.opening_cash||0),closingCash);summary.cash_in=cashIn;summary.cash_out=cashOut;summary.expected_cash=Number(summary.expected_cash||0)+cashIn-cashOut;summary.variance=closingCash-summary.expected_cash;
     const expectedCash=summary.expected_cash;
     const closedAt=new Date().toISOString();
     const r=await x.s.from('sales_shifts').update({status:'closed',closed_at:closedAt,closing_cash:closingCash,expected_cash:expectedCash}).eq('id',d.shift_id).eq('company_id',x.c).eq('user_id',x.a.user.id).eq('status','open').select().single();
     if(r.error)return NextResponse.json({error:r.error.message},{status:400});
     return NextResponse.json({record:r.data,variance:summary.variance,report:{shift_id:d.shift_id,closed_at:closedAt,cashier:x.a.user.email||'',...summary}});
+  }
+  if(b.kind==='cash_movement'){
+    if(!can(x.a,'sales.cashier'))return NextResponse.json({error:'Forbidden'},{status:403});
+    const sh=await x.s.from('sales_shifts').select('id').eq('id',d.shift_id).eq('company_id',x.c).eq('user_id',x.a.user.id).eq('status','open').maybeSingle();if(!sh.data)return NextResponse.json({error:'Open shift not found'},{status:404});
+    const amount=Number(d.amount||0),type=d.movement_type==='cash_out'?'cash_out':'cash_in',reason=String(d.reason||'').trim();if(!Number.isFinite(amount)||amount<=0||!reason)return NextResponse.json({error:'Amount and reason are required'},{status:400});
+    const r=await x.s.from('sales_shift_cash_movements').insert({company_id:x.c,shift_id:d.shift_id,movement_type:type,amount,reason,created_by:x.a.user.id}).select().single();
+    return r.error?NextResponse.json({error:r.error.message},{status:400}):NextResponse.json({record:r.data});
   }
   if(b.kind==='hold'){
     if(!can(x.a,'sales.cashier'))return NextResponse.json({error:'Forbidden'},{status:403});
@@ -160,15 +169,25 @@ export async function POST(req:Request){
   if(b.kind==='checkout'){
     if(!can(x.a,'sales.cashier'))return NextResponse.json({error:'Forbidden'},{status:403});if(!d.warehouse_id||!await owned(x.s,'inventory_warehouses',d.warehouse_id,x.c))return NextResponse.json({error:'Invalid warehouse'},{status:400});if(!d.shift_id)return NextResponse.json({error:'Open a shift before checkout'},{status:400});const sh=await x.s.from('sales_shifts').select('id,warehouse_id').eq('id',d.shift_id).eq('company_id',x.c).eq('user_id',x.a.user.id).eq('status','open').maybeSingle();if(!sh.data)return NextResponse.json({error:'Shift is not open for this cashier'},{status:400});if(sh.data.warehouse_id&&sh.data.warehouse_id!==d.warehouse_id)return NextResponse.json({error:'Sale warehouse must match the open shift warehouse'},{status:400});
     const discount=Number(d.discount||0);if(!Number.isFinite(discount)||discount<0)return NextResponse.json({error:'Invalid discount'},{status:400});if(discount>0){const settings=await x.s.from('sales_settings').select('allow_discount').eq('company_id',x.c).maybeSingle();if(settings.data?.allow_discount===false)return NextResponse.json({error:'Discounts are disabled in Cashier settings'},{status:403});if(!can(x.a,'sales.discount'))return NextResponse.json({error:'Discount permission required'},{status:403});}
-    const requestedPayment=(Array.isArray(d.payments)?d.payments:[])[0];
+    const checkoutKey=String(d.checkout_key||'').trim();if(!checkoutKey)return NextResponse.json({error:'Checkout key is required'},{status:400});
+    const existingCheckout=await x.s.from('sales_orders').select('id,order_no,subtotal,discount,tax,total,cost_total').eq('company_id',x.c).eq('checkout_key',checkoutKey).maybeSingle();
+    if(existingCheckout.data)return NextResponse.json({result:{order_id:existingCheckout.data.id,order_no:existingCheckout.data.order_no,subtotal:existingCheckout.data.subtotal,discount:existingCheckout.data.discount,tax:existingCheckout.data.tax,total:existingCheckout.data.total,cost:existingCheckout.data.cost_total,replayed:true}});
+    const requestedPayments=Array.isArray(d.payments)?d.payments:[];
+    if(!requestedPayments.length)return NextResponse.json({error:'Payment method is required'},{status:400});
+    const methodCodes=[...new Set(requestedPayments.map((p:any)=>String(p.payment_method||'').toLowerCase()).filter(Boolean))];
+    if(methodCodes.length!==requestedPayments.length)return NextResponse.json({error:'Each split payment method may only be used once'},{status:400});
+    const pms=await x.s.from('sales_payment_methods').select('code,name,adjustment_percent,adjustment_type').eq('company_id',x.c).eq('active',true).in('code',methodCodes);
+    if(pms.error||pms.data.length!==methodCodes.length)return NextResponse.json({error:'Invalid or inactive payment method'},{status:400});
+    if(methodCodes.length>1&&pms.data.some((m:any)=>Number(m.adjustment_percent||0)!==0))return NextResponse.json({error:'Split payments cannot use payment price adjustments'},{status:400});
+    const requestedPayment=requestedPayments[0];
     if(!requestedPayment?.payment_method)return NextResponse.json({error:'Payment method is required'},{status:400});
-    const pm=await x.s.from('sales_payment_methods').select('code,name,adjustment_percent,adjustment_type').eq('company_id',x.c).eq('active',true).eq('code',String(requestedPayment.payment_method).toLowerCase()).maybeSingle();
-    if(!pm.data)return NextResponse.json({error:'Invalid or inactive payment method'},{status:400});
-    const pct=Math.max(0,Number(pm.data.adjustment_percent||0));const sign=pm.data.adjustment_type==='discount'?-1:1;const multiplier=Math.max(0.01,1+(sign*pct/100));
+    const pm:any={data:pms.data.find((m:any)=>m.code===String(requestedPayment.payment_method).toLowerCase())};
+    const pct=Math.max(0,Number(pm.data?.adjustment_percent||0));const sign=pm.data?.adjustment_type==='discount'?-1:1;const multiplier=Math.max(0.01,1+(sign*pct/100));
     const pricedLines=(Array.isArray(d.lines)?d.lines:[]).map((line:any)=>({...line,price_multiplier:multiplier}));
-    const safePayments=[{payment_method:pm.data.code,base_amount:Number(requestedPayment.base_amount??requestedPayment.amount??0),amount:Number(requestedPayment.amount??requestedPayment.base_amount??0),adjustment_percent:0,adjustment_type:'markup'}];
+    const safePayments=requestedPayments.map((p:any)=>({payment_method:String(p.payment_method).toLowerCase(),base_amount:Number(p.base_amount??p.amount??0),amount:Number(p.amount??p.base_amount??0),reference_no:p.reference_no||null}));
     const r=await x.s.rpc('sales_checkout',{p_company_id:x.c,p_cashier:x.a.user.id,p_shift_id:d.shift_id,p_warehouse_id:d.warehouse_id,p_service_type:d.service_type||'retail',p_table_no:d.table_no||null,p_discount:discount,p_lines:pricedLines,p_payments:safePayments,p_notes:d.notes||null});if(r.error)return NextResponse.json({error:r.error.message},{status:400});
     const oid=r.data?.order_id;
+    if(oid)await x.s.from('sales_orders').update({checkout_key:checkoutKey}).eq('id',oid).eq('company_id',x.c);
     if(oid){
       const customerId=await upsertCustomer(x,d.customer);
       await x.s.from('sales_orders').update({customer_id:customerId,customer_name:d.customer?.name||null,customer_phone:d.customer?.phone||null,customer_email:d.customer?.email||null,customer_notes:d.customer?.notes||null,discount_percent:Number(d.discount_percent||0)}).eq('id',oid).eq('company_id',x.c);
