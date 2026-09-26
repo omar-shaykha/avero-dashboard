@@ -279,7 +279,17 @@ export default function CashierWorkspace() {
     <header className="flex flex-wrap items-center justify-between gap-3"><div><h1 className="text-3xl font-black">{L("Cashier", "الكاشير")}</h1><p className="text-sm text-slate-400">{L("Cashier", "الكاشير")}: <b className="text-cyan-300">{x.cashier_name}</b> · {L("Shift", "الوردية")} {shift ? L("OPEN", "مفتوحة") : L("CLOSED", "مغلقة")}</p></div></header>
 
     <div className="flex flex-wrap gap-2">
-      {!shift ? <button className={btn} onClick={openShift}>{L("Open Shift", "فتح وردية")}</button> : <button className={ghost} onClick={requestCloseShift}>{L("Close Shift", "إغلاق الوردية")}</button>}
+      <button
+        type="button"
+        onClick={() => shift ? requestCloseShift() : openShift()}
+        className={`relative flex h-9 w-[118px] items-center rounded-full border px-1 transition ${shift ? "border-emerald-500/50 bg-emerald-500/15" : "border-slate-600 bg-slate-950"}`}
+        aria-label={shift ? L("Close shift", "إغلاق الوردية") : L("Open shift", "فتح الوردية")}
+      >
+        <span className={`absolute h-7 w-7 rounded-full transition-all ${shift ? (ar ? "right-[86px] bg-emerald-400" : "left-[86px] bg-emerald-400") : (ar ? "right-1 bg-slate-500" : "left-1 bg-slate-500")}`} />
+        <span className={`w-full px-2 text-xs font-black ${shift ? (ar ? "text-right" : "text-left") : (ar ? "text-left" : "text-right")}`}>
+          {shift ? L("OPEN", "مفتوح") : L("CLOSED", "مغلق")}
+        </span>
+      </button>
       {lastShiftReport && <button className={ghost} onClick={() => printShiftReport(lastShiftReport)}>{L("Print closing report", "طباعة تقرير الإقفال")}</button>}
       <button className={ghost} onClick={() => Z("track")}>{L("Track Invoice", "تتبع الفاتورة")}</button>
       <button className={ghost} onClick={() => Z("tables")}>{L("Dining Map", "خريطة الطاولات")}</button>
