@@ -152,16 +152,13 @@ export default function CashierWorkspace() {
 
   async function ensureShift() {
     if (shift) return shift;
-    if (!wh) { alert(L("Create or select a warehouse", "أنشئ أو اختر مستودعاً")); return null; }
-    const j = await api("open_shift", { warehouse_id: wh, opening_cash: 0 });
+    const j = await api("open_shift", { opening_cash: 0 });
     return j?.record || null;
   }
 
   async function checkout(method: any) {
     if (!cart.length || paying) return;
     if (!method) return alert(L("Choose a payment method", "اختر طريقة دفع"));
-    if (!wh) return alert(L("Select a warehouse first", "اختر مستودعاً أولاً"));
-
     setPaying(true);
     try {
       const activeShift = await ensureShift();
@@ -170,7 +167,6 @@ export default function CashierWorkspace() {
       const receiptItems = cart.map((z: any) => ({ ...z, receipt_price: unitPrice(z, method) }));
       const j = await api("checkout", {
         shift_id: activeShift.id,
-        warehouse_id: wh,
         service_type: service,
         discount: calc.discount,
         discount_percent: disc,
@@ -192,15 +188,14 @@ export default function CashierWorkspace() {
     }
   }
 
-  async function checkoutSplit(){ if(!cart.length||paying||!wh)return; const paid=split.reduce((a:number,p:any)=>a+Number(p.amount||0),0); if(Math.abs(paid-current.total)>0.01)return alert(L("Split payment total must equal invoice total","مجموع الدفعات يجب أن يساوي إجمالي الفاتورة")); setPaying(true); try{const activeShift=await ensureShift();if(!activeShift)return;const j=await api("checkout",{shift_id:activeShift.id,warehouse_id:wh,service_type:service,discount:current.discount,discount_percent:disc,customer,held_order_id:heldId,lines:cart.map((z:any)=>({product_id:z.id,quantity:z.quantity,discount:0,notes:z.notes||""})),checkout_key:crypto.randomUUID(),payments:split});if(j){await extra("attach_order",{order_id:j.result.order_id,table_id:table?.id||null,table_name:table?.name||null});printReceipt(j.result,cart,{name:split.map((p:any)=>p.payment_method).join(" + ")});K([]);D(0);setSplit([]);Z("");await load();}}finally{setPaying(false);} }
+  async function checkoutSplit(){ if(!cart.length||paying)return; const paid=split.reduce((a:number,p:any)=>a+Number(p.amount||0),0); if(Math.abs(paid-current.total)>0.01)return alert(L("Split payment total must equal invoice total","مجموع الدفعات يجب أن يساوي إجمالي الفاتورة")); setPaying(true); try{const activeShift=await ensureShift();if(!activeShift)return;const j=await api("checkout",{shift_id:activeShift.id,service_type:service,discount:current.discount,discount_percent:disc,customer,held_order_id:heldId,lines:cart.map((z:any)=>({product_id:z.id,quantity:z.quantity,discount:0,notes:z.notes||""})),checkout_key:crypto.randomUUID(),payments:split});if(j){await extra("attach_order",{order_id:j.result.order_id,table_id:table?.id||null,table_name:table?.name||null});printReceipt(j.result,cart,{name:split.map((p:any)=>p.payment_method).join(" + ")});K([]);D(0);setSplit([]);Z("");await load();}}finally{setPaying(false);} }
 
   async function cashMovement(){ if(!shift)return; const amount=Number(cashMove.amount); if(!Number.isFinite(amount)||amount<=0||!String(cashMove.reason).trim())return alert(L("Enter amount and reason","أدخل المبلغ والسبب")); const j=await api("cash_movement",{shift_id:shift.id,movement_type:cashMove.movement_type,amount,reason:cashMove.reason}); if(j){setCashMove({movement_type:"cash_in",amount:"",reason:""});Z("");} }
 
   async function hold() {
-    if (!cart.length || !wh) return;
+    if (!cart.length) return;
     const j = await api("hold", {
       shift_id: shift?.id || null,
-      warehouse_id: wh,
       service_type: service,
       discount: current.discount,
       discount_percent: disc,
