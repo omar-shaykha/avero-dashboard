@@ -5,6 +5,7 @@ import DashboardHeader from "@/app/components/DashboardHeader";
 import GoMerchantWorkspace from "@/app/components/GoMerchantWorkspace";
 import { getAuthorizationContext, hasPermission, isKingAdmin, isTenantAdmin } from "@/lib/auth/authorization";
 import { hasApp } from "@/lib/auth/authorization";
+import GoPageHeader from "@/app/components/GoPageHeader";
 
 export const dynamic = "force-dynamic";
 
@@ -20,9 +21,7 @@ export default async function GoPage() {
     <div className="min-h-screen md:ml-64">
       <DashboardHeader userEmail={access.user.email} />
       <main className="mx-auto max-w-6xl px-5 py-8 md:px-8">
-        <Link href="/workspace" className="text-sm text-cyan-300">← AVERO OS</Link>
-        <h1 className="mt-4 text-3xl font-black">AVERO GO · طلبات الاستلام</h1>
-        <p className="mt-2 text-slate-400">المنيو الإلكتروني، فرع الاستلام، والطلبات الجديدة في مكان واحد.</p>
+        <GoPageHeader />
         <GoMerchantWorkspace />
       </main>
     </div>
