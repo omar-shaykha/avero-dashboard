@@ -1,20 +1,15 @@
-import { NextResponse } from "next/server";
+import { NextRequest,NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { getAuthorizationContext, hasApp, hasPermission, isKingAdmin, isTenantAdmin } from "@/lib/auth/authorization";
-
-export async function GET(){
- const access=await getAuthorizationContext();
- if(!access)return NextResponse.json({error:"Unauthorized"},{status:401});
- if(!access.profile.company_id)return NextResponse.json({error:"Company required"},{status:400});
- if(!hasApp(access,"app_sell"))return NextResponse.json({error:"Forbidden"},{status:403});
- if(!isKingAdmin(access)&&!isTenantAdmin(access)&&!hasPermission(access,"sales.view")&&!hasPermission(access,"customers.manage"))return NextResponse.json({error:"Forbidden"},{status:403});
- const db=createAdminClient(),companyId=access.profile.company_id;
- const [customers,orders]=await Promise.all([
-   db.from("sales_customers").select("id,customer_code,name,phone,email,city,active,created_at").eq("company_id",companyId).order("updated_at",{ascending:false}),
-   db.from("sales_orders").select("id,customer_id,total,status,sales_payments(payment_method,amount)").eq("company_id",companyId).in("status",["completed","refunded"]).not("customer_id","is",null)
- ]);
- if(customers.error||orders.error)return NextResponse.json({error:"Could not load customers"},{status:500});
- const stats=new Map<string,any>();
- for(const order of orders.data||[]){if(!order.customer_id)continue;const s=stats.get(order.customer_id)||{orders:0,total:0,cash:0,card:0,credit:0,other:0};const sign=order.status==="refunded"?-1:1;s.orders+=sign;s.total+=sign*Number(order.total||0);for(const p of order.sales_payments||[]){const code=String(p.payment_method||"").toLowerCase(),amount=sign*Number(p.amount||0);if(["cash"].includes(code))s.cash+=amount;else if(["card","visa","mada","apple_pay","applepay","mastercard"].includes(code))s.card+=amount;else if(["credit","on_account","deferred","later","ajal"].includes(code))s.credit+=amount;else s.other+=amount;}stats.set(order.customer_id,s);}
- return NextResponse.json({customers:(customers.data||[]).map(c=>({...c,...(stats.get(c.id)||{orders:0,total:0,cash:0,card:0,credit:0,other:0})}))});
-}
+import { getAuthorizationContext,hasApp,hasPermission,isKingAdmin,isTenantAdmin } from "@/lib/auth/authorization";
+async function ctx(){const a=await getAuthorizationContext();if(!a||!a.profile.company_id||!hasApp(a,"app_sell"))return null;if(!isKingAdmin(a)&&!isTenantAdmin(a)&&!hasPermission(a,"sales.view")&&!hasPermission(a,"customers.manage")&&!hasPermission(a,"sales.cashier"))return null;return a}
+const clean=(v:unknown,n=300)=>String(v||"").trim().slice(0,n)||null;
+const isB2B=(d:any)=>!!(clean(d.commercial_registration)&&clean(d.tax_number)&&clean(d.national_address));
+export async function GET(){const a=await ctx();if(!a)return NextResponse.json({error:"Forbidden"},{status:403});const db=createAdminClient(),companyId=a.profile.company_id!;
+ const [customers,orders]=await Promise.all([db.from("sales_customers").select("id,customer_code,name,phone,email,tax_number,address,city,notes,active,commercial_registration,national_address,iban,customer_type,created_at,updated_at").eq("company_id",companyId).order("updated_at",{ascending:false}),db.from("sales_orders").select("id,customer_id,total,status,sales_payments(payment_method,amount)").eq("company_id",companyId).in("status",["completed","refunded"]).not("customer_id","is",null)]);
+ if(customers.error||orders.error)return NextResponse.json({error:"Could not load customers"},{status:500});const stats=new Map<string,any>();
+ for(const o of orders.data||[]){if(!o.customer_id)continue;const s=stats.get(o.customer_id)||{orders:0,total:0,cash:0,card:0,credit:0,other:0};const sign=o.status==="refunded"?-1:1;s.orders+=sign;s.total+=sign*Number(o.total||0);for(const p of o.sales_payments||[]){const m=String(p.payment_method||"").toLowerCase(),v=sign*Number(p.amount||0);if(m==="cash")s.cash+=v;else if(["card","visa","mada","apple_pay","applepay","mastercard"].includes(m))s.card+=v;else if(["credit","on_account","deferred","later","ajal"].includes(m))s.credit+=v;else s.other+=v}stats.set(o.customer_id,s)}
+ return NextResponse.json({customers:(customers.data||[]).map(c=>({...c,...(stats.get(c.id)||{orders:0,total:0,cash:0,card:0,credit:0,other:0})}))})}
+export async function POST(req:NextRequest){const a=await ctx();if(!a)return NextResponse.json({error:"Forbidden"},{status:403});const d=await req.json(),name=clean(d.name,200);if(!name)return NextResponse.json({error:"Customer name required"},{status:400});const db=createAdminClient(),companyId=a.profile.company_id!;
+ const payload={company_id:companyId,name,phone:clean(d.phone,40),email:clean(d.email,160),tax_number:clean(d.tax_number,30),commercial_registration:clean(d.commercial_registration,30),national_address:clean(d.national_address,500),iban:clean(d.iban,50),address:clean(d.address,500),city:clean(d.city,100),notes:clean(d.notes,1000),customer_type:isB2B(d)?"business":"individual",active:d.active!==false};
+ const r=d.id?await db.from("sales_customers").update(payload).eq("company_id",companyId).eq("id",String(d.id)).select().single():await db.from("sales_customers").insert({...payload,customer_code:`CUS-${Date.now().toString().slice(-7)}`}).select().single();
+ return r.error?NextResponse.json({error:r.error.message},{status:400}):NextResponse.json({record:r.data})}
