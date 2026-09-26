@@ -23,11 +23,11 @@ export async function GET(request: Request) {
   if (!canView(access)) return json({ error: "Forbidden" }, 403);
   const db = createAdminClient();
   const [store, company, branches, categories, products, orders, companies] = await Promise.all([
-    db.from("go_stores").select("slug,pickup_branch_id,pickup_address,prep_minutes,enabled").eq("company_id", companyId).maybeSingle(),
+    db.from("go_stores").select("slug,pickup_branch_id,pickup_address,prep_minutes,enabled,logo_url,hero_image_url,primary_color,accent_color,contact_phone,contact_email,whatsapp_url,map_url,help_url").eq("company_id", companyId).maybeSingle(),
     db.from("companies").select("name").eq("id", companyId).single(),
     db.from("branches").select("id,name,status").eq("company_id", companyId).eq("status", "active").order("created_at"),
     db.from("sales_categories").select("id,name,active").eq("company_id", companyId).order("sort_order"),
-    db.from("sales_products").select("id,name,description,price,image_url,category_id,active,show_on_go,product_type").eq("company_id", companyId).neq("product_type", "raw_material").neq("product_type", "sub_recipe").order("sort_order"),
+    db.from("sales_products").select("id,name,description,price,image_url,category_id,active,show_on_go,product_type,calories,allergens").eq("company_id", companyId).neq("product_type", "raw_material").neq("product_type", "sub_recipe").order("sort_order"),
     db.from("sales_orders").select("id,order_no,customer_name,customer_phone,customer_notes,total,tracking_status,status,created_at,sales_order_lines(product_name,quantity)").eq("company_id", companyId).eq("channel", "go").order("created_at", { ascending: false }).limit(50),
     isKingAdmin(access) ? db.from("companies").select("id,name").eq("status", "active").order("name") : Promise.resolve({ data: [], error: null }),
   ]);
@@ -79,6 +79,26 @@ export async function PATCH(request: Request) {
     }
     const changed = await db.from("sales_products").update({ show_on_go: published }).eq("company_id", companyId).eq("id", id);
     return changed.error ? json({ error: "Could not update product" }, 500) : json({ ok: true });
+  }
+  if (body.kind === "appearance") {
+    const color=(value:unknown,fallback:string)=>/^#[0-9a-f]{6}$/i.test(String(value||""))?String(value):fallback;
+    const clean=(value:unknown,max=500)=>String(value||"").trim().slice(0,max)||null;
+    const saved=await db.from("go_stores").update({
+      logo_url:clean(body.logo_url),hero_image_url:clean(body.hero_image_url),
+      primary_color:color(body.primary_color,"#06b6d4"),accent_color:color(body.accent_color,"#f59e0b"),
+      contact_phone:clean(body.contact_phone,40),contact_email:clean(body.contact_email,160),
+      whatsapp_url:clean(body.whatsapp_url),map_url:clean(body.map_url),help_url:clean(body.help_url),
+      updated_at:new Date().toISOString()
+    }).eq("company_id",companyId);
+    return saved.error?json({error:"Could not save appearance"},500):json({ok:true});
+  }
+  if (body.kind === "product_details") {
+    const id=String(body.id||"");
+    const calories=body.calories===""||body.calories==null?null:Number(body.calories);
+    const allergens=Array.isArray(body.allergens)?body.allergens.map(String).map(x=>x.trim()).filter(Boolean).slice(0,20):[];
+    if(calories!==null&&(!Number.isFinite(calories)||calories<0||calories>100000))return json({error:"Invalid calories"},400);
+    const changed=await db.from("sales_products").update({description:String(body.description||"").trim().slice(0,1000)||null,calories,allergens}).eq("company_id",companyId).eq("id",id);
+    return changed.error?json({error:"Could not update product details"},500):json({ok:true});
   }
   if (body.kind === "store") {
     const store = await db.from("go_stores").select("slug").eq("company_id", companyId).maybeSingle();
