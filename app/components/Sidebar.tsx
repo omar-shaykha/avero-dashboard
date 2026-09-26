@@ -7,7 +7,7 @@ import AveroBrand from "./AveroBrand";
 import { useLanguage } from "./LanguageProvider";
 import type { AuthorizationContext } from "@/lib/auth/authorization";
 import { DEFAULT_ORDER, normalizeOrder, type NavSectionKey } from "@/lib/navigation/order";
-import { AppWindow, BarChart3, Bot, Building2, Factory, GripVertical, Landmark, LayoutGrid, Menu, PackagePlus, PanelLeftClose, PanelLeftOpen, Settings, ShoppingBag, ShoppingCart, Store, UsersRound, Warehouse, X } from "lucide-react";
+import { AppWindow, BarChart3, Bot, Building2, Factory, GripVertical, Landmark, LayoutGrid, Menu, PackagePlus, PanelLeftClose, PanelLeftOpen, Settings, ShoppingBag, ShoppingCart, Store, UsersRound, Palette, Warehouse, X } from "lucide-react";
 
 interface SidebarProps { userEmail?: string; userName?: string; access?: AuthorizationContext | null; }
 type NavIcon = ComponentType<{ size?: number; className?: string }>;
@@ -149,7 +149,8 @@ export default function Sidebar({ access }: SidebarProps) {
     reports: reportsVisible ? <Main href="/reports" label={collapsed ? "" : L("Reports", "التقارير")} icon={BarChart3} active={pathname === "/reports"} /> : null,
     apps: appsVisible ? <Main href="/apps" label={collapsed ? "" : L("Apps", "التطبيقات")} icon={AppWindow} active={pathname?.startsWith("/apps")} /> : null,
     settings: settingsVisible ? <Main href="/settings" label={collapsed ? "" : L("Settings", "الإعدادات")} icon={Settings} active={pathname?.startsWith("/settings")} /> : null,
-    go: app("app_go") && sellVisible ? <Main href="/go" label={collapsed ? "" : L("AVERO GO", "أفيرو GO")} icon={ShoppingBag} active={pathname === "/go" || Boolean(pathname?.startsWith("/go/"))} /> : null,
+    go: app("app_go") && sellVisible ? <Main href="/go" label={collapsed ? "" : L("AVERO GO", "أفيرو GO")} icon={ShoppingBag} active={pathname === "/go"} /> : null,
+    website_builder: app("app_go") && sellVisible ? <Main href="/go/website-builder" label={collapsed ? "" : L("Website Builder", "مصمم الموقع")} icon={Palette} active={pathname?.startsWith("/go/website-builder")} /> : null,
     agents: agentsVisible ? <Main href="/ai-agents" label={collapsed ? "" : L("AI Agent", "وكلاء الذكاء الاصطناعي")} icon={Bot} active={pathname?.startsWith("/ai-")} /> : null,
     crm: crmVisible ? <Main href="/crm" label={collapsed ? "" : t("crm")} icon={UsersRound} active={pathname?.startsWith("/crm")} /> : null,
     clients: clientsVisible ? <Main href="/clients" label={collapsed ? "" : t("clients")} icon={Building2} active={pathname?.startsWith("/clients")} /> : null,
