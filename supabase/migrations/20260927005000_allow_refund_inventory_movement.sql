@@ -1,0 +1,2 @@
+alter table public.inventory_stock_movements drop constraint if exists inventory_stock_movements_movement_type_check;
+alter table public.inventory_stock_movements add constraint inventory_stock_movements_movement_type_check check(movement_type in ('opening','purchase_receipt','sale','consumption','transfer_out','transfer_in','adjustment_in','adjustment_out','customer_return','supplier_return','waste','damage','production_in','production_out','stock_count','refund'));
