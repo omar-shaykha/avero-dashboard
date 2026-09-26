@@ -41,7 +41,7 @@ export default function CashierWorkspace() {
   const [cashMove, setCashMove] = useState<any>({ movement_type:"cash_in", amount:"", reason:"" });
   const [refundTarget,setRefundTarget]=useState<any>(null);
   const [refundQty,setRefundQty]=useState<Record<string,string>>({});
-  const [refundRestock,setRefundRestock]=useState<Record<string,boolean>>({});
+  const [refundRestock,setRefundRestock]=useState<Record<string,boolean>>({}); // per-line inventory return policy
   const [refundReason,setRefundReason]=useState("");
   const [lastShiftReport, setLastShiftReport] = useState<any>(null);
 
