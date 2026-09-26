@@ -57,7 +57,7 @@ export async function GET(){
     x.s.from('inventory_items').select(showCost?'id,name,sku,average_cost':'id,name,sku').eq('company_id',x.c).eq('active',true),
     x.s.from('production_recipes').select('id,name,recipe_code,output_item_id,yield_qty,status').eq('company_id',x.c).eq('status','active'),
     x.s.from('sales_shifts').select('*').eq('company_id',x.c).eq('user_id',x.a.user.id).order('created_at',{ascending:false}).limit(30),
-    x.s.from('sales_refunds').select('*').eq('company_id',x.c).order('created_at',{ascending:false}).limit(150),
+    x.s.from('sales_refunds').select('*,sales_refund_lines(order_line_id,quantity,amount,tax_amount,cost_amount)').eq('company_id',x.c).order('created_at',{ascending:false}).limit(150),
     x.s.from('sales_invoice_templates').select('*').eq('company_id',x.c).maybeSingle(),
     x.s.from('companies').select('id,name').eq('id',x.c).maybeSingle()
   ]);
