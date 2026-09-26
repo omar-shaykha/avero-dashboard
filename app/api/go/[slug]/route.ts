@@ -17,7 +17,7 @@ export async function GET(_request: Request, { params }: Context) {
   if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)) return reply({ error: "Menu unavailable" }, 404);
   const db = createAdminClient();
   const store = await db.from("go_stores")
-    .select("company_id,pickup_branch_id,pickup_address,prep_minutes,enabled")
+    .select("company_id,pickup_branch_id,pickup_address,prep_minutes,enabled,logo_url,hero_image_url,primary_color,accent_color,contact_phone,contact_email,whatsapp_url,map_url,help_url")
     .eq("slug", slug).eq("enabled", true).maybeSingle();
   if (store.error) return reply({ error: "Could not load menu" }, 500);
   if (!store.data?.pickup_branch_id || !store.data.pickup_address) return reply({ error: "Menu unavailable" }, 404);
@@ -26,7 +26,7 @@ export async function GET(_request: Request, { params }: Context) {
     db.from("companies").select("name,status").eq("id", store.data.company_id).maybeSingle(),
     db.from("branches").select("name,status").eq("id", store.data.pickup_branch_id).eq("company_id", store.data.company_id).maybeSingle(),
     db.from("sales_categories").select("id,name").eq("company_id", store.data.company_id).eq("active", true).order("sort_order"),
-    db.from("sales_products").select("id,name,description,image_url,price,category_id,tax_enabled,tax_rate")
+    db.from("sales_products").select("id,name,description,image_url,price,category_id,tax_enabled,tax_rate,calories,allergens")
       .eq("company_id", store.data.company_id).eq("active", true).eq("show_on_go", true)
       .neq("product_type", "raw_material").neq("product_type", "sub_recipe").order("sort_order"),
     db.from("sales_settings").select("prices_include_tax,currency").eq("company_id", store.data.company_id).maybeSingle(),
@@ -39,6 +39,7 @@ export async function GET(_request: Request, { params }: Context) {
   return reply({ company: company.data.name, branch: branch.data.name,
     pickup_address: store.data.pickup_address, prep_minutes: store.data.prep_minutes,
     currency: settings.data?.currency || "SAR", prices_include_tax: !!settings.data?.prices_include_tax,
+    appearance:{logo_url:store.data.logo_url,hero_image_url:store.data.hero_image_url,primary_color:store.data.primary_color||"#06b6d4",accent_color:store.data.accent_color||"#f59e0b",contact_phone:store.data.contact_phone,contact_email:store.data.contact_email,whatsapp_url:store.data.whatsapp_url,map_url:store.data.map_url,help_url:store.data.help_url},
     categories: categories.data || [],
     products: (products.data || []).filter((product) => !product.category_id || allowedCategories.has(product.category_id)) });
 }
