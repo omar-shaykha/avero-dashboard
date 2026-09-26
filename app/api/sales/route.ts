@@ -48,7 +48,7 @@ export async function GET(){
   const x=await C(); if(!x)return NextResponse.json({error:'Unauthorized'},{status:401});
   if(!can(x.a,'sales.view')&&!can(x.a,'sales.cashier'))return NextResponse.json({error:'Forbidden'},{status:403});
   const showCost=can(x.a,'sales.cost.view')||can(x.a,'inventory.cost.view');
-  const [products,categories,orders,settings,warehouses,items,recipes,shifts,refunds]=await Promise.all([
+  const [products,categories,orders,settings,warehouses,items,recipes,shifts,refunds,invoiceTemplate,company]=await Promise.all([
     x.s.from('sales_products').select('*,sales_categories(name),sales_product_modifiers(*)').eq('company_id',x.c).eq('active',true).neq('product_type','raw_material').neq('product_type','sub_recipe').order('sort_order'),
     x.s.from('sales_categories').select('*').eq('company_id',x.c).eq('active',true).eq('show_on_cashier',true).order('sort_order'),
     x.s.from('sales_orders').select('*,sales_order_lines(*),sales_payments(*)').eq('company_id',x.c).order('created_at',{ascending:false}).limit(150),
@@ -57,9 +57,11 @@ export async function GET(){
     x.s.from('inventory_items').select(showCost?'id,name,sku,average_cost':'id,name,sku').eq('company_id',x.c).eq('active',true),
     x.s.from('production_recipes').select('id,name,recipe_code,output_item_id,yield_qty,status').eq('company_id',x.c).eq('status','active'),
     x.s.from('sales_shifts').select('*').eq('company_id',x.c).eq('user_id',x.a.user.id).order('created_at',{ascending:false}).limit(30),
-    x.s.from('sales_refunds').select('*').eq('company_id',x.c).order('created_at',{ascending:false}).limit(150)
+    x.s.from('sales_refunds').select('*').eq('company_id',x.c).order('created_at',{ascending:false}).limit(150),
+    x.s.from('sales_invoice_templates').select('*').eq('company_id',x.c).maybeSingle(),
+    x.s.from('companies').select('id,name').eq('id',x.c).maybeSingle()
   ]);
-  return NextResponse.json({products:products.data||[],categories:categories.data||[],orders:visibleSalesOrders(orders.data||[],showCost),settings:settings.data||null,warehouses:warehouses.data||[],items:items.data||[],recipes:recipes.data||[],shifts:shifts.data||[],refunds:refunds.data||[]});
+  return NextResponse.json({products:products.data||[],categories:categories.data||[],orders:visibleSalesOrders(orders.data||[],showCost),settings:settings.data||null,warehouses:warehouses.data||[],items:items.data||[],recipes:recipes.data||[],shifts:shifts.data||[],refunds:refunds.data||[],invoice_template:invoiceTemplate.data||null,company:company.data||null});
 }
 
 export async function POST(req:Request){
