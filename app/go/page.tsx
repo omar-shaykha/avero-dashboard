@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import Sidebar from "@/app/components/Sidebar";
 import DashboardHeader from "@/app/components/DashboardHeader";
