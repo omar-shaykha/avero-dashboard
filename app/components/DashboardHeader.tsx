@@ -39,6 +39,7 @@ export default function DashboardHeader({ userName, userEmail }: DashboardHeader
   async function logout(){
     if(loggingOut)return;
     setLoggingOut(true);
+    await fetch("/api/presence",{method:"DELETE",keepalive:true}).catch(()=>undefined);
     const supabase=createClient();
     const {error}=await supabase.auth.signOut();
     if(error){console.error("Logout error:",error);setLoggingOut(false);return;}
