@@ -7,6 +7,8 @@ import { summarizeShift } from '@/lib/sell/shift-report';
 
 const db = () => createAdminClient();
 const can = (a:any,p:string) => isKingAdmin(a) || isTenantAdmin(a) || hasPermission(a,p);
+// Sensitive POS actions always honor effective per-user permission overrides for tenant users.
+const canSensitive = (a:any,p:string) => isKingAdmin(a) || hasPermission(a,p);
 async function C(){ const a=await getAuthorizationContext(); return (hasApp(a,'app_sell') && a?.profile?.company_id) ? {a,c:a.profile.company_id,s:db()} : null; }
 async function owned(s:any,table:string,id:string|undefined,c:string){ if(!id)return true; const r=await s.from(table).select('id').eq('id',id).eq('company_id',c).maybeSingle(); return !!r.data; }
 async function resolveSalesWarehouse(x:any,requested?:string){
@@ -151,7 +153,7 @@ export async function POST(req:Request){
     const ids=d.lines.map((z:any)=>z.product_id);const pr=await x.s.from('sales_products').select('id,name,price,tax_enabled,tax_rate,inventory_item_id,recipe_id').eq('company_id',x.c).eq('active',true).in('id',ids);if(pr.error||pr.data.length!==new Set(ids).size)return NextResponse.json({error:'Invalid product in cart'},{status:400});
     const settings=await x.s.from('sales_settings').select('prices_include_tax,allow_discount').eq('company_id',x.c).maybeSingle();const pricesIncludeTax=!!settings.data?.prices_include_tax;const map=new Map(pr.data.map((p:any)=>[p.id,p]));let subtotal=0;const prepared=[] as any[];
     for(const z of d.lines){const p:any=map.get(z.product_id),q=Number(z.quantity||0),ld=Math.max(0,Number(z.discount||0));if(!Number.isFinite(q)||q<=0)return NextResponse.json({error:'Invalid quantity'},{status:400});if(!Number.isFinite(ld)||ld>Number(p.price)*q)return NextResponse.json({error:'Invalid line discount'},{status:400});const listed=Number(p.price)*q-ld,rate=p.tax_enabled?Math.max(0,Number(p.tax_rate||0)):0,net=pricesIncludeTax&&rate>0?listed/(1+rate/100):listed;subtotal+=net;prepared.push({p,q,ld,rate,net,notes:String(z.notes||'').trim()||null});}
-    const requestedDiscount=Math.max(0,Number(d.discount||0));if(requestedDiscount>0&&settings.data?.allow_discount===false)return NextResponse.json({error:'Discounts are disabled in Cashier settings'},{status:403});if(requestedDiscount>0&&!can(x.a,'sales.discount'))return NextResponse.json({error:'Discount permission required'},{status:403});const discount=Math.min(subtotal,requestedDiscount),ratio=subtotal>0?discount/subtotal:0;let tax=0;
+    const requestedDiscount=Math.max(0,Number(d.discount||0));if(requestedDiscount>0&&settings.data?.allow_discount===false)return NextResponse.json({error:'Discounts are disabled in Cashier settings'},{status:403});if(requestedDiscount>0&&!canSensitive(x.a,'sales.discount'))return NextResponse.json({error:'Discount permission required'},{status:403});const discount=Math.min(subtotal,requestedDiscount),ratio=subtotal>0?discount/subtotal:0;let tax=0;
     const lines=prepared.map(({p,q,ld,rate,net,notes}:any)=>{const tx=rate>0?net*(1-ratio)*rate/100:0;tax+=tx;return{company_id:x.c,product_id:p.id,inventory_item_id:p.inventory_item_id,recipe_id:p.recipe_id,product_name:p.name,quantity:q,unit_price:Number(p.price),discount:ld,tax_rate:rate,tax_amount:tx,line_total:net+tx,unit_cost:0,total_cost:0,notes};});
     const no='H-'+Date.now().toString(36).toUpperCase();const customerId=await upsertCustomer(x,d.customer);const or=await x.s.from('sales_orders').insert({company_id:x.c,order_no:no,shift_id:d.shift_id||null,cashier_id:x.a.user.id,warehouse_id:warehouseId,customer_id:customerId,service_type:d.service_type||'retail',table_no:d.table_no||null,status:'held',subtotal,discount,tax,total:Math.max(0,subtotal-discount+tax),customer_name:d.customer?.name||null,customer_phone:d.customer?.phone||null,customer_email:d.customer?.email||null,customer_notes:d.customer?.notes||null,discount_percent:Number(d.discount_percent||0),notes:d.notes||null}).select().single();if(or.error)return NextResponse.json({error:or.error.message},{status:400});
     const lr=await x.s.from('sales_order_lines').insert(lines.map((l:any)=>({...l,order_id:or.data.id})));if(lr.error){await x.s.from('sales_orders').delete().eq('id',or.data.id).eq('company_id',x.c);return NextResponse.json({error:lr.error.message},{status:400});}return NextResponse.json({record:or.data});
@@ -160,19 +162,19 @@ export async function POST(req:Request){
     if(!can(x.a,'sales.cashier'))return NextResponse.json({error:'Forbidden'},{status:403});const h=await x.s.from('sales_orders').select('id').eq('id',d.order_id).eq('company_id',x.c).eq('status','held').maybeSingle();if(!h.data)return NextResponse.json({error:'Held order not found'},{status:404});await x.s.from('sales_order_lines').delete().eq('order_id',d.order_id).eq('company_id',x.c);await x.s.from('sales_orders').delete().eq('id',d.order_id).eq('company_id',x.c);return NextResponse.json({ok:true});
   }
   if(b.kind==='void'){
-    if(!can(x.a,'sales.void')&&!can(x.a,'sales.manage'))return NextResponse.json({error:'Void permission required'},{status:403});
+    if(!canSensitive(x.a,'sales.void')&&!canSensitive(x.a,'sales.manage'))return NextResponse.json({error:'Void permission required'},{status:403});
     if(!d.order_id||!String(d.reason||'').trim())return NextResponse.json({error:'Order and reason are required'},{status:400});
     const r=await x.s.rpc('sales_void_order',{p_company_id:x.c,p_order_id:d.order_id,p_user_id:x.a.user.id,p_reason:String(d.reason)});
     return r.error?NextResponse.json({error:r.error.message},{status:400}):NextResponse.json({result:r.data});
   }
   if(b.kind==='partial_refund'){
-    if(!can(x.a,'sales.refund'))return NextResponse.json({error:'Forbidden'},{status:403});
+    if(!canSensitive(x.a,'sales.refund'))return NextResponse.json({error:'Forbidden'},{status:403});
     const lines=Array.isArray(d.lines)?d.lines.filter((z:any)=>Number(z.quantity)>0):[];if(!d.order_id||!lines.length)return NextResponse.json({error:'Select refund items'},{status:400});
     const r=await x.s.rpc('sales_partial_refund',{p_company_id:x.c,p_order_id:d.order_id,p_user_id:x.a.user.id,p_lines:lines,p_reason:String(d.reason||'')});
     return r.error?NextResponse.json({error:r.error.message},{status:400}):NextResponse.json({result:r.data});
   }
   if(b.kind==='refund'){
-    if(!can(x.a,'sales.manage')&&!can(x.a,'sales.refund'))return NextResponse.json({error:'Refund permission required'},{status:403});
+    if(!canSensitive(x.a,'sales.manage')&&!canSensitive(x.a,'sales.refund'))return NextResponse.json({error:'Refund permission required'},{status:403});
     if(!d.order_id)return NextResponse.json({error:'Order is required'},{status:400});
     const ownedOrder=await x.s.from('sales_orders').select('id,status').eq('id',d.order_id).eq('company_id',x.c).maybeSingle();
     if(!ownedOrder.data)return NextResponse.json({error:'Order not found'},{status:404});
@@ -182,7 +184,7 @@ export async function POST(req:Request){
   }
   if(b.kind==='checkout'){
     if(!can(x.a,'sales.cashier'))return NextResponse.json({error:'Forbidden'},{status:403});if(!d.shift_id)return NextResponse.json({error:'Open a shift before checkout'},{status:400});const sh=await x.s.from('sales_shifts').select('id,warehouse_id').eq('id',d.shift_id).eq('company_id',x.c).eq('user_id',x.a.user.id).eq('status','open').maybeSingle();if(!sh.data)return NextResponse.json({error:'Shift is not open for this cashier'},{status:400});let warehouseId:string;try{warehouseId=await resolveSalesWarehouse(x,sh.data.warehouse_id||d.warehouse_id);}catch{return NextResponse.json({error:'Could not prepare cashier sales location'},{status:500});}
-    const discount=Number(d.discount||0);if(!Number.isFinite(discount)||discount<0)return NextResponse.json({error:'Invalid discount'},{status:400});if(discount>0){const settings=await x.s.from('sales_settings').select('allow_discount').eq('company_id',x.c).maybeSingle();if(settings.data?.allow_discount===false)return NextResponse.json({error:'Discounts are disabled in Cashier settings'},{status:403});if(!can(x.a,'sales.discount'))return NextResponse.json({error:'Discount permission required'},{status:403});}
+    const discount=Number(d.discount||0);if(!Number.isFinite(discount)||discount<0)return NextResponse.json({error:'Invalid discount'},{status:400});if(discount>0){const settings=await x.s.from('sales_settings').select('allow_discount').eq('company_id',x.c).maybeSingle();if(settings.data?.allow_discount===false)return NextResponse.json({error:'Discounts are disabled in Cashier settings'},{status:403});if(!canSensitive(x.a,'sales.discount'))return NextResponse.json({error:'Discount permission required'},{status:403});}
     const checkoutKey=String(d.checkout_key||'').trim();if(!checkoutKey)return NextResponse.json({error:'Checkout key is required'},{status:400});
     const existingCheckout=await x.s.from('sales_orders').select('id,order_no,subtotal,discount,tax,total,cost_total').eq('company_id',x.c).eq('checkout_key',checkoutKey).maybeSingle();
     if(existingCheckout.data)return NextResponse.json({result:{order_id:existingCheckout.data.id,order_no:existingCheckout.data.order_no,subtotal:existingCheckout.data.subtotal,discount:existingCheckout.data.discount,tax:existingCheckout.data.tax,total:existingCheckout.data.total,cost:existingCheckout.data.cost_total,replayed:true}});
