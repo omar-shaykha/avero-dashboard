@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { createHash, randomUUID } from "node:crypto";
+import { createHash, randomUUID, createSign, createPublicKey } from "node:crypto";
 
 export const zatcaUuid=()=>randomUUID();
 export const zatcaSha256Base64=(value:string|Buffer)=>createHash("sha256").update(value).digest("base64");
@@ -38,4 +38,16 @@ export function zatcaQrPhase2(input:{sellerName:string;vatNumber:string;timestam
  ];
  if(input.caSignature?.length) fields.push({tag:9,value:input.caSignature});
  return zatcaTlvBase64(fields);
+}
+
+
+export function zatcaSignHashP1363(invoiceHash:Buffer,privateKeyPem:string){
+ const signer=createSign("SHA256");
+ signer.update(invoiceHash); signer.end();
+ return signer.sign({key:privateKeyPem,dsaEncoding:"ieee-p1363"});
+}
+export function zatcaRawEcPublicKey(publicKeyPem:string){
+ const jwk:any=createPublicKey(publicKeyPem).export({format:"jwk"});
+ const dec=(v:string)=>Buffer.from(v.replace(/-/g,"+").replace(/_/g,"/").padEnd(Math.ceil(v.length/4)*4,"="),"base64");
+ return Buffer.concat([dec(jwk.x),dec(jwk.y)]);
 }
