@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Sidebar from "./Sidebar";
 import DashboardHeader from "./DashboardHeader";
+import AgentAvatar from "./AgentAvatar";
 import { CheckCircle2, Clock3, Image as ImageIcon, Loader2, Send, Sparkles } from "lucide-react";
 
 type Item = {
@@ -169,12 +170,12 @@ export default function FoxyMarketingLive() {
 
         <main className="p-4 md:p-7">
           <div className="mx-auto max-w-5xl space-y-5">
-            <section className="flex flex-col gap-4 rounded-3xl border border-violet-400/20 bg-slate-900/70 p-5 md:flex-row md:items-center md:justify-between">
+            <section className="flex flex-col gap-4 rounded-3xl border border-slate-800 bg-slate-900/55 p-5 md:flex-row md:items-center md:justify-between">
               <div className="flex items-center gap-4">
-                <div className="grid h-14 w-14 place-items-center rounded-2xl bg-violet-500/10 text-4xl">🦊</div>
+                <div className="overflow-hidden rounded-2xl border border-cyan-400/15 bg-slate-950"><AgentAvatar agent="naya" size={56}/></div>
                 <div>
-                  <p className="text-xs font-black uppercase tracking-[.2em] text-violet-300">NAYA Marketing</p>
-                  <h1 className="mt-1 text-2xl font-black">First Publishing Test</h1>
+                  <p className="text-[10px] font-semibold uppercase tracking-[.18em] text-cyan-300">NAYA Marketing</p>
+                  <h1 className="mt-1 text-2xl font-semibold tracking-[-.03em]">First Publishing Test</h1>
                   <p className="mt-1 text-sm text-slate-400">Create one post, preview it, then publish it.</p>
                 </div>
               </div>
@@ -192,18 +193,18 @@ export default function FoxyMarketingLive() {
             </section>
 
             {note && (
-              <div className="rounded-2xl border border-violet-500/25 bg-violet-500/10 px-4 py-3 text-sm text-violet-100">
+              <div className="rounded-2xl border border-cyan-400/20 bg-cyan-400/[.06] px-4 py-3 text-sm text-cyan-100">
                 {note}
               </div>
             )}
 
             <section className="grid gap-5 lg:grid-cols-[.85fr_1.15fr]">
-              <div className="rounded-3xl border border-slate-800 bg-slate-900/60 p-5">
+              <div className="rounded-3xl border border-slate-800 bg-slate-900/50 p-5">
                 <div className="flex items-center gap-2">
-                  <Sparkles size={18} className="text-violet-300" />
+                  <Sparkles size={18} className="text-cyan-300" />
                   <div>
-                    <p className="text-xs font-black uppercase tracking-[.16em] text-violet-300">Step 1</p>
-                    <h2 className="text-lg font-black">Create the post</h2>
+                    <p className="text-xs font-semibold uppercase tracking-[.16em] text-cyan-300">Step 1</p>
+                    <h2 className="text-lg font-semibold">Create the post</h2>
                   </div>
                 </div>
 
@@ -215,7 +216,7 @@ export default function FoxyMarketingLive() {
                       <button
                         key={platform}
                         onClick={() => togglePlatform(platform)}
-                        className={`rounded-xl border px-3 py-3 text-sm font-black transition ${
+                        className={`rounded-xl border px-3 py-3 text-sm font-semibold transition ${
                           active
                             ? "border-cyan-400/50 bg-cyan-400/10 text-cyan-200"
                             : "border-slate-800 bg-slate-950 text-slate-500"
@@ -233,14 +234,14 @@ export default function FoxyMarketingLive() {
                   value={brief}
                   onChange={(event) => setBrief(event.target.value)}
                   rows={5}
-                  className="mt-2 w-full resize-none rounded-2xl border border-slate-800 bg-slate-950 px-4 py-3 text-sm leading-6 text-slate-200 outline-none focus:border-violet-400/50"
+                  className="mt-2 w-full resize-none rounded-2xl border border-slate-800 bg-slate-950 px-4 py-3 text-sm leading-6 text-slate-200 outline-none focus:border-cyan-400/50"
                   placeholder="Write one simple idea for the post..."
                 />
 
                 <button
                   onClick={generatePreview}
                   disabled={generating || !brief.trim()}
-                  className="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl bg-violet-500 px-4 py-3.5 text-sm font-black transition hover:bg-violet-400 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl bg-cyan-400 px-4 py-3.5 text-sm font-semibold text-slate-950 transition hover:bg-cyan-300 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {generating ? <Loader2 size={17} className="animate-spin" /> : <Sparkles size={17} />}
                   {generating ? "NAYA is creating post + image..." : "Generate Preview"}
@@ -251,12 +252,12 @@ export default function FoxyMarketingLive() {
                 </p>
               </div>
 
-              <div className="rounded-3xl border border-slate-800 bg-slate-900/60 p-5">
+              <div className="rounded-3xl border border-slate-800 bg-slate-900/50 p-5">
                 <div className="flex items-center gap-2">
                   <ImageIcon size={18} className="text-cyan-300" />
                   <div>
-                    <p className="text-xs font-black uppercase tracking-[.16em] text-cyan-300">Step 2</p>
-                    <h2 className="text-lg font-black">Preview & publish</h2>
+                    <p className="text-xs font-semibold uppercase tracking-[.16em] text-cyan-300">Step 2</p>
+                    <h2 className="text-lg font-semibold">Preview & publish</h2>
                   </div>
                 </div>
 
@@ -279,7 +280,7 @@ export default function FoxyMarketingLive() {
                     <div className="p-5">
                       <div className="flex items-start justify-between gap-3">
                         <div>
-                          <p className="text-base font-black">{preview.campaign_name || "NAYA Post"}</p>
+                          <p className="text-base font-semibold">{preview.campaign_name || "NAYA Post"}</p>
                           <p className="mt-1 text-[10px] uppercase tracking-[.12em] text-slate-500">
                             {String(preview.status || "preview").replaceAll("_", " ")}
                           </p>
@@ -304,7 +305,7 @@ export default function FoxyMarketingLive() {
                       )}
 
                       {String(preview.status) === "published" ? (
-                        <div className="mt-5 flex items-center justify-center gap-2 rounded-2xl bg-emerald-500/10 px-4 py-3.5 text-sm font-black text-emerald-300">
+                        <div className="mt-5 flex items-center justify-center gap-2 rounded-2xl bg-emerald-500/10 px-4 py-3.5 text-sm font-semibold text-emerald-300">
                           <CheckCircle2 size={18} />
                           Published successfully
                         </div>
@@ -312,7 +313,7 @@ export default function FoxyMarketingLive() {
                         <button
                           onClick={publishNow}
                           disabled={publishing || !preview.media_url}
-                          className="mt-5 flex w-full items-center justify-center gap-2 rounded-2xl bg-cyan-400 px-4 py-3.5 text-sm font-black text-slate-950 transition hover:bg-cyan-300 disabled:cursor-not-allowed disabled:opacity-50"
+                          className="mt-5 flex w-full items-center justify-center gap-2 rounded-2xl bg-cyan-400 px-4 py-3.5 text-sm font-semibold text-slate-950 transition hover:bg-cyan-300 disabled:cursor-not-allowed disabled:opacity-50"
                         >
                           {publishing ? <Loader2 size={17} className="animate-spin" /> : <Send size={17} />}
                           {publishing ? "Publishing..." : !preview.media_url ? "Image required before publishing" : "Publish Now"}
