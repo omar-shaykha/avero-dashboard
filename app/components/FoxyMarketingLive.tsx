@@ -40,7 +40,7 @@ const defaultSettings: Settings = {
   enabled: true,
 };
 
-export default function NAYAMarketingLive() {
+export default function FoxyMarketingLive() {
   const [items, setItems] = useState<Item[]>([]);
   const [settings, setSettings] = useState<Settings>(defaultSettings);
   const [platforms, setPlatforms] = useState<string[]>(["facebook", "instagram"]);
