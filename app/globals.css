@@ -82,3 +82,5 @@ html[dir="rtl"] input, html[dir="rtl"] textarea, html[dir="rtl"] select { text-a
   }
   body { overflow-x: hidden; }
 }
+
+/* redeploy marker: premium-ui-2026-09-28 */
