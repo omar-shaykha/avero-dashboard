@@ -40,7 +40,7 @@ const defaultSettings: Settings = {
   enabled: true,
 };
 
-export default function FoxyMarketingLive() {
+export default function NAYAMarketingLive() {
   const [items, setItems] = useState<Item[]>([]);
   const [settings, setSettings] = useState<Settings>(defaultSettings);
   const [platforms, setPlatforms] = useState<string[]>(["facebook", "instagram"]);
@@ -104,17 +104,17 @@ export default function FoxyMarketingLive() {
       const json = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(json.error || "Could not create preview");
       const contentId = json?.item?.id;
-      if (!contentId) throw new Error("Foxy created the post but could not prepare its visual.");
+      if (!contentId) throw new Error("NAYA created the post but could not prepare its visual.");
       setPreviewId(contentId);
 
-      setNote("Foxy wrote the post. Now creating a custom AI visual...");
+      setNote("NAYA wrote the post. Now creating a custom AI visual...");
       const mediaResponse = await fetch(`/api/marketing/content/${contentId}/media`, {
         method: "POST",
       });
       const mediaJson = await mediaResponse.json().catch(() => ({}));
       if (!mediaResponse.ok) {
         setItems((current) => current.map((item) => item.id === contentId ? { ...item, media_url: null } : item));
-        throw new Error(mediaJson.error || "Foxy Image AI is unavailable. Connect an image provider first.");
+        throw new Error(mediaJson.error || "NAYA Image AI is unavailable. Connect an image provider first.");
       }
 
       if (mediaJson?.item) {
@@ -124,8 +124,8 @@ export default function FoxyMarketingLive() {
       }
       setNote(
         mediaJson.fallback
-          ? "Foxy could not reach the AI image model, so it used a fallback visual. Try Generate Preview again."
-          : "Preview ready. Foxy created a custom AI visual for this exact post."
+          ? "NAYA could not reach the AI image model, so it used a fallback visual. Try Generate Preview again."
+          : "Preview ready. NAYA created a custom AI visual for this exact post."
       );
     } catch (error) {
       setNote(error instanceof Error ? error.message : "Could not create preview");
@@ -158,7 +158,7 @@ export default function FoxyMarketingLive() {
     }
   }
 
-  const status = settings.enabled ? "Foxy is active" : "Foxy is paused";
+  const status = settings.enabled ? "NAYA is active" : "NAYA is paused";
   const scheduleTime = settings.posting_times?.[0] || "10:00";
 
   return (
@@ -173,7 +173,7 @@ export default function FoxyMarketingLive() {
               <div className="flex items-center gap-4">
                 <div className="grid h-14 w-14 place-items-center rounded-2xl bg-violet-500/10 text-4xl">🦊</div>
                 <div>
-                  <p className="text-xs font-black uppercase tracking-[.2em] text-violet-300">Foxy Marketing</p>
+                  <p className="text-xs font-black uppercase tracking-[.2em] text-violet-300">NAYA Marketing</p>
                   <h1 className="mt-1 text-2xl font-black">First Publishing Test</h1>
                   <p className="mt-1 text-sm text-slate-400">Create one post, preview it, then publish it.</p>
                 </div>
@@ -228,7 +228,7 @@ export default function FoxyMarketingLive() {
                   })}
                 </div>
 
-                <label className="mt-5 block text-xs font-bold text-slate-400">What should Foxy post?</label>
+                <label className="mt-5 block text-xs font-bold text-slate-400">What should NAYA post?</label>
                 <textarea
                   value={brief}
                   onChange={(event) => setBrief(event.target.value)}
@@ -243,11 +243,11 @@ export default function FoxyMarketingLive() {
                   className="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl bg-violet-500 px-4 py-3.5 text-sm font-black transition hover:bg-violet-400 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {generating ? <Loader2 size={17} className="animate-spin" /> : <Sparkles size={17} />}
-                  {generating ? "Foxy is creating post + image..." : "Generate Preview"}
+                  {generating ? "NAYA is creating post + image..." : "Generate Preview"}
                 </button>
 
                 <p className="mt-3 text-center text-[11px] leading-5 text-slate-600">
-                  Foxy writes the post and creates a matching branded image. Nothing is published yet.
+                  NAYA writes the post and creates a matching branded image. Nothing is published yet.
                 </p>
               </div>
 
@@ -270,7 +270,7 @@ export default function FoxyMarketingLive() {
                         <div className="grid h-full place-items-center text-center text-slate-600">
                           <div>
                             <ImageIcon className="mx-auto mb-2" size={34} />
-                            <p className="text-xs">Foxy is preparing a custom image for this post.</p>
+                            <p className="text-xs">NAYA is preparing a custom image for this post.</p>
                           </div>
                         </div>
                       )}
@@ -279,7 +279,7 @@ export default function FoxyMarketingLive() {
                     <div className="p-5">
                       <div className="flex items-start justify-between gap-3">
                         <div>
-                          <p className="text-base font-black">{preview.campaign_name || "Foxy Post"}</p>
+                          <p className="text-base font-black">{preview.campaign_name || "NAYA Post"}</p>
                           <p className="mt-1 text-[10px] uppercase tracking-[.12em] text-slate-500">
                             {String(preview.status || "preview").replaceAll("_", " ")}
                           </p>
@@ -294,7 +294,7 @@ export default function FoxyMarketingLive() {
                       </div>
 
                       <p className="mt-4 whitespace-pre-wrap text-sm leading-6 text-slate-300">
-                        {preview.caption || "Foxy is preparing the caption."}
+                        {preview.caption || "NAYA is preparing the caption."}
                       </p>
 
                       {preview.error_message && (
@@ -335,7 +335,7 @@ export default function FoxyMarketingLive() {
             </section>
 
             <section className="rounded-2xl border border-slate-800 bg-slate-900/40 px-4 py-3 text-xs text-slate-500">
-              <span className="font-bold text-slate-300">Simple mode:</span> Foxy handles the caption, visual preparation and publisher. Advanced marketing tools stay hidden for now.
+              <span className="font-bold text-slate-300">Simple mode:</span> NAYA handles the caption, visual preparation and publisher. Advanced marketing tools stay hidden for now.
             </section>
           </div>
         </main>
