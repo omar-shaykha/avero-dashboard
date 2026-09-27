@@ -12,3 +12,5 @@ begin
  update public.zatca_egs_units set invoice_counter=next_counter,updated_at=now() where id=p_egs_unit_id;
  return next;
 end $$;
+revoke all on function public.zatca_reserve_invoice_chain(uuid,uuid) from public,anon,authenticated;
+grant execute on function public.zatca_reserve_invoice_chain(uuid,uuid) to service_role;
