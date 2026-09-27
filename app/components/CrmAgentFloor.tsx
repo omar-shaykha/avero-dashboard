@@ -9,10 +9,10 @@ type AgentData={runs?:Run[]};
 type State="working"|"idle"|"offline";
 
 export default function CrmAgentFloor(){
-  const [leo,setZAYN]=useState<State>("idle");
-  const [foxy,setNAYA]=useState<State>("idle");
-  const [leoNote,setZAYNNote]=useState("Waiting for a customer");
-  const [foxyNote,setNAYANote]=useState("No marketing task right now");
+  const [zayn,setZAYN]=useState<State>("idle");
+  const [naya,setNAYA]=useState<State>("idle");
+  const [zaynNote,setZAYNNote]=useState("Waiting for a customer");
+  const [nayaNote,setNAYANote]=useState("No marketing task right now");
 
   async function load(){
     try{
@@ -45,9 +45,9 @@ export default function CrmAgentFloor(){
 
   useEffect(()=>{load();const t=window.setInterval(load,2500);return()=>window.clearInterval(t)},[]);
   const agents=useMemo(()=>[
-    {name:"ZAYN",role:"Sales",emoji:"🦁",state:leo,note:leoNote},
-    {name:"NAYA",role:"Marketing",emoji:"🦊",state:foxy,note:foxyNote},
-  ],[leo,foxy,leoNote,foxyNote]);
+    {name:"ZAYN",role:"Sales",emoji:"🦁",state:zayn,note:zaynNote},
+    {name:"NAYA",role:"Marketing",emoji:"🦊",state:naya,note:nayaNote},
+  ],[zayn,naya,zaynNote,nayaNote]);
 
   return <section className="mx-6 mt-3 rounded-2xl border border-slate-800 bg-slate-950/55 p-3">
     <div className="mb-2 flex items-center justify-between"><div><p className="text-[10px] font-black uppercase tracking-[.22em] text-cyan-400">Live AI Floor</p><p className="text-xs text-slate-500">Real activity from AVERO agents</p></div><span className="text-[10px] text-slate-600">updates live</span></div>
