@@ -3,7 +3,8 @@ import { redirect } from "next/navigation";
 import Sidebar from "@/app/components/Sidebar";
 import DashboardHeader from "@/app/components/DashboardHeader";
 import { createClient as createServerClient } from "@/lib/supabase/server";
-import { getAuthorizationContext, canAccess } from "@/lib/auth/authorization";\nimport AgentAvatar from "@/app/components/AgentAvatar";
+import { getAuthorizationContext, canAccess } from "@/lib/auth/authorization";
+import AgentAvatar from "@/app/components/AgentAvatar";
 
 export const dynamic="force-dynamic";
 
