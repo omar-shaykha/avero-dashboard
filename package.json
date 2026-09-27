@@ -21,7 +21,9 @@
     "next": "16.2.4",
     "react": "19.2.4",
     "react-dom": "19.2.4",
-    "sharp": "^0.34.5"
+    "sharp": "^0.34.5",
+    "xml-crypto": "^6.1.2",
+    "@xmldom/xmldom": "^0.8.11"
   },
   "devDependencies": {
     "@capacitor/cli": "^8.0.0",
