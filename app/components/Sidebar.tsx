@@ -160,8 +160,8 @@ export default function Sidebar({ access }: SidebarProps) {
     <button onClick={() => setMobileOpen((value) => !value)} className={`fixed top-3 z-50 rounded-xl border border-cyan-400/30 bg-slate-950/95 p-3 text-cyan-200 shadow-2xl md:hidden ${rtl ? "right-3" : "left-3"}`}>{mobileOpen ? <X size={20} /> : <Menu size={20} />}</button>
     {mobileOpen && <button aria-label="Close menu" onClick={() => setMobileOpen(false)} className="fixed inset-0 z-30 bg-black/55 backdrop-blur-sm md:hidden" />}
 
-    <div className={`fixed top-0 z-40 flex h-screen ${width} ${mobileTransform} flex-col border-slate-800/80 bg-[radial-gradient(circle_at_top_left,rgba(37,99,235,0.10),transparent_28%),#020617] transition-all duration-300 ${rtl ? "right-0 border-l" : "left-0 border-r"}`} dir={rtl ? "rtl" : "ltr"}>
-      <div className="border-b border-slate-800/80 px-4 py-4">
+    <div className={`fixed top-0 z-40 flex h-screen ${width} ${mobileTransform} flex-col border-slate-800 bg-[#08121f]/95 shadow-[20px_0_70px_rgba(0,0,0,.22)] backdrop-blur-2xl transition-all duration-300 ${rtl ? "right-0 border-l" : "left-0 border-r"}`} dir={rtl ? "rtl" : "ltr"}>
+      <div className="border-b border-slate-800 px-4 py-5">
         <div className="flex items-center justify-between gap-2">
           {collapsed ? <div className="scale-90"><AveroBrand compact /></div> : <AveroBrand />}
           <button onClick={() => setCollapsed((value) => !value)} className="hidden rounded-xl border border-slate-800 p-2 text-slate-400 hover:bg-slate-900 hover:text-white md:block">{collapsed ? <PanelLeftOpen size={17} /> : <PanelLeftClose size={17} />}</button>
@@ -169,7 +169,7 @@ export default function Sidebar({ access }: SidebarProps) {
         {isKingAdmin && !collapsed && <div className="mt-3 flex items-center justify-between rounded-lg border border-amber-400/15 bg-amber-400/5 px-3 py-2 text-[10px] font-bold uppercase tracking-[.12em] text-amber-300"><span>{L("KING layout · drag sections", "ترتيب لوحة الإدارة · اسحب الأقسام")}</span><span>{orderState === "saving" ? L("Saving…", "جارٍ الحفظ…") : orderState === "saved" ? L("Saved", "تم الحفظ") : orderState === "error" ? L("Save failed", "فشل الحفظ") : ""}</span></div>}
       </div>
 
-      <nav className="flex-1 space-y-2 overflow-y-auto p-3">
+      <nav className="flex-1 space-y-1.5 overflow-y-auto p-3">
         {isKingAdmin && <Main href="/workspace" label={collapsed ? "" : L("Control Center", "مركز التحكم")} icon={LayoutGrid} active={pathname === "/workspace"}/>}
         {(isKingAdmin ? navOrder : DEFAULT_ORDER).map((key) => {
           const content = sections[key];
@@ -193,5 +193,5 @@ export default function Sidebar({ access }: SidebarProps) {
 }
 
 function Main({ href, label, icon: Icon, active, onClick }: { href: string; label: string; icon: NavIcon; active?: boolean; onClick?: () => void }) {
-  return <Link href={href} onClick={onClick} className={`flex items-center gap-3 rounded-xl px-4 py-3 ${active ? "bg-cyan-500/10 text-cyan-300" : "text-slate-300 hover:bg-slate-900"}`}><Icon size={18} /><span className={`text-sm font-medium ${label ? "block" : "hidden"}`}>{label}</span></Link>;
+  return <Link href={href} onClick={onClick} className={`group/nav flex items-center gap-3 rounded-xl border px-3.5 py-2.5 transition ${active ? "border-cyan-400/15 bg-cyan-400/[.07] text-cyan-200 shadow-[inset_3px_0_0_rgba(25,211,255,.8)]" : "border-transparent text-slate-400 hover:border-slate-800 hover:bg-white/[.025] hover:text-slate-100"}`}><Icon size={18} /><span className={`text-sm font-medium ${label ? "block" : "hidden"}`}>{label}</span></Link>;
 }
