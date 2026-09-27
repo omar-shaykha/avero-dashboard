@@ -38,20 +38,22 @@ export default async function CrmOffice(){
  const companyId=access.profile.company_id;if(!companyId)redirect("/");
  const s=await createServerClient();
  const today=new Date();today.setHours(0,0,0,0);
- const [{count:leoLeads},{count:foxyPublished},{data:pubs}]=await Promise.all([
+ const [{count:leoLeads},{count:foxyPublished},{data:pubs},{count:rivoComments}]=await Promise.all([
   s.from("leads").select("id",{count:"exact",head:true}).eq("company_id",companyId).eq("source_agent_key","ai_sales"),
   s.from("marketing_content_queue").select("id",{count:"exact",head:true}).eq("company_id",companyId).eq("status","published").gte("published_at",today.toISOString()),
-  s.from("marketing_post_publications").select("views,comments,messages").eq("company_id",companyId)
+  s.from("marketing_post_publications").select("views,comments,messages").eq("company_id",companyId),
+  s.from("marketing_social_comments").select("id",{count:"exact",head:true}).eq("company_id",companyId)
  ]);
  const foxyViews=(pubs||[]).reduce((n:any,x:any)=>n+Number(x.views||0),0);
  return <div className="min-h-screen bg-slate-950 text-white"><Sidebar access={access}/><div className="ml-64 min-h-screen"><DashboardHeader userEmail={access.user.email||""}/><main className="p-6">
   <div className="mx-auto max-w-7xl">
    <div><p className="text-xs font-black uppercase tracking-[.28em] text-cyan-300">AVERO AI OFFICE</p><h1 className="mt-2 text-4xl font-black">CRM Office</h1><p className="mt-2 max-w-2xl text-sm leading-6 text-slate-400">Your AI employees live here. Only hired and activated agents get a desk and their own CRM.</p></div>
    <div className="mt-7 rounded-[32px] border border-slate-800 bg-[radial-gradient(circle_at_top,rgba(34,211,238,.08),transparent_35%),linear-gradient(180deg,#0f172a,#020617)] p-5 md:p-7">
-    <div className="mb-5 flex items-center justify-between"><div><h2 className="text-lg font-black">Active Office</h2><p className="text-xs text-slate-500">2 AI employees currently hired</p></div><span className="rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-black text-emerald-300">2 ACTIVE</span></div>
-    <div className="grid gap-5 lg:grid-cols-2">
+    <div className="mb-5 flex items-center justify-between"><div><h2 className="text-lg font-black">Active Office</h2><p className="text-xs text-slate-500">3 AI employees currently hired</p></div><span className="rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-black text-emerald-300">3 ACTIVE</span></div>
+    <div className="grid gap-5 lg:grid-cols-3">
       <Desk name="Leo" role="AI Sales Director" emoji="🦁" href="/crm/agents/ai_sales" badge="WORKING" kpi={(leoLeads||0)+" leads generated"}/>
       <Desk name="Foxy" role="AI Marketing Director" emoji="🦊" href="/crm/agents/ai_marketing" badge="WORKING" kpi={(foxyPublished||0)+" posts today · "+foxyViews+" views tracked"}/>
+      <Desk name="Rivo" role="AI Social Community Agent" emoji="🦝" href="/crm/agents/rivo" badge="WORKING" kpi={(rivoComments||0)+" comments tracked"}/>
     </div>
     <div className="my-7 border-t border-dashed border-slate-800"/>
     <div className="mb-4"><h2 className="text-lg font-black">Empty Desks</h2><p className="text-xs text-slate-500">Click + to hire another AI employee. Activation is allowed only after a paid subscription entitlement is active.</p></div>
