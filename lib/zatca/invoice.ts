@@ -53,7 +53,7 @@ export function zatcaRawEcPublicKey(publicKeyPem:string){
 }
 
 
-export const ZATCA_FIRST_PIH="NWZlY2ViNjZmZmM4NmYzOGQ5NTI3ODZjNmQ2OTZjNzljMmRiYzIzOWRkNGU5MWI0NjcyOWQ3M2EyN2ZiNTdlOQ==";
+export const ZATCA_FIRST_PIH="NWZlY2ViNjZmZmM4NmYzOGQ5NTI3ODZiNmQ2OTZiNzljMmRiYzIzOWRkNGU5MWI0NjcyOWQ3M2EyY2ZiNTdlOQ==";
 
 export function zatcaInvoiceHashFromCanonicalXml(canonicalXml:string){
  return createHash("sha256").update(Buffer.from(canonicalXml,"utf8")).digest();
