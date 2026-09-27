@@ -3,7 +3,7 @@ import { generateKeyPairSync, createVerify } from "node:crypto";
 import { canonicalizeZatcaXml } from "./canonicalize";
 import {
  buildZatcaUblInvoice, zatcaPrepareHashInput, buildZatcaSignedProperties,
- zatcaDigestSignedProperties, buildZatcaSignedInfo, zatcaSignHashP1363,
+ zatcaDigestSignedProperties, buildZatcaSignedInfo, zatcaSignCanonicalSignedInfoP1363,
  ZATCA_FIRST_PIH, zatcaUuid
 } from "./invoice";
 
@@ -24,7 +24,7 @@ export function runZatcaCryptoSelfTest(){
  const propsDigest=zatcaDigestSignedProperties(props,canonicalizeZatcaXml);
  const signedInfo=buildZatcaSignedInfo({invoiceDigest:invoice.hashBase64,signedPropertiesDigest:propsDigest.digestBase64});
  const canonicalSignedInfo=canonicalizeZatcaXml(signedInfo);
- const signature=zatcaSignHashP1363(Buffer.from(canonicalSignedInfo,"utf8"),privateKeyPem);
+ const signature=zatcaSignCanonicalSignedInfoP1363(Buffer.from(canonicalSignedInfo,"utf8"),privateKeyPem);
  const verify=createVerify("SHA256"); verify.update(Buffer.from(canonicalSignedInfo,"utf8")); verify.end();
  const valid=verify.verify({key:publicKeyPem,dsaEncoding:"ieee-p1363"},signature);
  if(!valid) throw new Error("ZATCA cryptographic self-test failed");
