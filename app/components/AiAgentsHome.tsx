@@ -10,12 +10,12 @@ const agents = [
   { name: "ZAYN", avatar: "zayn" as const, title: "Sales Director", line: "The Opportunity Hunter", href: "/ai-sales", live: true },
   { name: "NAYA", avatar: "naya" as const, title: "Marketing Director", line: "The Growth Creator", href: "/ai-marketing", live: true },
   { name: "ELI", avatar: "eli" as const, title: "Community Manager", line: "The Community Voice", href: "/crm/agents/rivo", live: true },
-  { name: "Aero", animal: "🦅", title: "HR & Booking Agent", line: "The Planner", live: false },
-  { name: "Gor", animal: "🦍", title: "Support Agent", line: "The Problem Solver", live: false },
-  { name: "Vexa", animal: "🐍", title: "Inventory Agent", line: "The Watcher", live: false },
-  { name: "Rex", animal: "🐕", title: "Customer Care Agent", line: "The Loyal Companion", live: false },
-  { name: "Nova", animal: "🐈", title: "Analytics Agent", line: "The Insight Maker", live: false },
-  { name: "Bruno", animal: "🐻", title: "Warehouse Agent", line: "The Organizer", live: false },
+  { name: "Aero", avatar: null, animal: "🦅", title: "HR & Booking Agent", line: "The Planner", live: false },
+  { name: "Gor", avatar: null, animal: "🦍", title: "Support Agent", line: "The Problem Solver", live: false },
+  { name: "Vexa", avatar: null, animal: "🐍", title: "Inventory Agent", line: "The Watcher", live: false },
+  { name: "Rex", avatar: null, animal: "🐕", title: "Customer Care Agent", line: "The Loyal Companion", live: false },
+  { name: "Nova", avatar: null, animal: "🐈", title: "Analytics Agent", line: "The Insight Maker", live: false },
+  { name: "Bruno", avatar: null, animal: "🐻", title: "Warehouse Agent", line: "The Organizer", live: false },
 ];
 
 type AiAgentsHomeProps = { userEmail?: string; userName?: string; access?: AuthorizationContext | null };
