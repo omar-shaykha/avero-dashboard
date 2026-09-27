@@ -84,3 +84,17 @@ export function buildZatcaSignedProperties(i:{signatureId:string;certificateDige
 export function buildZatcaSignedInfo(i:{invoiceDigest:string;signedPropertiesDigest:string}){
  return `<ds:SignedInfo xmlns:ds="http://www.w3.org/2000/09/xmldsig#"><ds:CanonicalizationMethod Algorithm="${ZATCA_C14N11}"/><ds:SignatureMethod Algorithm="${ZATCA_ECDSA_SHA256}"/><ds:Reference Id="invoiceSignedData" URI=""><ds:Transforms><ds:Transform Algorithm="http://www.w3.org/TR/1999/REC-xpath-19991116"><ds:XPath>not(//ancestor-or-self::ext:UBLExtensions)</ds:XPath></ds:Transform><ds:Transform Algorithm="http://www.w3.org/TR/1999/REC-xpath-19991116"><ds:XPath>not(//ancestor-or-self::cac:Signature)</ds:XPath></ds:Transform><ds:Transform Algorithm="http://www.w3.org/TR/1999/REC-xpath-19991116"><ds:XPath>not(//ancestor-or-self::cac:AdditionalDocumentReference[cbc:ID='QR'])</ds:XPath></ds:Transform><ds:Transform Algorithm="${ZATCA_C14N11}"/></ds:Transforms><ds:DigestMethod Algorithm="${ZATCA_SHA256}"/><ds:DigestValue>${xmlEsc(i.invoiceDigest)}</ds:DigestValue></ds:Reference><ds:Reference Type="${ZATCA_SIGNED_PROPERTIES_TYPE}" URI="#xadesSignedProperties"><ds:DigestMethod Algorithm="${ZATCA_SHA256}"/><ds:DigestValue>${xmlEsc(i.signedPropertiesDigest)}</ds:DigestValue></ds:Reference></ds:SignedInfo>`;
 }
+
+
+export function buildZatcaXadesSignatureXml(i:{signedInfoCanonical:string;signatureValueBase64:string;certificateBase64:string;signedPropertiesXml:string}){
+ return `<ext:UBLExtensions xmlns:ext="urn:oasis:names:specification:ubl:schema:xsd:CommonExtensionComponents-2"><ext:UBLExtension><ext:ExtensionURI>urn:oasis:names:specification:ubl:dsig:enveloped:xades</ext:ExtensionURI><ext:ExtensionContent><sig:UBLDocumentSignatures xmlns:sig="urn:oasis:names:specification:ubl:schema:xsd:CommonSignatureComponents-2" xmlns:sac="urn:oasis:names:specification:ubl:schema:xsd:SignatureAggregateComponents-2" xmlns:sbc="urn:oasis:names:specification:ubl:schema:xsd:SignatureBasicComponents-2"><sac:SignatureInformation><cbc:ID>urn:oasis:names:specification:ubl:signature:1</cbc:ID><sbc:ReferencedSignatureID>urn:oasis:names:specification:ubl:signature:Invoice</sbc:ReferencedSignatureID><ds:Signature Id="signature" xmlns:ds="http://www.w3.org/2000/09/xmldsig#">${i.signedInfoCanonical}<ds:SignatureValue>${xmlEsc(i.signatureValueBase64)}</ds:SignatureValue><ds:KeyInfo><ds:X509Data><ds:X509Certificate>${xmlEsc(i.certificateBase64)}</ds:X509Certificate></ds:X509Data></ds:KeyInfo><ds:Object><xades:QualifyingProperties Target="signature" xmlns:xades="http://uri.etsi.org/01903/v1.3.2#">${i.signedPropertiesXml}</xades:QualifyingProperties></ds:Object></ds:Signature></sac:SignatureInformation></sig:UBLDocumentSignatures></ext:ExtensionContent></ext:UBLExtension></ext:UBLExtensions>`;
+}
+
+export function injectZatcaUblExtensions(xml:string,extensions:string){
+ const marker="<Invoice ";
+ const p=xml.indexOf(marker);
+ if(p<0) throw new Error("Invalid UBL invoice root");
+ const end=xml.indexOf(">",p);
+ if(end<0) throw new Error("Invalid UBL invoice root");
+ return xml.slice(0,end+1)+extensions+xml.slice(end+1);
+}
