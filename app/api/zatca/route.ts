@@ -316,6 +316,35 @@ export async function POST(req:Request){
     }
   }
 
+  if(kind === 'submit_compliance_invoice'){
+    const documentId=clean(data.document_id);
+    const docR=await x.supabase.from('zatca_documents').select('*').eq('id',documentId).eq('company_id',x.companyId).maybeSingle();
+    if(docR.error) return NextResponse.json({error:docR.error.message},{status:400});
+    if(!docR.data) return NextResponse.json({error:'ZATCA document not found'},{status:404});
+    const doc=docR.data;
+    if(!doc.egs_unit_id || !doc.uuid || !doc.invoice_hash || !doc.xml_base64) return NextResponse.json({error:'Invoice must be generated and signed before compliance submission'},{status:409});
+    const unitR=await x.supabase.from('zatca_egs_units').select('*').eq('id',doc.egs_unit_id).eq('company_id',x.companyId).maybeSingle();
+    if(unitR.error || !unitR.data) return NextResponse.json({error:unitR.error?.message || 'EGS unit not found'},{status:404});
+    const unit=unitR.data;
+    if(unit.environment==='production') return NextResponse.json({error:'Compliance invoice testing cannot use Production credentials'},{status:409});
+    try{
+      const [token,secret]=await Promise.all([vaultGet(x.supabase,unit.compliance_csid_vault_id),vaultGet(x.supabase,unit.compliance_secret_vault_id)]);
+      const endpoint=zatcaBaseUrl(unit.environment || 'simulation')+'/compliance/invoices';
+      const response=await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json','Accept-Version':'V2','Authorization':'Basic '+basicAuth(token,secret)},body:JSON.stringify({invoiceHash:doc.invoice_hash,uuid:doc.uuid,invoice:doc.xml_base64}),cache:'no-store'});
+      const result:any=await parseResponse(response);
+      const validation=result?.validationResults || {};
+      const warnings=validation?.warningMessages || result?.warnings || [];
+      const errors=validation?.errorMessages || result?.errors || [];
+      const accepted=response.ok && errors.length===0;
+      const status=accepted?(warnings.length?'warning':'signed'):'rejected';
+      await x.supabase.from('zatca_documents').update({document_status:status,response_payload:result,warnings,errors,submitted_at:new Date().toISOString(),last_submission_at:new Date().toISOString(),retry_count:Number(doc.retry_count||0)+1,updated_at:new Date().toISOString()}).eq('id',doc.id).eq('company_id',x.companyId);
+      return NextResponse.json({ok:accepted,status,zatca_status:response.status,validation:validation,response:result},{status:accepted?200:400});
+    }catch(error:any){
+      await x.supabase.from('zatca_documents').update({document_status:'failed',errors:[{message:error?.message || 'Compliance submission failed'}],last_submission_at:new Date().toISOString(),retry_count:Number(doc.retry_count||0)+1,updated_at:new Date().toISOString()}).eq('id',doc.id).eq('company_id',x.companyId);
+      return NextResponse.json({error:error?.message || 'Unable to submit compliance invoice'},{status:502});
+    }
+  }
+
   if(kind === 'simulation_credentials_check'){
     const id=clean(data.id);
     const unitR=await x.supabase.from('zatca_egs_units').select('*').eq('id',id).eq('company_id',x.companyId).maybeSingle();
