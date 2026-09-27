@@ -37,6 +37,16 @@ async function vaultUpsert(supabase:any, secretId:string|null|undefined, secret:
   if(r.error) throw new Error(r.error.message);
   return r.data as string;
 }
+async function vaultGet(supabase:any, secretId:string|null|undefined){
+  if(!secretId) throw new Error('Missing secure ZATCA credential reference');
+  const r=await supabase.rpc('zatca_vault_get_secret',{p_secret_id:secretId});
+  if(r.error) throw new Error(r.error.message);
+  if(!r.data) throw new Error('Secure ZATCA credential is empty');
+  return String(r.data);
+}
+function basicAuth(token:string,secret:string){
+  return Buffer.from(token+':'+secret,'utf8').toString('base64');
+}
 async function parseResponse(r:Response){
   const text = await r.text();
   try { return text ? JSON.parse(text) : {}; } catch { return { raw:text }; }
@@ -303,6 +313,24 @@ export async function POST(req:Request){
       return NextResponse.json({ok:true,record:u.data,disposition:result.dispositionMessage ?? result.DispositionMessage ?? 'ISSUED'});
     } catch(error:any){
       return NextResponse.json({error:error?.message || 'Unable to store Compliance CSID securely'},{status:500});
+    }
+  }
+
+  if(kind === 'simulation_credentials_check'){
+    const id=clean(data.id);
+    const unitR=await x.supabase.from('zatca_egs_units').select('*').eq('id',id).eq('company_id',x.companyId).maybeSingle();
+    if(unitR.error) return NextResponse.json({error:unitR.error.message},{status:400});
+    if(!unitR.data) return NextResponse.json({error:'EGS unit not found'},{status:404});
+    const unit=unitR.data;
+    if(unit.environment==='production') return NextResponse.json({error:'This diagnostic is simulation-only'},{status:409});
+    try{
+      const [token,secret]=await Promise.all([
+        vaultGet(x.supabase,unit.compliance_csid_vault_id),
+        vaultGet(x.supabase,unit.compliance_secret_vault_id)
+      ]);
+      return NextResponse.json({ok:true,environment:unit.environment,has_basic_auth:!!basicAuth(token,secret),token_length:token.length,secret_length:secret.length});
+    }catch(error:any){
+      return NextResponse.json({ok:false,error:error?.message || 'Unable to read Compliance CSID securely'},{status:500});
     }
   }
 
