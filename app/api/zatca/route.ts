@@ -316,6 +316,41 @@ export async function POST(req:Request){
     }
   }
 
+  if(kind === 'create_order_snapshot'){
+    const orderId=clean(data.order_id);
+    const [orderR,settingsR]=await Promise.all([
+      x.supabase.from('sales_orders').select('*').eq('id',orderId).eq('company_id',x.companyId).maybeSingle(),
+      x.supabase.from('zatca_company_settings').select('*').eq('company_id',x.companyId).maybeSingle()
+    ]);
+    if(orderR.error || settingsR.error) return NextResponse.json({error:(orderR.error||settingsR.error)?.message},{status:400});
+    const order=orderR.data, settings=settingsR.data;
+    if(!order) return NextResponse.json({error:'Sales order not found'},{status:404});
+    if(!['completed','partially_refunded','refunded'].includes(order.status)) return NextResponse.json({error:'Only completed sales orders can create ZATCA invoices'},{status:409});
+    if(!settings?.enabled) return NextResponse.json({error:'ZATCA is not enabled for this company'},{status:409});
+    const [linesR,customerR,unitR]=await Promise.all([
+      x.supabase.from('sales_order_lines').select('*').eq('order_id',order.id).eq('company_id',x.companyId).order('created_at'),
+      order.customer_id?x.supabase.from('sales_customers').select('*').eq('id',order.customer_id).eq('company_id',x.companyId).maybeSingle():Promise.resolve({data:null,error:null}),
+      x.supabase.from('zatca_egs_units').select('*').eq('company_id',x.companyId).eq('warehouse_id',order.warehouse_id).in('status',['compliance_ready','production_ready','active']).limit(1).maybeSingle()
+    ]);
+    if(linesR.error || customerR.error || unitR.error) return NextResponse.json({error:(linesR.error||customerR.error||unitR.error)?.message},{status:400});
+    if(!unitR.data) return NextResponse.json({error:'No onboarded ZATCA EGS is assigned to this order warehouse'},{status:409});
+    const customer=customerR.data;
+    const b2b=customer?.customer_type==='business' && !!clean(customer?.tax_number) && !!clean(customer?.national_address);
+    const invoiceKind=b2b?'standard':'simplified';
+    if(invoiceKind==='standard' && !vatValid(customer?.tax_number)) return NextResponse.json({error:'Standard invoice customer requires a valid Saudi VAT number'},{status:409});
+    const existing=await x.supabase.from('zatca_documents').select('*').eq('company_id',x.companyId).eq('order_id',order.id).eq('invoice_kind',invoiceKind).maybeSingle();
+    if(existing.data) return NextResponse.json({ok:true,existing:true,document:existing.data});
+    const chain=await x.supabase.rpc('zatca_reserve_invoice_chain',{p_company_id:x.companyId,p_egs_unit_id:unitR.data.id});
+    if(chain.error || !chain.data?.[0]) return NextResponse.json({error:chain.error?.message || 'Unable to reserve ZATCA invoice chain'},{status:500});
+    const issueAt=order.created_at || new Date().toISOString();
+    const seller={vat_number:digits(settings.vat_number),legal_name:settings.legal_name,legal_name_ar:settings.legal_name_ar,address:{country:'SA',city:settings.city,district:settings.district,street:settings.street,building_number:settings.building_number,additional_number:settings.additional_number,postal_code:settings.postal_code}};
+    const buyer=customer?{id:customer.id,name:customer.name,tax_number:customer.tax_number||null,commercial_registration:customer.commercial_registration||null,national_address:customer.national_address||null,address:customer.address||null,city:customer.city||null}: {};
+    const lines=(linesR.data||[]).map((l:any)=>({id:l.id,product_id:l.product_id,name:l.product_name,quantity:Number(l.quantity),unit_price:Number(l.unit_price),discount:Number(l.discount||0),tax_rate:Number(l.tax_rate||0),tax_amount:Number(l.tax_amount||0),line_total:Number(l.line_total||0)}));
+    const payload={company_id:x.companyId,order_id:order.id,egs_unit_id:unitR.data.id,uuid:crypto.randomUUID(),invoice_number:order.order_no,invoice_kind:invoiceKind,document_status:'draft',issue_at:issueAt,invoice_counter:chain.data[0].next_counter,previous_invoice_hash:chain.data[0].previous_hash,invoice_type_code:invoiceKind==='standard'?'0100000':'0200000',currency_code:'SAR',seller_snapshot:seller,buyer_snapshot:buyer,totals_snapshot:{subtotal:Number(order.subtotal||0),discount:Number(order.discount||0),tax:Number(order.tax||0),total:Number(order.total||0)},lines_snapshot:lines,tax_snapshot:{tax:Number(order.tax||0)},source_snapshot:{order_id:order.id,order_no:order.order_no,status:order.status,warehouse_id:order.warehouse_id,channel:order.channel,service_type:order.service_type},submission_type:invoiceKind==='standard'?'clearance':'reporting',reporting_deadline:invoiceKind==='simplified'?new Date(new Date(issueAt).getTime()+86400000).toISOString():null};
+    const created=await x.supabase.from('zatca_documents').insert(payload).select().single();
+    return created.error?NextResponse.json({error:created.error.message},{status:400}):NextResponse.json({ok:true,document:created.data});
+  }
+
   if(kind === 'submit_compliance_invoice'){
     const documentId=clean(data.document_id);
     const docR=await x.supabase.from('zatca_documents').select('*').eq('id',documentId).eq('company_id',x.companyId).maybeSingle();
