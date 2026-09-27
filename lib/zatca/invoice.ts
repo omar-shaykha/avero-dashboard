@@ -98,3 +98,15 @@ export function injectZatcaUblExtensions(xml:string,extensions:string){
  if(end<0) throw new Error("Invalid UBL invoice root");
  return xml.slice(0,end+1)+extensions+xml.slice(end+1);
 }
+
+
+export function zatcaPrepareHashInput(xml:string,canonicalize:(xml:string)=>string){
+ const transformed=zatcaHashTransformSourceXml(xml).replace(/^\s*<\?xml[^>]*\?>\s*/i,"");
+ const canonical=canonicalize(transformed);
+ return {transformedXml:transformed,canonicalXml:canonical,hash:zatcaInvoiceHashFromCanonicalXml(canonical),hashBase64:zatcaInvoiceHashBase64FromCanonicalXml(canonical)};
+}
+
+export function zatcaDigestSignedProperties(signedPropertiesXml:string,canonicalize:(xml:string)=>string){
+ const canonical=canonicalize(signedPropertiesXml);
+ return {canonicalXml:canonical,digestBase64:zatcaSha256Base64(canonical)};
+}
