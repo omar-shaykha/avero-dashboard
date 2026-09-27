@@ -9,7 +9,7 @@ import { ArrowRight, Bot, LockKeyhole } from "lucide-react";
 const agents = [
   { name: "Leo", animal: "🦁", title: "Sales Agent", line: "The Opportunity Hunter", href: "/ai-sales", live: true },
   { name: "Foxy", animal: "🦊", title: "Marketing Agent", line: "The Growth Creator", href: "/ai-marketing", live: true },
-  { name: "Rivo", animal: "🦝", title: "Social Community Agent", line: "The Community Voice", href: "/crm/marketing", live: true },
+  { name: "Rivo", animal: "🦝", title: "Social Community Agent", line: "The Community Voice", href: "/crm/agents/rivo", live: true },
   { name: "Aero", animal: "🦅", title: "HR & Booking Agent", line: "The Planner", live: false },
   { name: "Gor", animal: "🦍", title: "Support Agent", line: "The Problem Solver", live: false },
   { name: "Vexa", animal: "🐍", title: "Inventory Agent", line: "The Watcher", live: false },
