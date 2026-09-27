@@ -8,7 +8,7 @@ type Run={id:string;action?:string;status?:string;input?:any;output?:any;created
 type Stats={inbound:number;outbound:number;leads:number;qualified:number};
 function displayName(c:Customer){const n=String(c.name||"").trim();return n&&n!=="Loading"?n:(c.phone?`+${String(c.phone).replace(/^\+/,"")}`:"WhatsApp lead")}
 function phone(c:Customer){return c.phone?`+${String(c.phone).replace(/^\+/,"")}`:""}
-export default function ZAYNSalesLive(){
+export default function LeoSalesLive(){
  const[messages,setMessages]=useState<Msg[]>([]),[customers,setCustomers]=useState<Customer[]>([]),[runs,setRuns]=useState<Run[]>([]),[stats,setStats]=useState<Stats>({inbound:0,outbound:0,leads:0,qualified:0}),[active,setActive]=useState(""),[draft,setDraft]=useState(""),[file,setFile]=useState<File|null>(null),[sending,setSending]=useState(false),[busy,setBusy]=useState(false),[search,setSearch]=useState(""),[error,setError]=useState("");
  const bottom=useRef<HTMLDivElement>(null),fileInput=useRef<HTMLInputElement>(null);
  async function load(){try{const r=await fetch("/api/ai-departments/sales/conversations",{cache:"no-store"});if(r.ok){const j=await r.json();setMessages(j.conversations||[]);setCustomers(j.customers||[]);setRuns(j.runtime||[]);setStats(j.stats||{inbound:0,outbound:0,leads:0,qualified:0});setActive(x=>x||(j.customers?.[0]?.id||""))}}catch{}}
