@@ -62,3 +62,11 @@ export function zatcaInvoiceHashFromCanonicalXml(canonicalXml:string){
 export function zatcaInvoiceHashBase64FromCanonicalXml(canonicalXml:string){
  return zatcaInvoiceHashFromCanonicalXml(canonicalXml).toString("base64");
 }
+
+
+export function zatcaHashTransformSourceXml(xml:string){
+ return String(xml)
+  .replace(/<ext:UBLExtensions[\s\S]*?<\/ext:UBLExtensions>/g,"")
+  .replace(/<cac:Signature[\s\S]*?<\/cac:Signature>/g,"")
+  .replace(/<cac:AdditionalDocumentReference>\s*<cbc:ID>QR<\/cbc:ID>[\s\S]*?<\/cac:AdditionalDocumentReference>/g,"");
+}
