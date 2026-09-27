@@ -4,6 +4,8 @@ import { createClient } from '@supabase/supabase-js';
 import { hasApp, getAuthorizationContext, isKingAdmin, isTenantAdmin, hasPermission } from '@/lib/auth/authorization';
 import { generateZatcaSoftwareCsr, pemBody, zatcaInvoiceTypeCode } from '@/lib/zatca/crypto';
 import { runZatcaCryptoSelfTest } from '@/lib/zatca/selftest';
+import { buildZatcaUblInvoice, zatcaPrepareHashInput } from '@/lib/zatca/invoice';
+import { canonicalizeZatcaXml } from '@/lib/zatca/canonicalize';
 
 const db = () => createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SECRET_KEY!, { auth: { persistSession: false } });
 
@@ -349,6 +351,38 @@ export async function POST(req:Request){
     const payload={company_id:x.companyId,order_id:order.id,egs_unit_id:unitR.data.id,uuid:crypto.randomUUID(),invoice_number:order.order_no,invoice_kind:invoiceKind,document_status:'draft',issue_at:issueAt,invoice_counter:chain.data[0].next_counter,previous_invoice_hash:chain.data[0].previous_hash,invoice_type_code:invoiceKind==='standard'?'0100000':'0200000',currency_code:'SAR',seller_snapshot:seller,buyer_snapshot:buyer,totals_snapshot:{subtotal:Number(order.subtotal||0),discount:Number(order.discount||0),tax:Number(order.tax||0),total:Number(order.total||0)},lines_snapshot:lines,tax_snapshot:{tax:Number(order.tax||0)},source_snapshot:{order_id:order.id,order_no:order.order_no,status:order.status,warehouse_id:order.warehouse_id,channel:order.channel,service_type:order.service_type},submission_type:invoiceKind==='standard'?'clearance':'reporting',reporting_deadline:invoiceKind==='simplified'?new Date(new Date(issueAt).getTime()+86400000).toISOString():null};
     const created=await x.supabase.from('zatca_documents').insert(payload).select().single();
     return created.error?NextResponse.json({error:created.error.message},{status:400}):NextResponse.json({ok:true,document:created.data});
+  }
+
+  if(kind === 'prepare_invoice_xml'){
+    const documentId=clean(data.document_id);
+    const docR=await x.supabase.from('zatca_documents').select('*').eq('id',documentId).eq('company_id',x.companyId).maybeSingle();
+    if(docR.error) return NextResponse.json({error:docR.error.message},{status:400});
+    if(!docR.data) return NextResponse.json({error:'ZATCA document not found'},{status:404});
+    const d=docR.data;
+    if(d.document_status!=='draft') return NextResponse.json({error:'Only draft ZATCA documents can be prepared'},{status:409});
+    const issued=new Date(d.issue_at);
+    const lines=(d.lines_snapshot||[]).map((l:any)=>({
+      name:l.name,quantity:Number(l.quantity),unitPrice:Number(l.unit_price),
+      net:Math.max(0,Number(l.line_total||0)-Number(l.tax_amount||0)),
+      tax:Number(l.tax_amount||0),taxRate:Number(l.tax_rate||0)
+    }));
+    const xml=buildZatcaUblInvoice({
+      invoiceKind:d.invoice_kind,invoiceNumber:d.invoice_number,uuid:d.uuid,
+      issueDate:issued.toISOString().slice(0,10),issueTime:issued.toISOString().slice(11,19)+'Z',
+      counter:d.invoice_counter,previousHash:d.previous_invoice_hash,
+      seller:{vatNumber:d.seller_snapshot?.vat_number,name:d.seller_snapshot?.legal_name},
+      buyer:{vatNumber:d.buyer_snapshot?.tax_number,name:d.buyer_snapshot?.name},
+      totals:{net:Number(d.totals_snapshot?.subtotal||0)-Number(d.totals_snapshot?.discount||0),tax:Number(d.totals_snapshot?.tax||0),total:Number(d.totals_snapshot?.total||0)},
+      lines
+    });
+    try{
+      const prepared=zatcaPrepareHashInput(xml,canonicalizeZatcaXml);
+      const xmlBase64=Buffer.from(xml,'utf8').toString('base64');
+      const u=await x.supabase.from('zatca_documents').update({invoice_hash:prepared.hashBase64,xml_base64:xmlBase64,updated_at:new Date().toISOString()}).eq('id',d.id).eq('company_id',x.companyId).select().single();
+      return u.error?NextResponse.json({error:u.error.message},{status:400}):NextResponse.json({ok:true,document:u.data,hash:prepared.hashBase64});
+    }catch(error:any){
+      return NextResponse.json({error:error?.message || 'Unable to prepare ZATCA XML'},{status:500});
+    }
   }
 
   if(kind === 'submit_compliance_invoice'){
