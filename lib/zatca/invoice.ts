@@ -51,3 +51,14 @@ export function zatcaRawEcPublicKey(publicKeyPem:string){
  const dec=(v:string)=>Buffer.from(v.replace(/-/g,"+").replace(/_/g,"/").padEnd(Math.ceil(v.length/4)*4,"="),"base64");
  return Buffer.concat([dec(jwk.x),dec(jwk.y)]);
 }
+
+
+export const ZATCA_FIRST_PIH="NWZlY2ViNjZmZmM4NmYzOGQ5NTI3ODZjNmQ2OTZjNzljMmRiYzIzOWRkNGU5MWI0NjcyOWQ3M2EyN2ZiNTdlOQ==";
+
+export function zatcaInvoiceHashFromCanonicalXml(canonicalXml:string){
+ return createHash("sha256").update(Buffer.from(canonicalXml,"utf8")).digest();
+}
+
+export function zatcaInvoiceHashBase64FromCanonicalXml(canonicalXml:string){
+ return zatcaInvoiceHashFromCanonicalXml(canonicalXml).toString("base64");
+}
