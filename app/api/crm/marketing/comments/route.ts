@@ -14,7 +14,7 @@ function db() {
 export async function GET() {
   const access = await getAuthorizationContext();
   if (!access) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  const companyId = access.companyId;
+  const companyId = access.profile.company_id;
   if (!companyId) return NextResponse.json({ comments: [], stats: { total:0, pending:0, replied:0, escalated:0, spam:0 } });
 
   const { data, error } = await db().from("marketing_social_comments")
