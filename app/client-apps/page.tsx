@@ -1,5 +1,5 @@
 "use client";
-import {useMemo,useState} from "react";
+import {useMemo,useState,type ReactNode} from "react";
 import Sidebar from "@/app/components/Sidebar";
 import DashboardHeader from "@/app/components/DashboardHeader";
 import {AppWindow,Check,ChevronRight,Globe2,Palette,Smartphone,Boxes,Store} from "lucide-react";
@@ -24,6 +24,6 @@ export default function ClientAppsPage(){
   </section></div></div>
  </div></main></div></div>
 }
-function Head({icon,title,sub}:{icon:React.ReactNode;title:string;sub:string}){return <div className="flex gap-3"><div className="grid h-11 w-11 place-items-center rounded-2xl border border-cyan-400/10 bg-cyan-400/[.05] text-cyan-300">{icon}</div><div><h2 className="text-xl font-semibold">{title}</h2><p className="mt-1 text-sm text-slate-500">{sub}</p></div></div>}
+function Head({icon,title,sub}:{icon:ReactNode;title:string;sub:string}){return <div className="flex gap-3"><div className="grid h-11 w-11 place-items-center rounded-2xl border border-cyan-400/10 bg-cyan-400/[.05] text-cyan-300">{icon}</div><div><h2 className="text-xl font-semibold">{title}</h2><p className="mt-1 text-sm text-slate-500">{sub}</p></div></div>}
 function Field({label,value,set,placeholder}:{label:string;value:string;set:(v:string)=>void;placeholder:string}){return <label><span className="text-xs text-slate-500">{label}</span><input value={value} onChange={e=>set(e.target.value)} placeholder={placeholder} className="mt-2 w-full rounded-2xl border border-slate-800 bg-slate-950 px-4 py-3 text-sm outline-none focus:border-cyan-400/50"/></label>}
 function Row({k,v}:{k:string;v:string}){return <div className="flex justify-between gap-4 border-b border-slate-900 py-2 last:border-0"><span className="text-slate-500">{k}</span><span className="text-right text-slate-200">{v}</span></div>}
