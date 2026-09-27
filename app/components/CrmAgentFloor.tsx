@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import AgentAvatar from "./AgentAvatar";
 
 type Run={id:string;status?:string;action?:string;created_at?:string;completed_at?:string};
 type Conversation={id:string;customer_id:string;direction:"inbound"|"outbound";created_at:string};
@@ -45,21 +46,20 @@ export default function CrmAgentFloor(){
 
   useEffect(()=>{load();const t=window.setInterval(load,2500);return()=>window.clearInterval(t)},[]);
   const agents=useMemo(()=>[
-    {name:"ZAYN",role:"Sales",emoji:"🦁",state:zayn,note:zaynNote},
-    {name:"NAYA",role:"Marketing",emoji:"🦊",state:naya,note:nayaNote},
+    {name:"ZAYN",role:"Sales",avatar:"zayn" as const,state:zayn,note:zaynNote},
+    {name:"NAYA",role:"Marketing",avatar:"naya" as const,state:naya,note:nayaNote},
   ],[zayn,naya,zaynNote,nayaNote]);
 
   return <section className="mx-6 mt-3 rounded-2xl border border-slate-800 bg-slate-950/55 p-3">
-    <div className="mb-2 flex items-center justify-between"><div><p className="text-[10px] font-black uppercase tracking-[.22em] text-cyan-400">Live AI Floor</p><p className="text-xs text-slate-500">Real activity from AVERO agents</p></div><span className="text-[10px] text-slate-600">updates live</span></div>
+    <div className="mb-2 flex items-center justify-between"><div><p className="text-[10px] font-semibold uppercase tracking-[.18em] text-cyan-300">Live AI Floor</p><p className="text-xs text-slate-500">Real activity from AVERO agents</p></div><span className="text-[10px] text-slate-600">updates live</span></div>
     <div className="grid gap-2 md:grid-cols-2">{agents.map(a=><Agent key={a.name} {...a}/>)}</div>
   </section>;
 }
 
-function Agent({name,role,emoji,state,note}:{name:string;role:string;emoji:string;state:State;note:string}){
+function Agent({name,role,avatar,state,note}:{name:string;role:string;avatar:"zayn"|"naya";state:State;note:string}){
  const working=state==="working",offline=state==="offline";
- return <div className="relative flex min-h-[92px] items-center gap-3 overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/70 px-4 py-3">
-   <style jsx>{`@keyframes workBob{0%,100%{transform:translateY(0) rotate(-2deg)}50%{transform:translateY(-5px) rotate(2deg)}}@keyframes ballPlay{0%{transform:translateX(0) translateY(0)}50%{transform:translateX(12px) translateY(-7px)}100%{transform:translateX(0) translateY(0)}}`}</style>
-   <div className="relative grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-slate-950 text-3xl" style={{animation:working?"workBob .8s ease-in-out infinite":"none"}}>{emoji}{!working&&!offline&&<span className="absolute -bottom-1 -right-1 text-sm" style={{animation:"ballPlay 2.2s ease-in-out infinite"}}>⚽</span>}</div>
-   <div className="min-w-0 flex-1"><div className="flex items-center gap-2"><p className="font-black text-white">{name}</p><span className="rounded-full bg-slate-800 px-2 py-0.5 text-[10px] text-slate-400">{role}</span></div><p className="mt-1 truncate text-xs text-slate-400">{note}</p><div className="mt-2 flex items-center gap-2 text-[10px]"><span className={`h-2 w-2 rounded-full ${working?"bg-emerald-400 animate-pulse":offline?"bg-slate-600":"bg-amber-400"}`}/><span className={working?"text-emerald-300":offline?"text-slate-600":"text-amber-300"}>{working?"WORKING LIVE":offline?"OFFLINE":"IDLE"}</span></div></div>
+ return <div className="relative flex min-h-[92px] items-center gap-3 overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/50 px-4 py-3">
+   <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-2xl border border-slate-800 bg-slate-950"><AgentAvatar agent={avatar} size={56}/><span className={`absolute bottom-1 right-1 h-2.5 w-2.5 rounded-full border-2 border-slate-950 ${working?"bg-emerald-400 animate-pulse":offline?"bg-slate-600":"bg-amber-400"}`}/></div>
+   <div className="min-w-0 flex-1"><div className="flex items-center gap-2"><p className="font-semibold text-white">{name}</p><span className="rounded-full bg-slate-800 px-2 py-0.5 text-[10px] text-slate-400">{role}</span></div><p className="mt-1 truncate text-xs text-slate-400">{note}</p><div className="mt-2 flex items-center gap-2 text-[10px]"><span className={`h-2 w-2 rounded-full ${working?"bg-emerald-400 animate-pulse":offline?"bg-slate-600":"bg-amber-400"}`}/><span className={working?"text-emerald-300":offline?"text-slate-600":"text-amber-300"}>{working?"WORKING LIVE":offline?"OFFLINE":"IDLE"}</span></div></div>
  </div>
 }
