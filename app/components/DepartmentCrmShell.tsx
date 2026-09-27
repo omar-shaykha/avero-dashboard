@@ -15,19 +15,21 @@ const cards = [
 export default function DepartmentCrmShell({ title, description }: { title: string; description: string }) {
   const { language } = useLanguage(); const ar = language === "ar";
   const marketing = title.includes("Marketing");
+  const rivo = title.includes("RIVO");
+  const socialCrm = marketing || rivo;
   const [social, setSocial] = useState<any>({comments:[],stats:{total:0,pending:0,replied:0,escalated:0,spam:0}});
-  useEffect(()=>{ if(!marketing)return; const load=()=>fetch("/api/crm/marketing/comments",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(d=>d&&setSocial(d)).catch(()=>{}); load(); const t=setInterval(load,30000); return()=>clearInterval(t); },[marketing]);
+  useEffect(()=>{ if(!socialCrm)return; const load=()=>fetch("/api/crm/marketing/comments",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(d=>d&&setSocial(d)).catch(()=>{}); load(); const t=setInterval(load,30000); return()=>clearInterval(t); },[socialCrm]);
   const translatedTitle = ar ? title.replace("CRM Marketing Department","CRM قسم التسويق").replace("AI Marketing CRM","CRM التسويق").replace("AI HR CRM","CRM الموارد البشرية").replace("AI Support CRM","CRM الدعم") : title;
-  const translatedDescription = ar && marketing ? "مساحة FOXY وRIVO لإدارة الحملات والتفاعل وتعليقات فيسبوك وإنستغرام والردود الذكية من مكان واحد." : description;
+  const translatedDescription = ar && socialCrm ? "مساحة FOXY وRIVO لإدارة الحملات والتفاعل وتعليقات فيسبوك وإنستغرام والردود الذكية من مكان واحد." : description;
 
   return <main className="flex-1 overflow-y-auto px-7 py-8"><div className="mx-auto max-w-[1400px]">
     <Link href="/crm" className="mb-6 inline-flex items-center gap-2 text-sm text-slate-400 hover:text-white"><ArrowLeft size={16}/>{ar?"العودة إلى مركز CRM":"Back to CRM Hub"}</Link>
     <div className="flex flex-wrap items-end justify-between gap-4">
       <div><p className="mb-2 text-xs font-semibold uppercase tracking-[0.22em] text-blue-400">AVERO CRM</p><h1 className="text-3xl font-bold text-white">{translatedTitle}</h1><p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">{translatedDescription}</p></div>
-      {marketing && <div className="flex gap-2"><span className="rounded-full border border-fuchsia-500/30 bg-fuchsia-500/10 px-3 py-1.5 text-xs font-bold text-fuchsia-300">FOXY · Marketing</span><span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 text-xs font-bold text-emerald-300">RIVO · Community</span></div>}
+      {socialCrm && <div className="flex gap-2">{marketing && <span className="rounded-full border border-fuchsia-500/30 bg-fuchsia-500/10 px-3 py-1.5 text-xs font-bold text-fuchsia-300">FOXY · Marketing</span>}<span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 text-xs font-bold text-emerald-300">RIVO · Community</span></div>}
     </div>
 
-    {marketing ? <>
+    {socialCrm ? <>
       <div className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-4">{cards.map(({label,ar:arl,icon:Icon})=>{const displayValue=label==="Total Comments"?social.stats.total:label==="Pending"?social.stats.pending:label==="AI Replied"?social.stats.replied:(social.stats.total?Math.round((social.stats.replied/social.stats.total)*100)+"%":"—");return <div key={label} className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5"><div className="flex items-center justify-between"><Icon size={20} className="text-blue-400"/><span className="text-2xl font-black text-white">{displayValue}</span></div><p className="mt-4 text-sm font-semibold text-slate-300">{ar?arl:label}</p></div>})}</div>
       <div className="mt-6 grid gap-6 xl:grid-cols-[1.5fr_.7fr]">
         <section className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/60">
