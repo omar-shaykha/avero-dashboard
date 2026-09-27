@@ -9,10 +9,10 @@ type AgentData={runs?:Run[]};
 type State="working"|"idle"|"offline";
 
 export default function CrmAgentFloor(){
-  const [leo,setLeo]=useState<State>("idle");
-  const [foxy,setFoxy]=useState<State>("idle");
-  const [leoNote,setLeoNote]=useState("Waiting for a customer");
-  const [foxyNote,setFoxyNote]=useState("No marketing task right now");
+  const [leo,setZAYN]=useState<State>("idle");
+  const [foxy,setNAYA]=useState<State>("idle");
+  const [leoNote,setZAYNNote]=useState("Waiting for a customer");
+  const [foxyNote,setNAYANote]=useState("No marketing task right now");
 
   async function load(){
     try{
@@ -30,23 +30,23 @@ export default function CrmAgentFloor(){
           const sorted=arr.slice().sort((a,b)=>+new Date(b.created_at)-+new Date(a.created_at));
           if(sorted[0]?.direction==="inbound"){waiting=true;break}
         }
-        if(waiting){setLeo("working");setLeoNote("Handling a live WhatsApp customer")}else{setLeo("idle");setLeoNote("Waiting for a customer")}
-      }else if(salesRes.status===403){setLeo("offline");setLeoNote("No access")}
+        if(waiting){setZAYN("working");setZAYNNote("Handling a live WhatsApp customer")}else{setZAYN("idle");setZAYNNote("Waiting for a customer")}
+      }else if(salesRes.status===403){setZAYN("offline");setZAYNNote("No access")}
 
       if(marketingRes.ok){
         const m=(await marketingRes.json()) as AgentData;
         const runs=m.runs||[];
         const running=runs.find(r=>["running","pending"].includes(String(r.status||"").toLowerCase()));
         const recent=runs.find(r=>Date.now()-new Date(r.created_at||0).getTime()<15000);
-        if(running||recent){setFoxy("working");setFoxyNote(running?"Working on a marketing task":"Just finished a marketing task")}else{setFoxy("idle");setFoxyNote("No marketing task right now")}
-      }else if(marketingRes.status===403){setFoxy("offline");setFoxyNote("No access")}
+        if(running||recent){setNAYA("working");setNAYANote(running?"Working on a marketing task":"Just finished a marketing task")}else{setNAYA("idle");setNAYANote("No marketing task right now")}
+      }else if(marketingRes.status===403){setNAYA("offline");setNAYANote("No access")}
     }catch{}
   }
 
   useEffect(()=>{load();const t=window.setInterval(load,2500);return()=>window.clearInterval(t)},[]);
   const agents=useMemo(()=>[
-    {name:"Leo",role:"Sales",emoji:"🦁",state:leo,note:leoNote},
-    {name:"Foxy",role:"Marketing",emoji:"🦊",state:foxy,note:foxyNote},
+    {name:"ZAYN",role:"Sales",emoji:"🦁",state:leo,note:leoNote},
+    {name:"NAYA",role:"Marketing",emoji:"🦊",state:foxy,note:foxyNote},
   ],[leo,foxy,leoNote,foxyNote]);
 
   return <section className="mx-6 mt-3 rounded-2xl border border-slate-800 bg-slate-950/55 p-3">
