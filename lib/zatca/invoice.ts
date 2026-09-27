@@ -41,9 +41,9 @@ export function zatcaQrPhase2(input:{sellerName:string;vatNumber:string;timestam
 }
 
 
-export function zatcaSignHashP1363(invoiceHash:Buffer,privateKeyPem:string){
+export function zatcaSignCanonicalSignedInfoP1363(canonicalSignedInfo:Buffer|string,privateKeyPem:string){
  const signer=createSign("SHA256");
- signer.update(invoiceHash); signer.end();
+ signer.update(canonicalSignedInfo); signer.end();
  return signer.sign({key:privateKeyPem,dsaEncoding:"ieee-p1363"});
 }
 export function zatcaRawEcPublicKey(publicKeyPem:string){
@@ -109,4 +109,16 @@ export function zatcaPrepareHashInput(xml:string,canonicalize:(xml:string)=>stri
 export function zatcaDigestSignedProperties(signedPropertiesXml:string,canonicalize:(xml:string)=>string){
  const canonical=canonicalize(signedPropertiesXml);
  return {canonicalXml:canonical,digestBase64:zatcaSha256Base64(canonical)};
+}
+
+
+export function zatcaQrReferenceXml(qrBase64:string){
+ return `<cac:AdditionalDocumentReference><cbc:ID>QR</cbc:ID><cac:Attachment><cbc:EmbeddedDocumentBinaryObject mimeCode="text/plain">${xmlEsc(qrBase64)}</cbc:EmbeddedDocumentBinaryObject></cac:Attachment></cac:AdditionalDocumentReference>`;
+}
+
+export function injectZatcaQrReference(xml:string,qrBase64:string){
+ const marker="<cac:AccountingSupplierParty>";
+ const p=xml.indexOf(marker);
+ if(p<0) throw new Error("Unable to place ZATCA QR reference");
+ return xml.slice(0,p)+zatcaQrReferenceXml(qrBase64)+xml.slice(p);
 }
