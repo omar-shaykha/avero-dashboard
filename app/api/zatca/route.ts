@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { hasApp, getAuthorizationContext, isKingAdmin, isTenantAdmin, hasPermission } from '@/lib/auth/authorization';
 import { generateZatcaSoftwareCsr, pemBody, zatcaInvoiceTypeCode } from '@/lib/zatca/crypto';
+import { runZatcaCryptoSelfTest } from '@/lib/zatca/selftest';
 
 const db = () => createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SECRET_KEY!, { auth: { persistSession: false } });
 
@@ -90,6 +91,15 @@ export async function POST(req:Request){
   const body = await req.json().catch(()=>({}));
   const kind = String(body?.kind || '');
   const data = body?.data || {};
+
+  if(kind === 'crypto_self_test'){
+    if(process.env.NODE_ENV === 'production') return NextResponse.json({error:'Cryptographic self-test is disabled in production'},{status:409});
+    try {
+      return NextResponse.json({ok:true,test:runZatcaCryptoSelfTest()});
+    } catch(error:any){
+      return NextResponse.json({ok:false,error:error?.message || 'ZATCA cryptographic self-test failed'},{status:500});
+    }
+  }
 
   if(kind === 'save_settings'){
     const vat = digits(data.vat_number);
