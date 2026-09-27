@@ -70,3 +70,17 @@ export function zatcaHashTransformSourceXml(xml:string){
   .replace(/<cac:Signature[\s\S]*?<\/cac:Signature>/g,"")
   .replace(/<cac:AdditionalDocumentReference>\s*<cbc:ID>QR<\/cbc:ID>[\s\S]*?<\/cac:AdditionalDocumentReference>/g,"");
 }
+
+
+export const ZATCA_C14N11="http://www.w3.org/2006/12/xml-c14n11";
+export const ZATCA_ECDSA_SHA256="http://www.w3.org/2001/04/xmldsig-more#ecdsa-sha256";
+export const ZATCA_SHA256="http://www.w3.org/2001/04/xmlenc#sha256";
+export const ZATCA_SIGNED_PROPERTIES_TYPE="http://uri.etsi.org/01903#SignedProperties";
+
+export function buildZatcaSignedProperties(i:{signatureId:string;certificateDigest:string;issuerName:string;serialNumber:string;signingTime:string}){
+ return `<xades:SignedProperties Id="xadesSignedProperties" xmlns:xades="http://uri.etsi.org/01903/v1.3.2#"><xades:SignedSignatureProperties><xades:SigningTime>${xmlEsc(i.signingTime)}</xades:SigningTime><xades:SigningCertificate><xades:Cert><xades:CertDigest><ds:DigestMethod Algorithm="${ZATCA_SHA256}"/><ds:DigestValue>${xmlEsc(i.certificateDigest)}</ds:DigestValue></xades:CertDigest><xades:IssuerSerial><ds:X509IssuerName>${xmlEsc(i.issuerName)}</ds:X509IssuerName><ds:X509SerialNumber>${xmlEsc(i.serialNumber)}</ds:X509SerialNumber></xades:IssuerSerial></xades:Cert></xades:SigningCertificate></xades:SignedSignatureProperties></xades:SignedProperties>`;
+}
+
+export function buildZatcaSignedInfo(i:{invoiceDigest:string;signedPropertiesDigest:string}){
+ return `<ds:SignedInfo xmlns:ds="http://www.w3.org/2000/09/xmldsig#"><ds:CanonicalizationMethod Algorithm="${ZATCA_C14N11}"/><ds:SignatureMethod Algorithm="${ZATCA_ECDSA_SHA256}"/><ds:Reference Id="invoiceSignedData" URI=""><ds:Transforms><ds:Transform Algorithm="http://www.w3.org/TR/1999/REC-xpath-19991116"><ds:XPath>not(//ancestor-or-self::ext:UBLExtensions)</ds:XPath></ds:Transform><ds:Transform Algorithm="http://www.w3.org/TR/1999/REC-xpath-19991116"><ds:XPath>not(//ancestor-or-self::cac:Signature)</ds:XPath></ds:Transform><ds:Transform Algorithm="http://www.w3.org/TR/1999/REC-xpath-19991116"><ds:XPath>not(//ancestor-or-self::cac:AdditionalDocumentReference[cbc:ID='QR'])</ds:XPath></ds:Transform><ds:Transform Algorithm="${ZATCA_C14N11}"/></ds:Transforms><ds:DigestMethod Algorithm="${ZATCA_SHA256}"/><ds:DigestValue>${xmlEsc(i.invoiceDigest)}</ds:DigestValue></ds:Reference><ds:Reference Type="${ZATCA_SIGNED_PROPERTIES_TYPE}" URI="#xadesSignedProperties"><ds:DigestMethod Algorithm="${ZATCA_SHA256}"/><ds:DigestValue>${xmlEsc(i.signedPropertiesDigest)}</ds:DigestValue></ds:Reference></ds:SignedInfo>`;
+}
