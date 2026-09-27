@@ -4,7 +4,8 @@ import Link from "next/link";
 import Sidebar from "./Sidebar";
 import DashboardHeader from "./DashboardHeader";
 import type { AuthorizationContext } from "@/lib/auth/authorization";
-import { ArrowRight, Bot, LockKeyhole } from "lucide-react";\nimport AgentAvatar from "./AgentAvatar";
+import { ArrowRight, Bot, LockKeyhole } from "lucide-react";
+import AgentAvatar from "./AgentAvatar";
 
 const agents = [
   { name: "ZAYN", avatar: "zayn" as const, title: "Sales Director", line: "The Opportunity Hunter", href: "/ai-sales", live: true },
