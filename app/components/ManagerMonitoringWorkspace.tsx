@@ -51,7 +51,7 @@ function pctChange(current: number, previous: number) {
   return ((current - previous) / Math.abs(previous)) * 100;
 }
 
-export default function ManagerMonitoringWorkspace({ companyName, userName }: { companyName: string; userName: string }) {
+export default function ManagerMonitoringWorkspace({ companyName, userName, companyId }: { companyName: string; userName: string; companyId?: string }) {
   const { language } = useLanguage();
   const ar = language === "ar";
   const [range, setRange] = useState<RangeKey>("30d");
@@ -68,6 +68,7 @@ export default function ManagerMonitoringWorkspace({ companyName, userName }: { 
     if (warehouse !== "all") params.set("warehouse", warehouse);
     setLoading(true);
     setError("");
+    companyId && params.set("company", companyId);
     fetch(`/api/manager-monitoring?${params.toString()}`, { cache: "no-store" })
       .then(async (res) => {
         const json = await res.json().catch(() => ({}));
@@ -78,7 +79,7 @@ export default function ManagerMonitoringWorkspace({ companyName, userName }: { 
       .catch((err) => active && setError(err.message || "Could not load dashboard"))
       .finally(() => active && setLoading(false));
     return () => { active = false; };
-  }, [range, warehouse, refreshToken]);
+  }, [range, warehouse, refreshToken, companyId]);
 
   const money = (value: unknown) => {
     const amount = num(value);
