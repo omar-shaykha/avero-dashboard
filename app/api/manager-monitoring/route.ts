@@ -35,7 +35,8 @@ export async function GET(request: Request) {
     if (spanMs > 366 * 24 * 60 * 60 * 1000) return NextResponse.json({ error: "Date range cannot exceed 366 days" }, { status: 400 });
 
     const db = admin();
-    const companyId = access.profile.company_id;
+    const requestedCompanyId = url.searchParams.get("company")?.trim() || null;
+    const companyId = isKingAdmin(access) && requestedCompanyId ? requestedCompanyId : access.profile.company_id;
 
     if (warehouseId) {
       const { data: warehouse, error } = await db
