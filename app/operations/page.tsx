@@ -11,7 +11,7 @@ import { allowedOperationsAreas, type OperationsArea } from "@/lib/os/catalog";
 
 export const dynamic = "force-dynamic";
 
-export default async function OperationsPage({ searchParams }: { searchParams: Promise<{ area?: string }> }) {
+export default async function OperationsPage({ searchParams }: { searchParams: Promise<{ area?: string; tab?: string }> }) {
   const access = await getAuthorizationContext();
   if (!access) redirect("/login");
   const companyId = access.profile.company_id;
@@ -24,11 +24,12 @@ export default async function OperationsPage({ searchParams }: { searchParams: P
 
   const areas = allowedOperationsAreas(access);
   if (!areas.length) redirect("/workspace");
-  const requested = (await searchParams).area;
+  const params = await searchParams;
+  const requested = params.area;
   if (!requested || !areas.includes(requested as OperationsArea)) redirect(`/operations?area=${areas[0]}`);
   const area = requested && areas.includes(requested as OperationsArea) ? requested as OperationsArea : areas[0];
   const current = area === "inventory" ? <InventoryWorkspace />
-    : area === "purchasing" ? <PurchasingWorkspace />
+    : area === "purchasing" ? <PurchasingWorkspace initialTab={params.tab || "Orders"} />
     : area === "production" ? <ProductionWorkspace />
     : area === "accounting" ? <AccountingWorkspace /> : null;
 
