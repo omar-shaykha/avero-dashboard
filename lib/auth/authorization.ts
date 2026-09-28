@@ -3,7 +3,7 @@ import { createClient as createServerClient } from "@/lib/supabase/server";
 import { hasActiveCompanyMembership } from "@/lib/auth/membership";
 
 export type FeatureKey = "ai_sales" | "crm" | "analytics" | "ai_marketing" | "ai_hr" | "ai_support" | "ai_inventory" | "ai_customer_care" | "ai_analytics" | "ai_warehouse";
-export type AppKey = "app_sell" | "app_operations" | "app_go" | "app_intelligence" | "app_manager";
+export type AppKey = "app_sell" | "app_operations" | "app_go" | "app_intelligence" | "app_manager" | "app_accounting" | "app_stock" | "app_hr" | "app_loyalty" | "app_zatca";
 export interface AuthorizationContext { user:{id:string;email?:string}; profile:{company_id:string|null;role:string|null;role_id:string|null}; permissions:string[]; features:string[]; }
 const LEGACY_PERMISSION_ALIASES:Record<string,string>={
   view_crm:"crm.view",manage_crm:"crm.manage",view_analytics:"analytics.view",
@@ -35,7 +35,7 @@ export async function getAuthorizationContext():Promise<AuthorizationContext|nul
  const permissions=[...effective.entries()].filter(([,allowed])=>allowed).map(([key])=>key);
  const features:string[]=[];
  if(profile?.company_id){const{data,error}=await supabase.from("company_features").select("enabled,expires_at,features(key)").eq("company_id",profile.company_id).eq("enabled",true);if(error)throw error;const now=Date.now();for(const row of data||[]){const feature=Array.isArray(row.features)?row.features[0]:row.features;if(feature?.key&&(!row.expires_at||new Date(row.expires_at).getTime()>now))features.push(feature.key)}}
- const hasSubscribedApp=features.includes("app_sell")||features.includes("app_operations")||features.includes("app_manager")||
+ const hasSubscribedApp=["app_sell","app_operations","app_manager","app_accounting","app_stock","app_hr","app_loyalty","app_zatca","app_go"].some(key=>features.includes(key))||
    (features.includes("app_intelligence")&&features.some(key=>key==="ai_sales"||key==="ai_marketing"||key==="ai_hr"||key==="ai_inventory"||key==="ai_support"));
  return{user:{id:user.id,email:user.email},profile:{company_id:profile?.company_id??null,role:profile?.role??null,role_id:profile?.role_id??null},permissions:profile?.role==="king_admin"||hasSubscribedApp?permissions:[],features}
 }
