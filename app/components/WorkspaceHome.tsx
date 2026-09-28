@@ -1,13 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowUpRight, BrainCircuit, Building2, CreditCard, Factory, Gift, Landmark, Settings2, ShieldCheck, ShoppingCart, Users, Warehouse, Activity, Layers3, BadgeCheck } from "lucide-react";
+import { ArrowUpRight, BrainCircuit, CreditCard, Factory, Gift, Landmark, Settings2, ShieldCheck, ShoppingCart, Users, Warehouse, Activity, Layers3, BadgeCheck } from "lucide-react";
 import { useLanguage } from "./LanguageProvider";
 import type { OperationsArea, OsApp } from "@/lib/os/catalog";
 
 type Props = { companyName: string; businessType: string; branchCount: number; apps: Record<OsApp, boolean>; operationsAreas: OperationsArea[]; canViewSettings: boolean; canViewIntegrations: boolean };
 
-export default function WorkspaceHome({ companyName, businessType, branchCount, apps, operationsAreas, canViewSettings, canViewIntegrations }: Props) {
+export default function WorkspaceHome({ companyName, businessType, branchCount, apps, operationsAreas, canViewSettings }: Props) {
   const { language } = useLanguage();
   const ar = language === "ar";
   const L = (en: string, arabic: string) => ar ? arabic : en;
@@ -60,12 +60,11 @@ export default function WorkspaceHome({ companyName, businessType, branchCount, 
       </div>
     </section>
 
-    {(canViewSettings || canViewIntegrations) && <section>
+    {canViewSettings && <section>
       <div className="mb-4"><p className="text-[10px] font-semibold uppercase tracking-[.18em] text-slate-500">{L("Administration","الإدارة")}</p><h2 className="mt-1 text-xl font-semibold tracking-tight">{L("Company controls","إدارة الشركة")}</h2></div>
       <div className="grid gap-4 md:grid-cols-3">
         {canViewSettings && <AdminCard href="/settings" icon={<Settings2 size={18}/>} title={L("Company & team","الشركة والفريق")} description={L("Settings, users and access","الإعدادات والمستخدمون والصلاحيات")}/>}
         <AdminCard href="/profile" icon={<Users size={18}/>} title={L("My account","حسابي")} description={L("Profile and account details","الملف الشخصي وبيانات الحساب")}/>
-        {canViewIntegrations && <AdminCard href="/apps" icon={<Building2 size={18}/>} title={L("Integrations","التكاملات")} description={L("Connected services and apps","الخدمات والتطبيقات المرتبطة")}/>}
       </div>
     </section>}
 
