@@ -3,7 +3,7 @@
 export const dynamic = "force-dynamic";
 
 import { useEffect, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import Sidebar from "@/app/components/Sidebar";
 import DashboardHeader from "@/app/components/DashboardHeader";
 import ClientsTable from "@/app/components/ClientsTable";
@@ -18,7 +18,6 @@ export default function ClientsPage() {
   const { language } = useLanguage();
   const ar = language === "ar";
   const router = useRouter();
-  const searchParams = useSearchParams();
   const [companies, setCompanies] = useState<Company[]>([]);
   const [loading, setLoading] = useState(true);
   const [accessDenied, setAccessDenied] = useState(false);
@@ -26,7 +25,7 @@ export default function ClientsPage() {
   const [userName, setUserName] = useState("");
   const [showModal, setShowModal] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
-  useEffect(()=>{if(searchParams.get("add")==="1")setShowModal(true)},[searchParams]);
+  useEffect(()=>{if(typeof window!=="undefined"&&new URLSearchParams(window.location.search).get("add")==="1")setShowModal(true)},[]);
 
   useEffect(() => {
     const load = async () => {
