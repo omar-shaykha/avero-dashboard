@@ -65,7 +65,6 @@ export default function WorkspaceHome({ companyName, businessType, branchCount, 
       <div className="grid gap-4 md:grid-cols-3">
         {canViewSettings && <AdminCard href="/settings" icon={<Settings2 size={18}/>} title={L("Company & team","الشركة والفريق")} description={L("Settings, users and access","الإعدادات والمستخدمون والصلاحيات")}/>}
         <AdminCard href="/profile" icon={<Users size={18}/>} title={L("My account","حسابي")} description={L("Profile and account details","الملف الشخصي وبيانات الحساب")}/>
-        {canViewIntegrations && <AdminCard href="/apps" icon={<Building2 size={18}/>} title={L("Integrations","التكاملات")} description={L("Connected services and apps","الخدمات والتطبيقات المرتبطة")}/>}
       </div>
     </section>}
 
