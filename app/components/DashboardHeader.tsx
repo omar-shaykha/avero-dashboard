@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ChevronDown, Globe2, UserRound, Headphones, Sparkles, ArrowLeft, RefreshCw, LogOut } from "lucide-react";
+import { ChevronDown, Globe2, UserRound, Headphones, Sparkles, ArrowLeft, RefreshCw, LogOut, UploadCloud } from "lucide-react";
 import { useLanguage } from "@/app/components/LanguageProvider";
 import { createClient } from "@/lib/supabase/client";
 
@@ -15,6 +15,8 @@ export default function DashboardHeader({ userName, userEmail }: DashboardHeader
   const [meta, setMeta] = useState<Meta>({});
   const [refreshing,setRefreshing]=useState(false);
   const [loggingOut,setLoggingOut]=useState(false);
+  const [publishing,setPublishing]=useState(false);
+  const [publishMessage,setPublishMessage]=useState("");
   const { language, setLanguage, t } = useLanguage();
   const router=useRouter();
   const ar = language === "ar";
@@ -36,6 +38,12 @@ export default function DashboardHeader({ userName, userEmail }: DashboardHeader
   const displayName = meta.full_name || meta.nickname || meta.username || userName || email || (ar ? "مستخدم" : "User");
   const initials = displayName.split(" ").map((n)=>n[0]).join("").slice(0,2).toUpperCase();
   const refreshPage=()=>{setRefreshing(true);window.location.reload()};
+  async function publishRelease(){
+    if(publishing||meta.role!=="king_admin")return;
+    if(!window.confirm(ar?"نشر النسخة المعتمدة لجميع العملاء؟":"Publish the approved release to all clients?"))return;
+    setPublishing(true);setPublishMessage("");
+    try{const r=await fetch("/api/admin/publish-release",{method:"POST"});const j=await r.json();if(!r.ok)throw new Error(j.error||"Publish failed");setPublishMessage(ar?"تم اعتماد النشر":"Published");window.setTimeout(()=>setPublishMessage(""),2200)}catch(e){setPublishMessage(e instanceof Error?e.message:"Publish failed")}finally{setPublishing(false)}
+  }
   async function logout(){
     if(loggingOut)return;
     setLoggingOut(true);
@@ -55,6 +63,7 @@ export default function DashboardHeader({ userName, userEmail }: DashboardHeader
         <button onClick={refreshPage} disabled={refreshing} className="inline-flex items-center gap-2 rounded-xl border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs font-medium text-slate-300 transition hover:border-slate-700 hover:bg-slate-900 hover:text-white disabled:opacity-60"><RefreshCw size={15} className={refreshing?"animate-spin":""}/><span className="hidden sm:inline">{ar?"تحديث":"Refresh"}</span></button>
       </div>
       <div className="flex items-center gap-3">
+        {meta.role==="king_admin"&&<button onClick={publishRelease} disabled={publishing} className="inline-flex items-center gap-2 rounded-xl border border-cyan-400/20 bg-cyan-400/[.06] px-3 py-2 text-xs font-bold text-cyan-200 transition hover:bg-cyan-400/[.1] disabled:opacity-50"><UploadCloud size={15}/><span className="hidden lg:inline">{publishing?(ar?"جارٍ النشر...":"Publishing..."):(ar?"نشر":"Publish")}</span>{publishMessage&&<span className="hidden xl:inline text-[10px] text-slate-400">{publishMessage}</span>}</button>}
         <Link href="/help-center" className="inline-flex items-center gap-2 rounded-xl border border-slate-800 bg-white/[.025] px-3 py-2 text-xs font-medium text-slate-300 transition hover:border-cyan-400/20 hover:text-cyan-100"><Headphones size={15}/><span className="hidden lg:inline">{ar ? "مركز المساعدة" : "Help Center"}</span><span className="flex items-center gap-1 text-[10px] text-emerald-400"><span className="h-1.5 w-1.5 rounded-full bg-emerald-400"/>24/7</span></Link>
         <div className="flex items-center gap-2"><div className="h-2 w-2 rounded-full bg-emerald-500"/><span className="text-xs text-slate-300">{t("online")}</span></div>
         <button onClick={() => setOpen((v)=>!v)} className="flex items-center gap-3 rounded-xl border border-transparent px-2 py-1.5 hover:border-slate-800 hover:bg-white/[.025]"><div className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-xl border border-cyan-400/20 bg-cyan-400/10 text-xs font-semibold text-cyan-100">{meta.avatar_url ? <img src={meta.avatar_url} alt="" className="h-full w-full object-cover"/> : initials}</div><div className={`hidden md:block ${ar ? "text-right" : "text-left"}`}><p className="max-w-[180px] truncate text-sm font-medium text-white">{displayName}</p><p className="max-w-[180px] truncate text-[11px] text-slate-500">{meta.username ? `@${meta.username}` : meta.job_title || (ar ? "حساب AVERO" : "AVERO Account")}</p></div><ChevronDown size={15} className="text-slate-500"/></button>
