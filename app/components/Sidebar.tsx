@@ -90,13 +90,20 @@ export default function Sidebar({ access }: SidebarProps) {
   const app = (key:string) => isKingAdmin || !!currentAccess?.features.includes(key);
   const has = (feature: string, permission: string) => isKingAdmin || !!(app("app_intelligence") && currentAccess?.features.includes(feature) && permitted(permission));
   const canModule = (...permissions: string[]) => isKingAdmin || isTenantAdmin || permissions.some((p) => permitted(p));
-  const canOperationsArea = (area: OperationsArea) => app("app_operations") && canModule(...operationsPermissions[area]);
+  const canOperationsArea = (area: OperationsArea) => {
+    const subscribed = area === "inventory"
+      ? app("app_stock") || app("app_operations")
+      : area === "accounting"
+        ? app("app_accounting") || app("app_operations")
+        : app("app_operations");
+    return subscribed && canModule(...operationsPermissions[area]);
+  };
   const sellVisible = app("app_sell") && canModule("sales.view", "sales.cashier", "sales.manage");
   const purchaseFromOperations = canOperationsArea("purchasing");
-  const purchaseFromSell = sellVisible && canModule("purchasing.view", "purchasing.manage");
+  const purchaseFromSell = false;
   const crmVisible = app("app_sell") && (isKingAdmin || !!(currentAccess?.features.includes("crm") && permitted("view_crm")));
   const monitoringVisible = app("app_manager") && canModule("analytics.view");
-  const reportsVisible = (app("app_sell") && canModule("sales.view", "sales.manage", "customers.manage", "purchasing.view", "purchasing.manage")) || (app("app_operations") && canModule("inventory.view", "inventory.manage", "production.view", "production.manage", "purchasing.view", "purchasing.manage"));
+  const reportsVisible = (app("app_sell") && canModule("sales.view", "sales.manage", "customers.manage")) || ((app("app_operations") || app("app_stock") || app("app_accounting")) && canModule("inventory.view", "inventory.manage", "production.view", "production.manage", "purchasing.view", "purchasing.manage", "sales.cost.view", "inventory.cost.view"));
   const clientsVisible = isKingAdmin;
   const appsVisible = app("app_sell") && canModule("settings.view", "settings.manage");
   const settingsVisible = isKingAdmin || (!!currentAccess?.features.some(key => ["app_sell", "app_operations", "app_accounting", "app_stock", "app_manager", "app_intelligence", "app_go", "app_hr", "app_loyalty", "app_zatca"].includes(key)) && canModule("settings.view", "settings.manage"));
