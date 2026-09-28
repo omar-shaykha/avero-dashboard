@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowUpRight, BrainCircuit, Building2, CreditCard, Factory, Gift, Landmark, Settings2, ShieldCheck, ShoppingCart, Users, Warehouse, Activity, Layers3, BadgeCheck } from "lucide-react";
+import { ArrowUpRight, BrainCircuit, CreditCard, Factory, Gift, Landmark, Settings2, ShieldCheck, ShoppingCart, Users, Warehouse, Activity, Layers3, BadgeCheck } from "lucide-react";
 import { useLanguage } from "./LanguageProvider";
 import type { OperationsArea, OsApp } from "@/lib/os/catalog";
 
