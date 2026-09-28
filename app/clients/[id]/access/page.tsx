@@ -39,6 +39,7 @@ export default function ClientAccessPage(){
   const [origin,setOrigin]=useState("");
   const [newEmail,setNewEmail]=useState("");
   const [addingUser,setAddingUser]=useState(false);
+  const [applyingPreset,setApplyingPreset]=useState(false);
   useEffect(()=>setOrigin(window.location.origin),[]);
   const load=useCallback(async()=>{
     const [o,f,l]=await Promise.all([
@@ -63,6 +64,16 @@ export default function ClientAccessPage(){
       await load();
     }catch(e){setError(e instanceof Error?e.message:L("Could not save","تعذّر الحفظ"))}finally{setSaving(null)}
   }
+  async function applyPosOnly(){
+    if(!window.confirm(L("Apply POS Only? This enables POS and disables the other business applications for this client.","تطبيق POS فقط؟ سيتم تفعيل POS وإيقاف باقي تطبيقات الأعمال لهذا العميل.")))return;
+    setApplyingPreset(true);setError("");
+    try{
+      const response=await fetch(`/api/clients/${id}/features/pos-only`,{method:"POST"});
+      const body=await response.json();
+      if(!response.ok)throw new Error(body.error||L("Could not apply preset","تعذّر تطبيق الباقة"));
+      await load();
+    }catch(e){setError(e instanceof Error?e.message:L("Could not apply preset","تعذّر تطبيق الباقة"))}finally{setApplyingPreset(false)}
+  }
   async function copy(path:string,label:string){await navigator.clipboard.writeText(`${window.location.origin}${path}`);setCopied(label);window.setTimeout(()=>setCopied(""),2000)}
   async function addUser(event:React.FormEvent<HTMLFormElement>){
     event.preventDefault();setAddingUser(true);setError("");
@@ -79,10 +90,10 @@ export default function ClientAccessPage(){
     {label:L("Sign in","تسجيل الدخول"),path:"/login",key:null},
     {label:L("Profile","الملف الشخصي"),path:"/profile",key:null},
     {label:L("Add Items","إضافة الأصناف"),path:"/pos?area=add-items",key:"app_sell"},
-    {label:L("Inventory","المخزون"),path:"/operations?area=inventory",key:"app_operations"},
-    {label:L("Purchasing","المشتريات"),path:enabled("app_operations")?"/operations?area=purchasing":"/pos?area=purchasing",key:enabled("app_operations")?"app_operations":"app_sell"},
+    {label:L("Inventory","المخزون"),path:"/operations?area=inventory",key:enabled("app_stock")?"app_stock":"app_operations"},
+    {label:L("Purchasing","المشتريات"),path:"/operations?area=purchasing",key:"app_operations"},
     {label:L("Production","الإنتاج"),path:"/operations?area=production",key:"app_operations"},
-    {label:L("Accounting","المحاسبة"),path:"/operations?area=accounting",key:"app_operations"},
+    {label:L("Accounting","المحاسبة"),path:"/operations?area=accounting",key:enabled("app_accounting")?"app_accounting":"app_operations"},
     {label:L("Manager","المدير"),path:"/manager-monitoring",key:"app_manager"},
     {label:"CRM",path:"/crm",key:"crm"},
     {label:L("GO menu management","إدارة منيو GO"),path:"/go",key:"app_go"},
@@ -106,7 +117,7 @@ export default function ClientAccessPage(){
         </div>)}</div>
         {slug&&(!menuPublished||!enabled("app_go"))&&<p className="mt-3 text-sm text-amber-300">{L("Customer ordering requires GO, a branch, products and a published menu.","منيو الزبائن غير جاهز للطلبات؛ لازم GO والفرع والأصناف ونشر المنيو.")}</p>}
       </section>
-      <section className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5"><h2 className="text-xl font-bold">{L("Business Applications","تطبيقات الأعمال")}</h2><p className="mt-1 text-sm text-slate-400">{L("Turn on only what the customer subscribed to. Everything else stays hidden.","فعّل فقط التطبيقات التي اشترك بها العميل. كل ما هو غير مفعّل يبقى مخفيًا عنه.")}</p><div className="mt-4 divide-y divide-slate-800">{apps.map(app=><div key={app.key} className="flex items-center justify-between gap-4 py-4"><div><h3 className="font-bold">{L(app.name,app.nameAr)}</h3><p className="mt-1 text-sm text-slate-400">{L(app.detail,app.detailAr)}</p></div>{switchButton(app.key)}</div>)}</div></section>
+      <section className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5"><div className="flex flex-wrap items-start justify-between gap-4"><div><h2 className="text-xl font-bold">{L("Business Applications","تطبيقات الأعمال")}</h2><p className="mt-1 text-sm text-slate-400">{L("Turn on only what the customer subscribed to. Everything else stays hidden.","فعّل فقط التطبيقات التي اشترك بها العميل. كل ما هو غير مفعّل يبقى مخفيًا عنه.")}</p></div><button type="button" disabled={applyingPreset||saving!==null} onClick={()=>applyPosOnly()} className="rounded-xl border border-cyan-400/40 bg-cyan-400/10 px-4 py-2.5 text-sm font-bold text-cyan-200 disabled:opacity-40">{applyingPreset?L("Applying…","جارٍ التطبيق…"):L("Apply POS Only","تفعيل POS فقط")}</button></div><div className="mt-4 divide-y divide-slate-800">{apps.map(app=><div key={app.key} className="flex items-center justify-between gap-4 py-4"><div><h3 className="font-bold">{L(app.name,app.nameAr)}</h3><p className="mt-1 text-sm text-slate-400">{L(app.detail,app.detailAr)}</p></div>{switchButton(app.key)}</div>)}</div></section>
       <section id="client-users" className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5"><h2 className="text-xl font-bold">{L("Client users · King only","مستخدمو العميل · للـKing فقط")}</h2><p className="mt-2 text-sm text-slate-400">{L("Add an email to invite a user. Permissions start empty and are assigned in Settings → Users & permissions.","أضف البريد؛ تصله دعوة تسجيل الدخول. الصلاحيات تبدأ فارغة، ويحددها Super Admin العميل في Settings ← المستخدمون والصلاحيات.")}</p><form onSubmit={addUser} className="mt-4 flex flex-wrap gap-2"><input type="email" required value={newEmail} onChange={e=>setNewEmail(e.target.value)} placeholder="user@example.com" className="min-w-60 flex-1 rounded-xl border border-slate-700 bg-slate-950 px-4 py-3"/><button disabled={addingUser} className="rounded-xl bg-cyan-500 px-4 py-3 font-bold text-slate-950 disabled:opacity-50">{addingUser?L("Adding…","جارٍ الإضافة…"):L("Add new user","إضافة مستخدم")}</button></form><div className="mt-4 divide-y divide-slate-800">{overview.users.map(u=><div key={u.user_id} className="flex flex-wrap items-center justify-between gap-2 py-3"><div className="flex items-center gap-3"><span className={`h-2.5 w-2.5 rounded-full ${u.online?"bg-emerald-400 animate-pulse":"bg-slate-600"}`}/><span className="text-sm">{u.email||u.user_id} <small className="text-slate-400">· {u.role}</small></span><span className={`rounded-full px-2 py-1 text-[10px] font-bold ${u.online?"bg-emerald-500/15 text-emerald-300":"bg-slate-800 text-slate-400"}`}>{u.online?L("Online","أونلاين"):L("Offline","أوفلاين")}</span></div><div className="flex flex-wrap gap-2"><button onClick={()=>copy(`/workspace/${slug||id}`,u.user_id).catch(()=>setError(L("Could not copy link","تعذّر نسخ الرابط")))} className="rounded-lg border border-cyan-500/40 px-3 py-2 text-xs text-cyan-300">{copied===u.user_id?L("Copied ✓","تم النسخ ✓"):L("Copy sign-in link","نسخ رابط الدخول")}</button></div></div>)}</div></section>
       <section className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5"><h2 className="text-xl font-bold">{L("AI Agents","وكلاء الذكاء الاصطناعي")}</h2><p className="mt-1 text-sm text-slate-400">{L("Enable Intelligence first. Agents in development cannot be activated.","فعّل Intelligence أولًا. الوكلاء قيد التطوير لا تفتح لهم شاشات غير جاهزة.")}</p><div className="mt-4 divide-y divide-slate-800">{agents.map(agent=><div key={agent.key} className="flex items-center justify-between gap-4 py-4"><div><h3 className="font-bold">{agent.name}</h3><p className="text-sm text-slate-400">{L(agent.detail,agent.detailAr)}</p></div>{switchButton(agent.key,!enabled("app_intelligence")||!agent.ready)}</div>)}</div></section>
       <section className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5"><h2 className="text-xl font-bold">{L("Account & subscription","الحساب والاشتراك")}</h2><p className="mt-3 text-slate-300">{L("Plan","الخطة")}: {overview?.subscription?.subscription_plans?.name||L("Not set","لم تحدد")} · {L("Status","الحالة")}: {overview?.subscription?.status||"—"}</p><p className="mt-2 text-sm text-slate-400">{overview?.users.length||0} {L("users · Apps and agents can be enabled by King only.","مستخدمين · تفعيل التطبيقات والوكلاء من لوحة الـKing فقط.")}</p></section>
