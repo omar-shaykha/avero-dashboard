@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowUpRight, BrainCircuit, Building2, CreditCard, Factory, Landmark, Settings2, ShieldCheck, ShoppingBag, ShoppingCart, Users, Warehouse, Activity, Layers3 } from "lucide-react";
+import { ArrowUpRight, BrainCircuit, Building2, CreditCard, Factory, Gift, Landmark, Settings2, ShieldCheck, ShoppingBag, ShoppingCart, Users, Warehouse, Activity, Layers3, BadgeCheck } from "lucide-react";
 import { useLanguage } from "./LanguageProvider";
 import type { OperationsArea, OsApp } from "@/lib/os/catalog";
 
@@ -15,6 +15,9 @@ export default function WorkspaceHome({ companyName, businessType, branchCount, 
     { key: "sell" as const, title: "AVERO Sell", description: L("Cashier and product management", "الكاشير وإدارة الأصناف"), href: "/pos?area=cashier", icon: CreditCard },
     { key: "go" as const, title: "AVERO GO", description: L("Pickup menu and customer orders", "منيو الاستلام وطلبات العملاء"), href: "/go", icon: ShoppingBag },
     { key: "intelligence" as const, title: "AVERO Intelligence", description: L("AI workforce and department agents", "فريق الذكاء الاصطناعي ووكلاء الأقسام"), href: "/ai-agents", icon: BrainCircuit },
+    { key: "hr" as const, title: L("HR & Employees", "الموارد البشرية والموظفون"), description: L("Enabled subscription", "اشتراك مفعّل"), href: "/workspace", icon: Users },
+    { key: "loyalty" as const, title: L("Loyalty & Promotions", "الولاء والعروض"), description: L("Enabled subscription", "اشتراك مفعّل"), href: "/workspace", icon: Gift },
+    { key: "zatca" as const, title: "ZATCA Fatoora", description: L("Enabled subscription", "اشتراك مفعّل"), href: "/workspace", icon: BadgeCheck },
   ];
   const visibleProducts = [
     ...(["inventory", "purchasing", "production", "accounting"] as const).filter(area => operationsAreas.includes(area)).map(area => ({

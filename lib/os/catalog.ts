@@ -1,6 +1,6 @@
 import { canAccess, hasApp, hasPermission, isKingAdmin, isTenantAdmin, type AuthorizationContext } from "@/lib/auth/authorization";
 
-export type OsApp = "control" | "operations" | "sell" | "go" | "intelligence" | "admin";
+export type OsApp = "control" | "operations" | "sell" | "go" | "intelligence" | "hr" | "loyalty" | "zatca" | "admin";
 export type OperationsArea = "inventory" | "purchasing" | "production" | "accounting";
 
 const operationsPermissions: Record<OperationsArea, readonly string[]> = {
@@ -34,6 +34,9 @@ export function availableOsApps(access: AuthorizationContext): Record<OsApp, boo
     sell: canOpenSell(access),
     go: hasApp(access, "app_go") && canOpenSell(access),
     intelligence: isKingAdmin(access) || canAccess(access,"ai_sales","sales.view") || canAccess(access,"ai_marketing","marketing.manage"),
+    hr: hasApp(access, "app_hr"),
+    loyalty: hasApp(access, "app_loyalty"),
+    zatca: hasApp(access, "app_zatca"),
     admin: isKingAdmin(access),
   };
 }
