@@ -11,7 +11,12 @@ const operationsPermissions: Record<OperationsArea, readonly string[]> = {
 };
 
 export function canOpenOperationsArea(access: AuthorizationContext, area: OperationsArea): boolean {
-  return hasApp(access, "app_operations") && (isKingAdmin(access) || isTenantAdmin(access) || operationsPermissions[area].some((permission) => hasPermission(access, permission)));
+  const subscribed = area === "inventory"
+    ? hasApp(access, "app_stock") || hasApp(access, "app_operations")
+    : area === "accounting"
+      ? hasApp(access, "app_accounting") || hasApp(access, "app_operations")
+      : hasApp(access, "app_operations");
+  return subscribed && (isKingAdmin(access) || isTenantAdmin(access) || operationsPermissions[area].some((permission) => hasPermission(access, permission)));
 }
 
 export function allowedOperationsAreas(access: AuthorizationContext): OperationsArea[] {
