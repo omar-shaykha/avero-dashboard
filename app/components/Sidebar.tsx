@@ -7,7 +7,7 @@ import AveroBrand from "./AveroBrand";
 import { useLanguage } from "./LanguageProvider";
 import type { AuthorizationContext } from "@/lib/auth/authorization";
 import { DEFAULT_ORDER, normalizeOrder, type NavSectionKey } from "@/lib/navigation/order";
-import { AppWindow, BarChart3, Bot, Building2, Factory, GripVertical, Landmark, LayoutGrid, Menu, PackagePlus, PanelLeftClose, PanelLeftOpen, Settings, ShoppingBag, ShoppingCart, Store, UsersRound, Palette, Warehouse, X } from "lucide-react";
+import { AppWindow, BadgeCheck, BarChart3, Bot, Building2, Factory, Gift, GripVertical, Landmark, LayoutGrid, Menu, PackagePlus, PanelLeftClose, PanelLeftOpen, Settings, ShoppingBag, ShoppingCart, Store, UsersRound, Palette, Warehouse, X } from "lucide-react";
 
 interface SidebarProps { userEmail?: string; userName?: string; access?: AuthorizationContext | null; }
 type NavIcon = ComponentType<{ size?: number; className?: string }>;
@@ -153,6 +153,9 @@ export default function Sidebar({ access }: SidebarProps) {
     purchasing: purchaseFromOperations || purchaseFromSell ? <Main href={purchaseFromOperations ? "/operations?area=purchasing" : "/pos?area=purchasing"} label={collapsed ? "" : L("Purchasing", "المشتريات")} icon={ShoppingCart} active={pathname === "/operations" && operationsArea === "purchasing" || pathname === "/pos" && currentArea === "purchasing"} onClick={() => purchaseFromOperations ? selectOperations("purchasing") : selectRoute("purchasing")} /> : null,
     production: canOperationsArea("production") ? <Main href="/operations?area=production" label={collapsed ? "" : L("Production", "الإنتاج")} icon={Factory} active={pathname === "/operations" && operationsArea === "production"} onClick={() => selectOperations("production")} /> : null,
     accounting: canOperationsArea("accounting") ? <Main href="/operations?area=accounting" label={collapsed ? "" : L("Accounting", "المحاسبة")} icon={Landmark} active={pathname === "/operations" && operationsArea === "accounting"} onClick={() => selectOperations("accounting")} /> : null,
+    hr: app("app_hr") ? <Main href="/hr" label={collapsed ? "" : L("HR & Employees", "الموارد البشرية")} icon={UsersRound} active={pathname?.startsWith("/hr")} /> : null,
+    loyalty: app("app_loyalty") ? <Main href="/loyalty" label={collapsed ? "" : L("Loyalty & Promotions", "الولاء والعروض")} icon={Gift} active={pathname?.startsWith("/loyalty")} /> : null,
+    zatca: app("app_zatca") ? <Main href="/apps/zatca" label={collapsed ? "" : "ZATCA Fatoora"} icon={BadgeCheck} active={pathname?.startsWith("/apps/zatca")} /> : null,
     reports: reportsVisible ? <Main href="/reports" label={collapsed ? "" : L("Reports", "التقارير")} icon={BarChart3} active={pathname === "/reports"} /> : null,
     apps: appsVisible ? <Main href="/apps" label={collapsed ? "" : L("Apps", "التطبيقات")} icon={AppWindow} active={pathname?.startsWith("/apps")} /> : null,
     settings: settingsVisible ? <Main href="/settings" label={collapsed ? "" : L("Settings", "الإعدادات")} icon={Settings} active={pathname?.startsWith("/settings")} /> : null,
