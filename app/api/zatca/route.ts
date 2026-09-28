@@ -8,7 +8,7 @@ const db = () => createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env
 
 async function context(){
   const auth = await getAuthorizationContext();
-  if(!auth?.profile?.company_id||!hasApp(auth,"app_sell")) return null;
+  if(!auth?.profile?.company_id||!hasApp(auth,"app_zatca")) return null;
   return { auth, companyId: auth.profile.company_id, supabase: db() };
 }
 

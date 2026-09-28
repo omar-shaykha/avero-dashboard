@@ -15,9 +15,9 @@ export default async function ReportsPage() {
     ...(hasApp(access, "app_sell") && can("sales.view", "sales.manage") ? ["sales", "items"] : []),
     ...(hasApp(access, "app_sell") && can("customers.manage", "sales.manage") ? ["customers"] : []),
     ...(hasApp(access, "app_operations") && can("production.view", "production.manage") ? ["production"] : []),
-    ...((hasApp(access, "app_operations") || hasApp(access, "app_sell")) && can("purchasing.view", "purchasing.manage") ? ["purchasing"] : []),
-    ...(hasApp(access, "app_operations") && can("inventory.view", "inventory.manage", "production.view") ? ["waste"] : []),
-    ...(hasApp(access, "app_operations") && can("inventory.view", "inventory.manage") ? ["counts", "stock", "movements"] : []),
+    ...(hasApp(access, "app_operations") && can("purchasing.view", "purchasing.manage") ? ["purchasing"] : []),
+    ...((hasApp(access, "app_operations") || hasApp(access, "app_stock")) && can("inventory.view", "inventory.manage", "production.view") ? ["waste"] : []),
+    ...((hasApp(access, "app_operations") || hasApp(access, "app_stock")) && can("inventory.view", "inventory.manage") ? ["counts", "stock", "movements"] : []),
   ];
   if (!allowed.length) redirect("/workspace");
   return <div className="min-h-screen bg-slate-950 text-white"><Sidebar access={access}/><div className="min-h-screen md:ml-64"><DashboardHeader userEmail={access.user.email}/><main className="mx-auto max-w-[1600px] px-5 py-8 md:px-8"><ReportsWorkspace allowed={allowed}/></main></div></div>;

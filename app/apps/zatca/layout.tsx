@@ -5,6 +5,6 @@ import { getAuthorizationContext, hasApp, hasPermission, isTenantAdmin } from "@
 export default async function ZatcaAppLayout({ children }: { children: ReactNode }) {
   const access = await getAuthorizationContext();
   if (!access) redirect("/login");
-  if (!hasApp(access, "app_sell") || !(isTenantAdmin(access) || hasPermission(access, "settings.view") || hasPermission(access, "settings.manage"))) redirect("/workspace");
+  if (!hasApp(access, "app_zatca") || !(isTenantAdmin(access) || hasPermission(access, "settings.view") || hasPermission(access, "settings.manage"))) redirect("/workspace");
   return children;
 }

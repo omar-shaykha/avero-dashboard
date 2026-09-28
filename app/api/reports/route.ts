@@ -13,9 +13,9 @@ const permitted = (access: AuthorizationContext, kind: Kind) => {
   if (kind === "sales" || kind === "items") return hasApp(access, "app_sell") && can("sales.view", "sales.manage");
   if (kind === "customers") return hasApp(access, "app_sell") && can("customers.manage", "sales.manage");
   if (kind === "production") return hasApp(access, "app_operations") && can("production.view", "production.manage");
-  if (kind === "purchasing") return (hasApp(access, "app_operations") || hasApp(access, "app_sell")) && can("purchasing.view", "purchasing.manage");
-  if (kind === "waste") return hasApp(access, "app_operations") && can("inventory.view", "inventory.manage", "production.view");
-  return hasApp(access, "app_operations") && can("inventory.view", "inventory.manage");
+  if (kind === "purchasing") return hasApp(access, "app_operations") && can("purchasing.view", "purchasing.manage");
+  if (kind === "waste") return (hasApp(access, "app_operations") || hasApp(access, "app_stock")) && can("inventory.view", "inventory.manage", "production.view");
+  return (hasApp(access, "app_operations") || hasApp(access, "app_stock")) && can("inventory.view", "inventory.manage");
 };
 
 export async function GET(request: Request) {

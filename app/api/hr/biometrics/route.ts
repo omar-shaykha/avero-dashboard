@@ -16,7 +16,7 @@ export async function GET() {
   try {
     const ctx = await getAuthorizationContext();
     if (!ctx) return Response.json({ error: "Unauthorized" }, { status: 401 });
-    if (!hasApp(ctx,"app_operations")) return Response.json({error:"Forbidden"},{status:403});
+    if (!hasApp(ctx,"app_hr")) return Response.json({error:"Forbidden"},{status:403});
     const companyId = ctx.profile.company_id;
     if (!companyId) return Response.json({ error: "Company not configured" }, { status: 409 });
     const s = admin();
@@ -36,7 +36,7 @@ export async function POST(request: Request) {
   try {
     const ctx = await getAuthorizationContext();
     if (!ctx) return Response.json({ error: "Unauthorized" }, { status: 401 });
-    if (!hasApp(ctx,"app_operations")) return Response.json({error:"Forbidden"},{status:403});
+    if (!hasApp(ctx,"app_hr")) return Response.json({error:"Forbidden"},{status:403});
     const companyId = ctx.profile.company_id;
     if (!companyId) return Response.json({ error: "Company not configured" }, { status: 409 });
     const body = await request.json().catch(() => ({}));
