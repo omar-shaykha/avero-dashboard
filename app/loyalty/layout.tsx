@@ -1,0 +1,1 @@
+import {redirect} from "next/navigation";import type {ReactNode} from "react";import {getAuthorizationContext,hasApp} from "@/lib/auth/authorization";export default async function Layout({children}:{children:ReactNode}){const a=await getAuthorizationContext();if(!a)redirect("/login");if(!hasApp(a,"app_loyalty"))redirect("/workspace");return children;}
