@@ -107,7 +107,7 @@ export default function Sidebar({ access }: SidebarProps) {
   const clientsVisible = isKingAdmin;
   const appsVisible = app("app_sell") && canModule("settings.view", "settings.manage");
   const settingsVisible = isKingAdmin || (!!currentAccess?.features.some(key => ["app_sell", "app_operations", "app_accounting", "app_stock", "app_manager", "app_intelligence", "app_go", "app_hr", "app_loyalty", "app_zatca"].includes(key)) && canModule("settings.view", "settings.manage"));
-  const agentsVisible = has("ai_sales", "view_ai_sales") || has("ai_marketing", "marketing.manage");
+  const agentsVisible = has("ai_sales", "view_ai_sales") || has("ai_marketing", "marketing.manage") || has("ai_customer_care", "customer_care.view");
   const width = collapsed ? "md:w-20 w-72" : "md:w-64 w-72";
   const mobileTransform = mobileOpen ? "translate-x-0" : rtl ? "translate-x-full md:translate-x-0" : "-translate-x-full md:translate-x-0";
   const L = (en: string, arText: string) => ar ? arText : en;

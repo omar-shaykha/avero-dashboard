@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import Sidebar from "@/app/components/Sidebar";
 import DashboardHeader from "@/app/components/DashboardHeader";
 import WorkspaceHome from "@/app/components/WorkspaceHome";
+import KingControlCenter from "@/app/components/KingControlCenter";
 import { getAuthorizationContext, isKingAdmin } from "@/lib/auth/authorization";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { allowedOperationsAreas, availableOsApps } from "@/lib/os/catalog";
@@ -29,6 +30,8 @@ export default async function WorkspacePage() {
   if (!company.data) throw new Error("Company not found");
 
   const apps=availableOsApps(access);
+  if (isKingAdmin(access)) return <div className="min-h-screen bg-slate-950 text-white"><Sidebar access={access}/><div className="min-h-screen md:ml-64"><DashboardHeader/><KingControlCenter/></div></div>;
+
   return <div className="min-h-screen bg-slate-950 text-white">
     <Sidebar access={access} />
     <div className="min-h-screen md:ml-64">

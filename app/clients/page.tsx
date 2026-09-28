@@ -25,6 +25,7 @@ export default function ClientsPage() {
   const [userName, setUserName] = useState("");
   const [showModal, setShowModal] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
+  useEffect(()=>{if(typeof window!=="undefined"&&new URLSearchParams(window.location.search).get("add")==="1")setShowModal(true)},[]);
 
   useEffect(() => {
     const load = async () => {

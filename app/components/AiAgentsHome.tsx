@@ -16,9 +16,11 @@ const agents = [
 type AiAgentsHomeProps = { userEmail?: string; userName?: string; access?: AuthorizationContext | null };
 
 export default function AiAgentsHome({ userEmail, userName, access }: AiAgentsHomeProps) {
-  const visible = agents.filter(a => a.name === "ZAYN"
-    ? !!(access?.profile.role === "king_admin" || (access?.features.includes("app_intelligence") && access?.features.includes("ai_sales") && access?.permissions.includes("sales.view")))
-    : !!(access?.profile.role === "king_admin" || (access?.features.includes("app_intelligence") && access?.features.includes("ai_marketing") && access?.permissions.includes("marketing.manage"))));
+  const visible = agents.filter(a => access?.profile.role === "king_admin" || (access?.features.includes("app_intelligence") && (
+    a.name === "ZAYN" ? access.features.includes("ai_sales") && access.permissions.includes("sales.view") :
+    a.name === "NAYA" ? access.features.includes("ai_marketing") && access.permissions.includes("marketing.manage") :
+    access.features.includes("ai_customer_care") && access.permissions.includes("customer_care.view")
+  )));
 
   return <div className="min-h-screen bg-slate-950 text-white">
     <Sidebar userEmail={userEmail} userName={userName} access={access}/>

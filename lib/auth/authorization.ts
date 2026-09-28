@@ -36,7 +36,7 @@ export async function getAuthorizationContext():Promise<AuthorizationContext|nul
  const features:string[]=[];
  if(profile?.company_id){const{data,error}=await supabase.from("company_features").select("enabled,expires_at,features(key)").eq("company_id",profile.company_id).eq("enabled",true);if(error)throw error;const now=Date.now();for(const row of data||[]){const feature=Array.isArray(row.features)?row.features[0]:row.features;if(feature?.key&&(!row.expires_at||new Date(row.expires_at).getTime()>now))features.push(feature.key)}}
  const hasSubscribedApp=["app_sell","app_operations","app_manager","app_accounting","app_stock","app_hr","app_loyalty","app_zatca","app_go"].some(key=>features.includes(key))||
-   (features.includes("app_intelligence")&&features.some(key=>key==="ai_sales"||key==="ai_marketing"||key==="ai_hr"||key==="ai_inventory"||key==="ai_support"));
+   (features.includes("app_intelligence")&&features.some(key=>key==="ai_sales"||key==="ai_marketing"||key==="ai_customer_care"));
  return{user:{id:user.id,email:user.email},profile:{company_id:profile?.company_id??null,role:profile?.role??null,role_id:profile?.role_id??null},permissions:profile?.role==="king_admin"||hasSubscribedApp?permissions:[],features}
 }
 export function isKingAdmin(context:AuthorizationContext|null){return context?.profile.role==="king_admin"}
@@ -45,6 +45,6 @@ export function isTenantAdmin(context:AuthorizationContext|null){return Boolean(
 export function hasPermission(context:AuthorizationContext|null,permissionKey:string){return Boolean(isKingAdmin(context)||(hasAnyApp(context)&&context?.permissions.includes(normalizePermissionKey(permissionKey))))}
 export function hasFeature(context:AuthorizationContext|null,featureKey:FeatureKey){return Boolean(isKingAdmin(context)||(context?.features.includes(featureKey)&&(!featureKey.startsWith("ai_")||context.features.includes("app_intelligence"))&&(featureKey!=="crm"||context.features.includes("app_sell"))))}
 export function hasApp(context:AuthorizationContext|null,appKey:AppKey){return Boolean(isKingAdmin(context)||context?.features.includes(appKey))}
-export function hasAnyApp(context:AuthorizationContext|null){return Boolean(isKingAdmin(context)||context?.features.includes("app_sell")||context?.features.includes("app_operations")||context?.features.includes("app_manager")||(context?.features.includes("app_intelligence")&&context.features.some(key=>key==="ai_sales"||key==="ai_marketing"||key==="ai_hr"||key==="ai_inventory"||key==="ai_support")))}
+export function hasAnyApp(context:AuthorizationContext|null){return Boolean(isKingAdmin(context)||["app_sell","app_operations","app_manager","app_accounting","app_stock","app_hr","app_loyalty","app_zatca","app_go"].some(key=>context?.features.includes(key))||(context?.features.includes("app_intelligence")&&context.features.some(key=>key==="ai_sales"||key==="ai_marketing"||key==="ai_customer_care")))}
 export function canAccess(context:AuthorizationContext|null,featureKey:FeatureKey,permissionKey:string){return Boolean(isKingAdmin(context)||(hasFeature(context,featureKey)&&hasPermission(context,permissionKey)))}
 export function canManageCompanyUsers(context:AuthorizationContext|null){return Boolean(isKingAdmin(context)||isSuperAdmin(context)||hasPermission(context,"users.permissions.manage"))}
