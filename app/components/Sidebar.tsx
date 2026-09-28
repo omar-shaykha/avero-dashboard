@@ -7,7 +7,7 @@ import AveroBrand from "./AveroBrand";
 import { useLanguage } from "./LanguageProvider";
 import type { AuthorizationContext } from "@/lib/auth/authorization";
 import { DEFAULT_ORDER, normalizeOrder, type NavSectionKey } from "@/lib/navigation/order";
-import { AppWindow, BadgeCheck, BarChart3, Bot, Building2, Factory, FileText, Gift, GripVertical, Landmark, LayoutGrid, Menu, PackageCheck, PackagePlus, PanelLeftClose, PanelLeftOpen, Settings, ShoppingBag, ShoppingCart, Store, UsersRound, Palette, Warehouse, X } from "lucide-react";
+import { BadgeCheck, BarChart3, Bot, Building2, ChevronDown, ChevronRight, Factory, FileText, Gift, GripVertical, Landmark, LayoutGrid, Menu, PackageCheck, PackagePlus, PanelLeftClose, PanelLeftOpen, Settings, ShoppingCart, Store, UsersRound, Warehouse, X } from "lucide-react";
 
 interface SidebarProps { userEmail?: string; userName?: string; access?: AuthorizationContext | null; }
 type NavIcon = ComponentType<{ size?: number; className?: string }>;
@@ -34,6 +34,7 @@ export default function Sidebar({ access }: SidebarProps) {
   const [dragging, setDragging] = useState<NavSectionKey | null>(null);
   const [orderLoaded, setOrderLoaded] = useState(false);
   const [orderState, setOrderState] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [purchasingOpen, setPurchasingOpen] = useState(false);
 
   useEffect(() => {
     if (access !== undefined) return;
@@ -99,11 +100,11 @@ export default function Sidebar({ access }: SidebarProps) {
   const sellVisible = app("app_sell") && canModule("sales.view", "sales.cashier", "sales.manage");
   const purchaseFromOperations = canOperationsArea("purchasing");
   const purchaseFromSell = app("app_sell") && canModule(...operationsPermissions.purchasing);
-  const crmVisible = app("app_sell") && (isKingAdmin || !!(currentAccess?.features.includes("crm") && permitted("view_crm")));
+  const crmVisible = isKingAdmin || !!(currentAccess?.features.includes("crm") && permitted("view_crm"));
   const monitoringVisible = app("app_manager") && canModule("analytics.view");
   const reportsVisible = (app("app_sell") && canModule("sales.view", "sales.manage", "customers.manage")) || ((app("app_operations") || app("app_stock") || app("app_accounting")) && canModule("inventory.view", "inventory.manage", "production.view", "production.manage", "purchasing.view", "purchasing.manage", "sales.cost.view", "inventory.cost.view"));
   const clientsVisible = isKingAdmin;
-  const appsVisible = app("app_sell") && canModule("settings.view", "settings.manage");
+  const appsVisible = false;
   const settingsVisible = isKingAdmin || (!!currentAccess?.features.some(key => ["app_sell", "app_operations", "app_accounting", "app_stock", "app_manager", "app_intelligence", "app_go", "app_hr", "app_loyalty", "app_zatca"].includes(key)) && canModule("settings.view", "settings.manage"));
   const agentsVisible = has("ai_sales", "view_ai_sales") || has("ai_marketing", "marketing.manage") || has("ai_customer_care", "customer_care.view");
   const width = collapsed ? "md:w-20 w-72" : "md:w-64 w-72";
@@ -148,17 +149,17 @@ export default function Sidebar({ access }: SidebarProps) {
     cashier: sellVisible && canModule("sales.view", "sales.cashier") ? <Main href="/pos?area=cashier" label={collapsed ? "" : L("Cashier", "الكاشير")} icon={Store} active={pathname === "/pos" && currentArea === "cashier"} onClick={() => selectRoute("cashier")} /> : null,
     add_items: sellVisible && canModule("sales.manage") ? <Main href="/pos?area=add-items" label={collapsed ? "" : L("Add Items", "إضافة الأصناف")} icon={PackagePlus} active={pathname === "/pos" && currentArea === "add-items"} onClick={() => selectRoute("add-items")} /> : null,
     inventory: canOperationsArea("inventory") ? <Main href="/operations?area=inventory" label={collapsed ? "" : L("Inventory", "المخزون")} icon={Warehouse} active={pathname === "/operations" && operationsArea === "inventory"} onClick={() => selectOperations("inventory")} /> : null,
-    purchasing: purchaseFromOperations || purchaseFromSell ? <div className="space-y-1"><Main href="/operations?area=purchasing&tab=Orders" label={collapsed ? "" : L("Purchasing", "المشتريات")} icon={ShoppingCart} active={pathname === "/operations" && operationsArea === "purchasing"} onClick={() => selectOperations("purchasing")} />{!collapsed&&<div className="ml-6 space-y-1 border-l border-slate-800 pl-2"><Main href="/operations?area=purchasing&tab=Receipts" label={L("Receiving", "الاستلام")} icon={PackageCheck} active={pathname === "/operations" && operationsArea === "purchasing" && typeof window !== "undefined" && new URLSearchParams(window.location.search).get("tab")==="Receipts"} /><Main href="/operations?area=purchasing&tab=Invoices" label={L("Purchase Invoices", "فواتير المشتريات")} icon={FileText} active={pathname === "/operations" && operationsArea === "purchasing" && typeof window !== "undefined" && new URLSearchParams(window.location.search).get("tab")==="Invoices"} /></div>}</div> : null,
+    purchasing: purchaseFromOperations || purchaseFromSell ? <div className="space-y-1"><div className="flex items-center"><div className="min-w-0 flex-1"><Main href="/operations?area=purchasing&tab=Orders" label={collapsed ? "" : L("Purchasing", "المشتريات")} icon={ShoppingCart} active={pathname === "/operations" && operationsArea === "purchasing"} onClick={() => {selectOperations("purchasing");setPurchasingOpen(true)}} /></div>{!collapsed&&<button type="button" aria-label={L("Toggle purchasing menu","فتح وإغلاق قائمة المشتريات")} onClick={()=>setPurchasingOpen(v=>!v)} className="mr-1 rounded-lg p-2 text-slate-500 hover:bg-slate-800 hover:text-cyan-200">{purchasingOpen?<ChevronDown size={15}/>:<ChevronRight size={15}/>}</button>}</div>{!collapsed&&purchasingOpen&&<div className="ml-6 space-y-1 border-l border-slate-800 pl-2"><Main href="/operations?area=purchasing&tab=Receipts" label={L("Receiving", "الاستلام")} icon={PackageCheck} active={false} /><Main href="/operations?area=purchasing&tab=Invoices" label={L("Purchase Invoices", "فواتير المشتريات")} icon={FileText} active={false} /><Main href="/operations?area=purchasing&tab=Payments" label={L("Payments", "المدفوعات")} icon={Landmark} active={false} /><Main href="/operations?area=purchasing&tab=Returns" label={L("Returns", "المرتجعات")} icon={PackagePlus} active={false} /></div>}</div> : null,
     production: canOperationsArea("production") ? <Main href="/operations?area=production" label={collapsed ? "" : L("Production", "الإنتاج")} icon={Factory} active={pathname === "/operations" && operationsArea === "production"} onClick={() => selectOperations("production")} /> : null,
     accounting: canOperationsArea("accounting") ? <Main href="/operations?area=accounting" label={collapsed ? "" : L("Accounting", "المحاسبة")} icon={Landmark} active={pathname === "/operations" && operationsArea === "accounting"} onClick={() => selectOperations("accounting")} /> : null,
     hr: app("app_hr") ? <Main href="/hr" label={collapsed ? "" : L("HR & Employees", "الموارد البشرية")} icon={UsersRound} active={pathname?.startsWith("/hr")} /> : null,
     loyalty: app("app_loyalty") ? <Main href="/loyalty" label={collapsed ? "" : L("Loyalty & Promotions", "الولاء والعروض")} icon={Gift} active={pathname?.startsWith("/loyalty")} /> : null,
     zatca: app("app_zatca") ? <Main href="/apps/zatca" label={collapsed ? "" : "ZATCA Fatoora"} icon={BadgeCheck} active={pathname?.startsWith("/apps/zatca")} /> : null,
     reports: reportsVisible ? <Main href="/reports" label={collapsed ? "" : L("Reports", "التقارير")} icon={BarChart3} active={pathname === "/reports"} /> : null,
-    apps: appsVisible ? <Main href="/apps" label={collapsed ? "" : L("Apps", "التطبيقات")} icon={AppWindow} active={pathname?.startsWith("/apps")} /> : null,
+    apps: null,
     settings: settingsVisible ? <Main href="/settings" label={collapsed ? "" : L("Settings", "الإعدادات")} icon={Settings} active={pathname?.startsWith("/settings")} /> : null,
-    go: app("app_go") && sellVisible ? <Main href="/go" label={collapsed ? "" : L("AVERO GO", "أفيرو GO")} icon={ShoppingBag} active={pathname === "/go"} /> : null,
-    website_builder: app("app_go") && sellVisible ? <Main href="/go/website-builder" label={collapsed ? "" : L("Website Builder", "مصمم الموقع")} icon={Palette} active={pathname?.startsWith("/go/website-builder")} /> : null,
+    go: null,
+    website_builder: null,
     agents: agentsVisible ? <Main href="/ai-agents" label={collapsed ? "" : L("AI Agent", "وكلاء الذكاء الاصطناعي")} icon={Bot} active={pathname?.startsWith("/ai-")} /> : null,
     crm: crmVisible ? <Main href="/crm" label={collapsed ? "" : t("crm")} icon={UsersRound} active={pathname?.startsWith("/crm")} /> : null,
     clients: clientsVisible ? <Main href="/clients" label={collapsed ? "" : t("clients")} icon={Building2} active={pathname?.startsWith("/clients")} /> : null,
