@@ -3,6 +3,9 @@ import { NextResponse, type NextRequest } from "next/server";
 
 function isPublicPath(path:string){
   if(["/login","/change-password","/privacy","/terms","/data-deletion"].includes(path))return true;
+  // Meta must be able to verify and deliver WhatsApp webhook events without a Supabase user session.
+  // Authentication/signature validation for these requests belongs inside the webhook handlers.
+  if(path==="/api/integrations/whatsapp/native"||path==="/api/integrations/whatsapp/webhook")return true;
   if(/^\/go\/[^/]+$/.test(path))return true;
   if(/^\/api\/go\/[^/]+$/.test(path)&&!["/api/go/manage","/api/go/upload"].includes(path))return true;
   return false;
